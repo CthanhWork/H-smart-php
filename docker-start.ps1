@@ -36,8 +36,10 @@ if (-not (Select-String -LiteralPath '.env' -Pattern '^DB_PASSWORD=.+$' -Quiet))
     throw 'File .env o thu muc goc can co dong DB_PASSWORD voi mat khau PostgreSQL.'
 }
 
-Write-Host 'Giao dien: http://localhost:5173'
-Write-Host 'Hop thu thu nghiem: http://localhost:8025'
+Write-Host 'Sau khi Docker khoi dong xong:'
+Write-Host '1. Mo http://localhost:5173 va chon Dang ky.'
+Write-Host '2. Mo http://localhost:8025, doc thu xac thuc va bam lien ket.'
+Write-Host '3. Quay lai giao dien va Dang nhap bang email, mat khau vua tao.'
 
 if ($useWsl) {
     Write-Host 'Docker dang chay trong WSL. Giu cua so PowerShell nay mo; nhan Ctrl+C de dung.'

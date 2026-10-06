@@ -3,6 +3,8 @@ import './App.css'
 import SellPage from './SellPage'
 import ProductPages from './ProductPages'
 
+const demoMailboxUrl = import.meta.env.VITE_DEMO_MAILBOX_URL as string | undefined
+
 type User = { id: number; email: string; full_name: string | null; status: string }
 type Tokens = { accessToken: string; refreshToken: string; tokenType: 'Bearer'; user: User }
 type ApiResult<T> = { status: 'success' | 'error'; message: string; data: T; errors?: Record<string, string[]> }
@@ -206,8 +208,9 @@ function App() {
             <button type="button" role="tab" aria-selected={mode === 'register'} className={mode === 'register' ? 'active' : ''} onClick={() => switchMode('register')}>Đăng ký</button>
           </div>
           <h2>{mode === 'login' ? 'Chào mừng trở lại' : mode === 'register' ? 'Tạo tài khoản mới' : 'Quên mật khẩu?'}</h2>
-          <p className="card-subtitle">{mode === 'login' ? 'Đăng nhập bằng email đã xác thực của bạn.' : mode === 'register' ? 'Dùng email thật để nhận liên kết xác thực.' : 'Nhập email để nhận liên kết đặt lại mật khẩu.'}</p>
+          <p className="card-subtitle">{mode === 'login' ? 'Đăng nhập bằng email đã xác thực của bạn.' : mode === 'register' ? demoMailboxUrl ? 'Tạo tài khoản rồi xác thực email trong hộp thư thử nghiệm.' : 'Dùng email thật để nhận liên kết xác thực.' : 'Nhập email để nhận liên kết đặt lại mật khẩu.'}</p>
           {notice && <div className="alert success" role="status">{notice}</div>}
+          {demoMailboxUrl && mode === 'register' && <p className="hint">Bản chạy thử: mở <a href={demoMailboxUrl} target="_blank" rel="noreferrer">hộp thư thử nghiệm</a>, bấm liên kết xác thực rồi quay lại đăng nhập.</p>}
           {error && <div className="alert error" role="alert">{error}</div>}
           <form onSubmit={submit}>
             {mode === 'register' && <label>Họ và tên <span>(không bắt buộc)</span><input type="text" autoComplete="name" maxLength={150} value={fullName} onChange={(event) => setFullName(event.target.value)} /></label>}
