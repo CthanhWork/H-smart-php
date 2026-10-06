@@ -65,6 +65,7 @@ services:
         condition: service_healthy
     environment:
       VITE_API_PROXY_TARGET: http://backend:8000
+      VITE_DEMO_MAILBOX_URL: http://localhost:8025
     ports:
       - "127.0.0.1:5173:5173"
     healthcheck:
