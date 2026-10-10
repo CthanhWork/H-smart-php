@@ -10,7 +10,7 @@ Xem [PROJECT_LOG tổng hợp](PROJECT_LOG.md); nhật ký chi tiết được t
 
 ## 🚀 Khởi động nhanh 1 phút (Khuyến nghị)
 
-**Cách dễ nhất - Tự động tạo admin và khởi động mọi thứ:**
+**Cách 1: Dùng Quick Deploy Script (Khuyến nghị - có progress và error handling)**
 
 ### Windows
 ```powershell
@@ -23,12 +23,18 @@ chmod +x quick-deploy.sh
 ./quick-deploy.sh
 ```
 
-Script sẽ tự động:
+**Cách 2: Dùng Docker Compose trực tiếp (Nhanh nhất)**
+
+```bash
+docker compose up -d
+```
+
+Cả hai cách đều tự động:
 - ✅ Tạo file cấu hình `.env` với mật khẩu ngẫu nhiên
 - ✅ Build và khởi động 4 containers (Database, Backend, Frontend, Email)
 - ✅ Chạy database migrations
 - ✅ **Tạo tài khoản admin** (`admin@hsmart.local` / `Admin@123456`)
-- ✅ Hiển thị thông tin đăng nhập
+- ✅ Sẵn sàng sử dụng
 
 Sau 2-5 phút, mở:
 - **🌐 Ứng dụng**: http://localhost:5173

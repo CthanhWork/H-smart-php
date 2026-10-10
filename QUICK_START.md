@@ -15,18 +15,26 @@ Nếu chưa có Docker:
 
 ## Khởi động 1 lệnh
 
-### Windows (PowerShell):
+### Cách 1: Quick Deploy Script (Khuyến nghị)
+
+**Windows (PowerShell):**
 ```powershell
 .\quick-deploy.ps1
 ```
 
-### Linux/Mac:
+**Linux/Mac:**
 ```bash
 chmod +x quick-deploy.sh
 ./quick-deploy.sh
 ```
 
-Script sẽ tự động:
+### Cách 2: Docker Compose trực tiếp (Nhanh nhất)
+
+```bash
+docker compose up -d
+```
+
+Cả hai cách đều tự động:
 1. ✅ Tạo file cấu hình `.env` với mật khẩu ngẫu nhiên
 2. ✅ Build và khởi động 4 containers (Database, Backend, Frontend, Email)
 3. ✅ Chạy database migrations

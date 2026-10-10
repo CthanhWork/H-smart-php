@@ -21,4 +21,21 @@ php artisan migrate --force --no-interaction
 php artisan db:seed --force --no-interaction
 php artisan storage:link --force --no-interaction
 
+# Tạo admin user nếu chưa có
+php artisan tinker --execute='
+$admin = App\Modules\User\Models\User::where("email", "admin@hsmart.local")->first();
+if (!$admin) {
+    App\Modules\User\Models\User::create([
+        "username" => "admin",
+        "email" => "admin@hsmart.local",
+        "password_hash" => bcrypt("Admin@123456"),
+        "role" => "admin",
+        "status" => "active"
+    ]);
+    echo "✅ Admin user created: admin@hsmart.local / Admin@123456\n";
+} else {
+    echo "ℹ️  Admin user already exists\n";
+}
+' || echo "⚠️  Could not verify admin user creation"
+
 exec "$@"
