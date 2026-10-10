@@ -2,10 +2,11 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import './App.css'
 import SellPage from './SellPage'
 import ProductPages from './ProductPages'
+import AdminPage from './AdminPage'
 
 const demoMailboxUrl = import.meta.env.VITE_DEMO_MAILBOX_URL as string | undefined
 
-type User = { id: number; email: string; full_name: string | null; status: string }
+type User = { id: number; email: string; full_name: string | null; status: string; role: 'member' | 'admin' }
 type Tokens = { accessToken: string; refreshToken: string; tokenType: 'Bearer'; user: User }
 type ApiResult<T> = { status: 'success' | 'error'; message: string; data: T; errors?: Record<string, string[]> }
 
@@ -32,6 +33,7 @@ function App() {
   const isVerifying = path === '/verify-email'
   const isResetting = path === '/reset-password'
   const isSelling = path === '/sell'
+  const isAdmin = path === '/admin'
   const editMatch = path.match(/^\/products\/(\d+)\/edit$/)
   const isProducts = path === '/products' || path === '/me/products' || /^\/products\/\d+$/.test(path)
   const verificationToken = isVerifying ? new URLSearchParams(window.location.search).get('token') : null
@@ -157,7 +159,7 @@ function App() {
 
   return <main className="page">
     <header className="site-header"><div className="brand"><span className="brand-mark">H</span><span>H-Smart</span></div><span className="header-tag">Chợ đồ cũ dành cho sinh viên</span></header>
-    {isSelling || editMatch ? <SellPage key={path} accessToken={tokens?.accessToken ?? null} editId={editMatch ? Number(editMatch[1]) : undefined} onSaved={(id) => navigate(`/products/${id}`)} onBack={() => navigate(editMatch ? `/products/${editMatch[1]}` : '/')} /> : isProducts ? <ProductPages key={path} path={path} accessToken={tokens?.accessToken ?? null} userId={tokens?.user.id ?? null} navigate={navigate} /> : <section className="auth-layout">
+    {isSelling || editMatch ? <SellPage key={path} accessToken={tokens?.accessToken ?? null} editId={editMatch ? Number(editMatch[1]) : undefined} onSaved={(id) => navigate(`/products/${id}`)} onBack={() => navigate(editMatch ? `/products/${editMatch[1]}` : '/')} /> : isAdmin && tokens ? <AdminPage accessToken={tokens.accessToken} onBack={() => navigate('/')} /> : isProducts ? <ProductPages key={path} path={path} accessToken={tokens?.accessToken ?? null} userId={tokens?.user.id ?? null} navigate={navigate} /> : <section className="auth-layout">
       <div className="intro">
         <span className="eyebrow">MUA BÁN THÔNG MINH HƠN</span>
         <h1>Đồ cũ hữu ích.<br /><em>Khởi đầu mới.</em></h1>
@@ -173,6 +175,7 @@ function App() {
           <button className="primary-button" type="button" onClick={() => navigate('/sell')}>Đăng bán sản phẩm</button>
           <button className="primary-button" type="button" onClick={() => navigate('/products')}>Xem sản phẩm đang bán</button>
           <button className="text-button" type="button" onClick={() => navigate('/me/products')}>Sản phẩm của tôi</button>
+          {tokens.user.role === 'admin' && <button className="primary-button" type="button" onClick={() => navigate('/admin')}>Quản trị viên</button>}
           <form className="change-form" onSubmit={submitChange}>
             <h3>Đổi mật khẩu</h3>
             <label>Mật khẩu hiện tại<input type="password" autoComplete="current-password" required value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>

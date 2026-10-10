@@ -103,3 +103,48 @@ footer { padding: 30px 0; color: #a1aca2; font-size: 12px; }
 .image-order button { border: 0; background: #edf2eb; border-radius: 4px; color: #2f7049; }
 @media(max-width: 1000px) { .product-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
 @media(max-width: 640px) { .product-heading, .product-detail { display: block; } .product-grid { grid-template-columns: 1fr; } .product-actions { margin-bottom: 16px; } .product-gallery { margin-bottom: 24px; } }
+.admin-page { flex: 1; width: 100%; max-width: 1200px; margin: 0 auto; padding: 48px 0 80px; }
+.admin-header { display: flex; align-items: center; gap: 24px; margin-bottom: 32px; }
+.admin-header h1 { margin: 0; color: #183b2b; font-size: 42px; letter-spacing: -.05em; }
+.back-button { border: 1px solid #dce3d9; background: white; color: #2f7049; border-radius: 9px; padding: 12px 18px; font-weight: 700; }
+.back-button:hover { background: #f2f5ef; }
+.admin-tabs { display: flex; gap: 12px; margin-bottom: 32px; }
+.admin-tabs button { border: 1px solid #dce3d9; background: white; color: #5a6e61; border-radius: 9px; padding: 14px 24px; font-weight: 700; transition: all .2s; }
+.admin-tabs button.active { background: #2f7049; color: white; border-color: #2f7049; }
+.admin-tabs button:hover:not(.active) { background: #f2f5ef; }
+.admin-section h2 { color: #183b2b; font-size: 24px; margin: 0 0 24px; }
+.filters { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+.filters input, .filters select { width: 100%; height: 48px; border-radius: 9px; border: 1px solid #dce3d9; background: #fff; padding: 0 15px; color: #23392b; }
+.filters input:focus, .filters select:focus { border-color: #4c9263; box-shadow: 0 0 0 3px rgba(76, 146, 99, .13); outline: none; }
+.admin-list { display: grid; gap: 16px; }
+.admin-card { background: #fff; border: 1px solid #e9ece5; border-radius: 14px; padding: 24px; }
+.admin-card-header { display: flex; justify-content: space-between; align-items: start; gap: 16px; margin-bottom: 12px; }
+.admin-card-header h3 { margin: 0; color: #183b2b; font-size: 18px; font-weight: 700; }
+.status-badge { display: inline-block; padding: 6px 12px; border-radius: 99px; font-size: 11px; font-weight: 800; background: #eaf6ec; color: #2f7049; }
+.status-badge.suspended { background: #fff0ed; color: #b34231; }
+.role-badge { display: inline-block; padding: 6px 12px; border-radius: 99px; font-size: 11px; font-weight: 800; background: #f2f5ef; color: #5a6e61; }
+.badges { display: flex; gap: 8px; }
+.product-description { color: #68796e; font-size: 14px; line-height: 1.6; margin-bottom: 12px; }
+.product-meta, .user-meta { display: flex; gap: 16px; color: #738379; font-size: 13px; margin-bottom: 16px; }
+.user-email { color: #5a6e61; font-size: 14px; margin-bottom: 12px; }
+.admin-actions { display: flex; gap: 12px; }
+.admin-actions button { border: 1px solid #dce3d9; background: white; border-radius: 9px; padding: 10px 18px; font-weight: 700; transition: all .2s; }
+.approve-button { color: #2f7049; border-color: #bcd9c4; }
+.approve-button:hover { background: #eaf6ec; }
+.hide-button, .suspend-button { color: #a83f35; border-color: #eac2bc; }
+.hide-button:hover, .suspend-button:hover { background: #fff0ed; }
+.restore-button { color: #2f7049; border-color: #bcd9c4; }
+.restore-button:hover { background: #eaf6ec; }
+.empty-state { text-align: center; color: #738379; padding: 48px 0; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(23, 60, 43, .45); display: grid; place-items: center; z-index: 100; }
+.modal { background: #fff; border-radius: 18px; padding: 32px; max-width: 520px; width: 90%; box-shadow: 0 24px 60px rgba(23, 60, 43, .25); }
+.modal h3 { margin: 0 0 24px; color: #183b2b; font-size: 22px; }
+.modal label { display: grid; gap: 8px; color: #35483b; font-size: 13px; font-weight: 700; margin-bottom: 24px; }
+.modal textarea { width: 100%; border: 1px solid #dce3d9; border-radius: 9px; background: #fff; padding: 12px 15px; color: #23392b; outline: none; font-family: inherit; resize: vertical; }
+.modal textarea:focus { border-color: #4c9263; box-shadow: 0 0 0 3px rgba(76, 146, 99, .13); }
+.modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+.modal-actions button { border: 1px solid #dce3d9; background: white; color: #5a6e61; border-radius: 9px; padding: 12px 24px; font-weight: 700; }
+.modal-actions .danger-button { background: #b34231; color: white; border-color: #b34231; }
+.modal-actions .danger-button:hover { background: #a13729; }
+.modal-actions button:disabled { opacity: .55; cursor: wait; }
+@media(max-width: 768px) { .admin-header { flex-direction: column; align-items: start; } .admin-tabs { width: 100%; } .admin-tabs button { flex: 1; text-align: center; } .filters { grid-template-columns: 1fr; } .admin-card-header { flex-direction: column; } .badges { margin-top: 8px; } }
