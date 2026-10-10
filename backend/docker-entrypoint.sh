@@ -18,6 +18,7 @@ fi
 
 php artisan config:clear --no-interaction
 php artisan migrate --force --no-interaction
+php artisan db:seed --force --no-interaction
 php artisan storage:link --force --no-interaction
 
 exec "$@"

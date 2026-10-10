@@ -1,27 +1,36 @@
-# Local notes and generated reports stay in this workspace.
-/docs/
-/reports/
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Docker
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary
+temp/
+tmp/
+*.tmp
+
+# Documentation
+*.txt
 *.md
-*.docx
-
-# Secrets and machine-specific state.
-**/.env
-**/.env.*
-!**/.env.example
-**/auth.json
-**/*.sqlite*
-**/*.log
-**/.phpunit.result.cache
-**/.phpunit.cache/
-**/.DS_Store
-
-# Dependencies and build output.
-/backend/vendor/
-/frontend/node_modules/
-/frontend/dist/
-/frontend/src/assets/hero.png
-/backend/public/favicon.ico
-/backend/bootstrap/cache/*.php
-/backend/storage/framework/views/*.php
-/backend/storage/app/private/*
-/backend/storage/app/public/*
+docs/
+reports/
