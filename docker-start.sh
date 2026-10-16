@@ -51,6 +51,7 @@ if [ $? -eq 0 ]; then
     echo "  • Giao diện web:     http://localhost:5173"
     echo "  • Email thử nghiệm:  http://localhost:8025"
     echo "  • Backend API:       http://localhost:8000"
+    echo "  • Quản lý database:  http://localhost:8081"
     echo ""
     echo "Hướng dẫn sử dụng:"
     echo "  1. Mở http://localhost:5173 và chọn 'Đăng ký'"

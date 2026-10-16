@@ -87,6 +87,7 @@ Write-Host "Truy cap ung dung:" -ForegroundColor Cyan
 Write-Host "  • Giao dien web:     http://localhost:5173" -ForegroundColor White
 Write-Host "  • Email thu nghiem:  http://localhost:8025" -ForegroundColor White
 Write-Host "  • Backend API:       http://localhost:8000" -ForegroundColor White
+Write-Host "  • Quan ly database:  http://localhost:8081" -ForegroundColor White
 Write-Host ""
 Write-Host "Huong dan su dung:" -ForegroundColor Cyan
 Write-Host "  1. Mo http://localhost:5173 va chon 'Dang ky'" -ForegroundColor Gray
