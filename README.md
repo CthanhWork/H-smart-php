@@ -30,9 +30,11 @@ Tài khoản quản trị mặc định trên môi trường Docker mới:
 
 Migration và seeder trong `backend/database` là nguồn dữ liệu có thể tái tạo. Khi khởi tạo lần đầu, `DatabaseSeeder` tạo tài khoản quản trị, các danh mục và các sản phẩm demo. Seeder sản phẩm có thể chạy lại mà không tạo bản sao cho các tin mẫu.
 
-Dữ liệu đang chạy được lưu trong các Docker volumes, không nằm trong Git. `docker compose down` dừng dịch vụ và giữ dữ liệu. Lệnh `docker compose down -v` xóa database và các tệp lưu trong volumes; lần khởi động tiếp theo sẽ tạo lại database từ migration và seeder.
+Dự án có kèm snapshot database thử nghiệm tại `database/hsmart-demo.sql`. Trên lần khởi động đầu tiên với Docker volume mới, MySQL tự nạp snapshot này; sau đó backend chạy migration và seeder để cập nhật cấu trúc và dữ liệu mẫu. Snapshot gồm tài khoản demo, danh mục, sản phẩm và toàn bộ dữ liệu thử nghiệm hiện có.
 
-Trong phpMyAdmin, chọn máy chủ `db`, đăng nhập với tên người dùng `hsmart` và mật khẩu lấy từ file `.env` ở thư mục dự án. Không commit `.env` hoặc bản sao lưu chứa tài khoản người dùng lên GitHub.
+Dữ liệu sau khi chạy được lưu trong Docker volume. `docker compose down` dừng dịch vụ và giữ dữ liệu. Lệnh `docker compose down -v` xóa database và các tệp lưu trong volumes; lần khởi động tiếp theo sẽ nạp lại snapshot từ đầu. Lệnh này xóa mọi thay đổi cục bộ nên chỉ dùng khi muốn reset toàn bộ dữ liệu.
+
+Trong phpMyAdmin, chọn máy chủ `db`, đăng nhập với tên người dùng `hsmart` và mật khẩu lấy từ file `.env` ở thư mục dự án. Snapshot trong repo chỉ chứa dữ liệu phục vụ đồ án và tài khoản thử nghiệm. Không thay file snapshot bằng database thật hoặc commit `.env` lên GitHub.
 
 ## Lệnh thường dùng
 

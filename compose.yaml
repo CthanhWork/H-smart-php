@@ -8,6 +8,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?Run docker-start.ps1 to create the local database password}
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./database/hsmart-demo.sql:/docker-entrypoint-initdb.d/01-hsmart-demo.sql:ro
     command: --default-authentication-plugin=mysql_native_password
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "hsmart", "-p${DB_PASSWORD}"]
