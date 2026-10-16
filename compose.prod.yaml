@@ -71,6 +71,30 @@ services:
     networks:
       - hsmart-network
 
+  scheduler:
+    build: ./backend
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: ["php", "artisan", "schedule:work"]
+    environment:
+      HSMART_SKIP_BOOTSTRAP: "1"
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL:-http://localhost:8000}
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_DATABASE: hsmart
+      DB_USERNAME: hsmart
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    volumes:
+      - backend_config:/run/hsmart
+      - backend_storage:/var/www/html/storage
+    restart: unless-stopped
+    networks:
+      - hsmart-network
+
   frontend:
     build: ./frontend
     depends_on:

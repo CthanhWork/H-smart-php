@@ -1,14 +1,16 @@
 services:
   db:
-    image: postgres:17-alpine
+    image: mysql:8.0
     environment:
-      POSTGRES_DB: hsmart
-      POSTGRES_USER: hsmart
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?Run docker-start.ps1 to create the local database password}
+      MYSQL_DATABASE: hsmart
+      MYSQL_USER: hsmart
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Run docker-start.ps1 to create the local database password}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?Run docker-start.ps1 to create the local database password}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hsmart -d hsmart"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "hsmart", "-p${DB_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -33,9 +35,9 @@ services:
       APP_ENV: local
       APP_DEBUG: "true"
       APP_URL: http://localhost:8000
-      DB_CONNECTION: pgsql
+      DB_CONNECTION: mysql
       DB_HOST: db
-      DB_PORT: "5432"
+      DB_PORT: "3306"
       DB_DATABASE: hsmart
       DB_USERNAME: hsmart
       DB_PASSWORD: ${DB_PASSWORD:?Run docker-start.ps1 to create the local database password}
@@ -58,6 +60,28 @@ services:
       retries: 20
       start_period: 30s
 
+  scheduler:
+    build: ./backend
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: ["php", "artisan", "schedule:work"]
+    environment:
+      HSMART_SKIP_BOOTSTRAP: "1"
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_DATABASE: hsmart
+      DB_USERNAME: hsmart
+      DB_PASSWORD: ${DB_PASSWORD:?Run docker-start.ps1 to create the local database password}
+    volumes:
+      - backend_config:/run/hsmart
+      - backend_storage:/var/www/html/storage
+    restart: unless-stopped
+
   frontend:
     build: ./frontend
     depends_on:
@@ -76,7 +100,7 @@ services:
       start_period: 15s
 
 volumes:
-  postgres_data:
+  mysql_data:
   backend_config:
   backend_storage:
   mailpit_data:

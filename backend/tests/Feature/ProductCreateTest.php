@@ -33,6 +33,7 @@ class ProductCreateTest extends TestCase
             'title' => 'Máy tính cầm tay',
             'description' => 'Máy còn dùng tốt, đã thay pin.',
             'price' => 150000,
+            'category_id' => 1,
             'condition' => 'good',
         ];
     }
@@ -74,7 +75,7 @@ class ProductCreateTest extends TestCase
             'seller_id' => 999,
             'status' => 'active',
         ])->assertUnprocessable()->assertJsonValidationErrors([
-            'title', 'description', 'price', 'condition', 'seller_id', 'status',
+            'title', 'description', 'price', 'category_id', 'condition', 'seller_id', 'status',
         ]);
         $this->assertDatabaseCount('products', 0);
 
@@ -117,5 +118,26 @@ class ProductCreateTest extends TestCase
         ], ['Accept' => 'application/json'])
             ->assertUnprocessable()->assertJsonValidationErrors('images');
         $this->assertDatabaseCount('products', 1);
+    }
+
+    public function test_seller_can_configure_negotiation_and_valid_minimum_price(): void
+    {
+        $seller = $this->user('seller@example.com');
+        $response = $this->withToken($this->token($seller))->postJson('/api/v1/products', [
+            ...$this->payload(), 'negotiable' => true, 'min_price' => 120000,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.negotiable', true)
+            ->assertJsonPath('data.min_price', 120000);
+        $this->assertDatabaseHas('products', [
+            'id' => $response->json('data.id'),
+            'negotiable' => true,
+            'min_price' => 120000,
+        ]);
+
+        $this->withToken($this->token($seller))->postJson('/api/v1/products', [
+            ...$this->payload(), 'negotiable' => true, 'min_price' => 150001,
+        ])->assertUnprocessable()->assertJsonValidationErrors('min_price');
     }
 }

@@ -56,7 +56,10 @@ class UpdateProductAction
                     'title' => $data['title'],
                     'description' => $data['description'],
                     'price' => $data['price'],
+                    'category_id' => $data['category_id'],
                     'condition' => $data['condition'],
+                    'negotiable' => (bool) ($data['negotiable'] ?? false),
+                    'min_price' => ! empty($data['negotiable']) && isset($data['min_price']) ? $data['min_price'] : null,
                     'status' => Product::STATUS_PENDING_REVIEW,
                 ]);
                 DB::afterCommit(fn () => $this->imageStorage->deleteUrls($oldUrls));

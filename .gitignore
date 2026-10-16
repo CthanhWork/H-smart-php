@@ -31,6 +31,9 @@ tmp/
 
 # Documentation
 *.txt
-*.md
 docs/
 reports/
+
+# Allow important markdown files
+!README.md
+!WORKLOG_*.md

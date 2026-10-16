@@ -2,7 +2,11 @@ export type ProductImage = { id: number; url: string; sort_order: number }
 export type Product = {
   id: number; seller_id: number; title: string; description: string; price: number
   condition: string; status: string; images: ProductImage[]; created_at: string; updated_at: string
+  negotiable: boolean; min_price: number | null
+  category_id: number | null; category: { id: number; name: string; slug: string } | null
+  rating_average?: number | null; review_count?: number
 }
+export type Category = { id: number; name: string; slug: string }
 export type ProductPage = { content: Product[]; pageNo: number; pageSize: number; totalElements: number; totalPages: number; last: boolean }
 export type ProductResult<T> = { status: string; message: string; data: T; errors?: Record<string, string[]> }
 
@@ -21,7 +25,7 @@ export async function productRequest<T>(path: string, token: string, options: Re
       ...options,
       headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, ...options.headers },
     })
-  } catch { throw new Error('Không thể kết nối máy chủ. Hãy thử lại sau.') }
+  } catch { throw new Error('Không kết nối được với máy chủ. Thử lại sau nhé.') }
   const result = await response.json() as ProductResult<T>
   if (!response.ok) {
     const detail = result.errors && Object.values(result.errors)[0]?.[0]

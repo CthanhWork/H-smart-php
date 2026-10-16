@@ -34,7 +34,7 @@ class ProductManagementTest extends TestCase
 
     private function payload(): array
     {
-        return ['title' => 'Máy tính cầm tay mới', 'description' => 'Mô tả đã cập nhật và đủ dài.', 'price' => 180000, 'condition' => 'like_new'];
+        return ['title' => 'Máy tính cầm tay mới', 'description' => 'Mô tả đã cập nhật và đủ dài.', 'price' => 180000, 'category_id' => 1, 'condition' => 'like_new'];
     }
 
     public function test_buyer_only_sees_active_products_with_search_filters_and_pagination(): void
