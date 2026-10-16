@@ -15,7 +15,13 @@ class ProductResource extends JsonResource
             'title' => $this->title,
             'description' => $this->description,
             'price' => $this->price,
+            'category_id' => $this->category_id,
+            'category' => $this->category ? ['id' => $this->category->id, 'name' => $this->category->name, 'slug' => $this->category->slug] : null,
+            'rating_average' => $this->when(isset($this->reviews_avg_rating), $this->reviews_avg_rating === null ? null : round((float) $this->reviews_avg_rating, 1)),
+            'review_count' => $this->when(isset($this->reviews_count), (int) $this->reviews_count),
             'condition' => $this->condition,
+            'negotiable' => (bool) $this->negotiable,
+            'min_price' => $this->min_price,
             'status' => $this->status,
             'images' => $this->images->map(fn ($image) => [
                 'id' => $image->id,

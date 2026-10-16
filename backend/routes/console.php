@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -35,3 +36,10 @@ Artisan::command('make:admin {email} {password=Admin@123456}', function (string 
         $this->line("• Mật khẩu: {$password}");
     }
 })->purpose('Tạo mới hoặc nâng cấp tài khoản Admin');
+
+Artisan::command('orders:expire-pending', function (\App\Modules\Order\Actions\ExpirePendingOrdersAction $expire) {
+    $count = $expire->execute();
+    $this->info("Đã giải phóng {$count} đơn chờ thanh toán hết hạn.");
+})->purpose('Giải phóng sản phẩm đã hết thời gian chờ thanh toán');
+
+Schedule::command('orders:expire-pending')->everyMinute()->withoutOverlapping();

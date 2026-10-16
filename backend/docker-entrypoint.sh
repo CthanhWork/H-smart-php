@@ -17,9 +17,10 @@ if ! grep -q '^JWT_SECRET=.' /run/hsmart/.env; then
 fi
 
 php artisan config:clear --no-interaction
-php artisan migrate --force --no-interaction
-php artisan db:seed --force --no-interaction
-php artisan storage:link --force --no-interaction
+if [ "${HSMART_SKIP_BOOTSTRAP:-0}" != "1" ]; then
+    php artisan migrate --force --no-interaction
+    php artisan db:seed --force --no-interaction
+    php artisan storage:link --force --no-interaction
 
 # Tạo admin user nếu chưa có
 php artisan tinker --execute='
@@ -37,5 +38,6 @@ if (!$admin) {
     echo "ℹ️  Admin user already exists\n";
 }
 ' || echo "⚠️  Could not verify admin user creation"
+fi
 
 exec "$@"

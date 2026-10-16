@@ -38,6 +38,9 @@ class ProductController
         if ($condition = $request->input('filter.condition')) {
             $query->where('condition', $condition);
         }
+        if ($categoryId = $request->input('filter.category_id')) {
+            $query->where('category_id', $categoryId);
+        }
         if ($min = $request->input('filter.min_price')) {
             $query->where('price', '>=', $min);
         }
@@ -46,7 +49,7 @@ class ProductController
         }
         $number = (int) $request->input('page.number', 0);
         $size = (int) $request->input('page.size', 12);
-        $results = $query->with('images')->orderByDesc('created_at')->orderByDesc('id')
+        $results = $query->with(['images', 'category'])->orderByDesc('created_at')->orderByDesc('id')
             ->paginate($size, ['*'], 'page', $number + 1);
         $totalPages = $results->lastPage();
 
@@ -64,7 +67,7 @@ class ProductController
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $product = Product::with('images')->findOrFail($id);
+        $product = Product::with(['images', 'category'])->withAvg('reviews', 'rating')->withCount('reviews')->findOrFail($id);
         abort_unless($product->status === Product::STATUS_ACTIVE || $product->seller_id === $request->user()->id, 404);
 
         return response()->json(['status' => 'success', 'message' => 'Đã tải sản phẩm.', 'data' => new ProductResource($product)]);

@@ -22,7 +22,7 @@ return new class extends Migration
             $table->text('avatar_url')->nullable();
             $table->string('status', 30)->default('pending_verification');
             $table->decimal('trust_score', 4, 2)->default(0);
-            $table->timestampsTz();
+            $table->timestamps();
         });
 
         Schema::create('account_tokens', function (Blueprint $table) {
@@ -30,9 +30,9 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->string('type', 30);
             $table->char('token_hash', 64)->unique();
-            $table->timestampTz('expires_at');
-            $table->timestampTz('used_at')->nullable();
-            $table->timestampsTz();
+            $table->timestamp('expires_at');
+            $table->timestamp('used_at')->nullable();
+            $table->timestamps();
             $table->index(['user_id', 'type', 'used_at']);
         });
     }

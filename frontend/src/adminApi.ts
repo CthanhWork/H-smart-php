@@ -43,6 +43,8 @@ export type ApiResult<T> = {
   data: T
 }
 
+export type Category = { id: number; name: string; slug: string; products_count: number }
+
 async function adminRequest<T>(
   path: string,
   token: string,
@@ -106,4 +108,20 @@ export async function restoreUser(token: string, userId: number): Promise<void> 
   await adminRequest<{ user: User }>(`users/${userId}/restore`, token, {
     method: 'POST',
   })
+}
+
+export async function getCategories(token: string): Promise<Category[]> {
+  return (await adminRequest<Category[]>('categories', token)).data
+}
+
+export async function createCategory(token: string, name: string): Promise<Category> {
+  return (await adminRequest<Category>('categories', token, { method: 'POST', body: JSON.stringify({ name }) })).data
+}
+
+export async function updateCategory(token: string, id: number, name: string): Promise<Category> {
+  return (await adminRequest<Category>(`categories/${id}`, token, { method: 'PATCH', body: JSON.stringify({ name }) })).data
+}
+
+export async function deleteCategory(token: string, id: number): Promise<void> {
+  await adminRequest<null>(`categories/${id}`, token, { method: 'DELETE' })
 }
