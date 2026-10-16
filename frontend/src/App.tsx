@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import { Button } from './components/ui/button'
 import { Alert } from './components/ui/alert'
-import TopBanner from './components/layout/TopBanner'
 import Navbar from './components/layout/Navbar'
 import Footer from './components/layout/Footer'
 import SellPage from './SellPage'
@@ -10,6 +9,8 @@ import OfferPages from './OfferPages'
 import OrderPages from './OrderPages'
 import AdminPage from './AdminPage'
 import MessagePages from './MessagePages'
+import HomePage from './HomePage'
+import ProfilePage from './ProfilePage'
 
 const demoMailboxUrl = import.meta.env.VITE_DEMO_MAILBOX_URL as string | undefined
 
@@ -43,10 +44,11 @@ function App() {
   const isSelling = path === '/sell'
   const isAdmin = path === '/admin'
   const editMatch = path.match(/^\/products\/(\d+)\/edit$/)
-  const isProducts = path === '/products' || path === '/me/products' || /^\/products\/\d+$/.test(path)
+  const isProducts = path === '/products' || path === '/me/products' || path === '/me/favorites' || /^\/products\/\d+$/.test(path)
   const isOffers = path === '/me/offers'
   const isOrders = path === '/me/orders'
   const isMessages = path === '/me/messages'
+  const isProfile = path === '/me/profile'
   const isOrderCreation = path === '/orders/create'
   const verificationToken = isVerifying ? new URLSearchParams(window.location.search).get('token') : null
   const [resetToken, setResetToken] = useState(() => isResetting ? new URLSearchParams(window.location.search).get('token') : null)
@@ -63,10 +65,20 @@ function App() {
   const [loading, setLoading] = useState(Boolean(verificationToken))
 
   useEffect(() => {
+    if (path === '/login') setMode('login')
+    if (path === '/register') setMode('register')
+    if (path === '/forgot-password') setMode('forgot')
+  }, [path])
+
+  useEffect(() => {
     const onPopState = () => { setPath(window.location.pathname); setNavigationVersion((version) => version + 1) }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
+
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0)
+  }, [navigationVersion])
 
   function navigate(nextPath: string) {
     window.history.pushState({}, '', nextPath)
@@ -91,6 +103,7 @@ function App() {
 
   function switchMode(next: 'login' | 'register' | 'forgot') {
     setMode(next); setError(''); setNotice(''); setPassword(''); setConfirmation('')
+    navigate(next === 'forgot' ? '/forgot-password' : `/${next}`)
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -106,7 +119,7 @@ function App() {
         setNotice(result.message); setPassword(''); setConfirmation('')
       } else {
         const result = await api<Tokens>('login', { method: 'POST', body: JSON.stringify({ email, password }) })
-        setTokens(result.data); setPassword('')
+        setTokens(result.data); setPassword(''); navigate('/')
       }
     } catch (cause) { setError((cause as Error).message) }
     finally { setLoading(false) }
@@ -170,13 +183,15 @@ function App() {
     finally { setTokens(null); setLoading(false) }
   }
 
-  const content = isSelling || editMatch ? <SellPage key={path} accessToken={tokens?.accessToken ?? null} editId={editMatch ? Number(editMatch[1]) : undefined} onSaved={(id) => navigate(`/products/${id}`)} onBack={() => navigate(editMatch ? `/products/${editMatch[1]}` : '/')} /> : isAdmin && tokens ? <AdminPage accessToken={tokens.accessToken} onBack={() => navigate('/')} /> : isProducts ? path === '/products' || path === '/me/products' ? <ProductListPage key={path} accessToken={tokens?.accessToken ?? ''} navigate={navigate} mine={path === '/me/products'} /> : <ProductDetailPage key={path} accessToken={tokens?.accessToken ?? ''} userId={tokens?.user.id ?? null} navigate={navigate} /> : isOffers && tokens ? <OfferPages key={path} accessToken={tokens.accessToken} userId={tokens.user.id} navigate={navigate} /> : (isOrders || isOrderCreation) && tokens ? <OrderPages key={`${path}${window.location.search}`} accessToken={tokens.accessToken} userId={tokens.user.id} navigate={navigate} mode={isOrderCreation ? 'create' : 'list'} /> : isMessages && tokens ? <MessagePages key={`${path}${window.location.search}${navigationVersion}`} accessToken={tokens.accessToken} userId={tokens.user.id} navigate={navigate} /> : <section className="mx-auto grid max-w-frame items-center gap-10 px-4 py-12 md:grid-cols-[1fr_0.85fr] md:py-20 xl:px-0">
-      <div><span className="text-xs font-medium uppercase tracking-[0.18em] text-black/50">Chợ đồ cũ dành cho sinh viên</span><h1 className="mt-4 font-satoshi font-bold tracking-tight text-4xl uppercase leading-tight sm:text-5xl lg:text-6xl">Mua bán đồ cũ.<br /><span className="text-black/45">Dễ dàng, an tâm.</span></h1><p className="mt-5 max-w-lg text-base leading-relaxed text-black/60">Tìm sách, thiết bị học tập và đồ dùng đã qua sử dụng từ sinh viên khác. Đăng nhập bằng email đã xác nhận để mua bán.</p><div className="mt-8 grid max-w-lg grid-cols-3 gap-3 border-t border-black/10 pt-5 text-xs text-black/55 sm:text-sm"><span><strong className="block text-lg text-black">01</strong>Tạo tài khoản</span><span><strong className="block text-lg text-black">02</strong>Xác thực email</span><span><strong className="block text-lg text-black">03</strong>Khám phá</span></div></div>
+  const isPrivateProductList = path === '/me/products' || path === '/me/favorites'
+  const pageContent = isSelling || editMatch ? <SellPage key={path} accessToken={tokens?.accessToken ?? null} editId={editMatch ? Number(editMatch[1]) : undefined} onSaved={(id) => navigate(`/products/${id}`)} onBack={() => navigate(editMatch ? `/products/${editMatch[1]}` : '/')} /> : isAdmin && tokens ? <AdminPage accessToken={tokens.accessToken} onBack={() => navigate('/')} /> : isProfile && tokens ? <ProfilePage accessToken={tokens.accessToken} navigate={navigate} onSaved={(fullName) => setTokens((current) => current ? { ...current, user: { ...current.user, full_name: fullName } } : current)} /> : isProducts && (!isPrivateProductList || tokens) ? path === '/products' || isPrivateProductList ? <ProductListPage key={`${path}${window.location.search}`} accessToken={tokens?.accessToken ?? ''} navigate={navigate} mine={path === '/me/products'} favorites={path === '/me/favorites'} /> : <ProductDetailPage key={path} accessToken={tokens?.accessToken ?? ''} userId={tokens?.user.id ?? null} navigate={navigate} /> : isOffers && tokens ? <OfferPages key={path} accessToken={tokens.accessToken} userId={tokens.user.id} navigate={navigate} /> : (isOrders || isOrderCreation) && tokens ? <OrderPages key={`${path}${window.location.search}`} accessToken={tokens.accessToken} userId={tokens.user.id} navigate={navigate} mode={isOrderCreation ? 'create' : 'list'} /> : isMessages && tokens ? <MessagePages key={`${path}${window.location.search}${navigationVersion}`} accessToken={tokens.accessToken} userId={tokens.user.id} navigate={navigate} /> : null
+  const authContent = <section className="font-vietnamese mx-auto grid max-w-frame items-center gap-10 px-4 py-12 md:grid-cols-[1fr_0.85fr] md:py-20 xl:px-0">
+      <div><span className="text-xs font-medium uppercase tracking-[0.18em] text-black/50">Chợ đồ cũ dành cho sinh viên</span><h1 className="mt-4 font-bold tracking-tight text-4xl uppercase leading-tight sm:text-5xl lg:text-6xl">Mua bán đồ cũ.<br /><span className="text-black/45">Dễ dàng, an tâm.</span></h1><p className="mt-5 max-w-lg text-base leading-relaxed text-black/60">Tìm sách, thiết bị học tập và đồ dùng đã qua sử dụng từ sinh viên khác. Đăng nhập bằng email đã xác nhận để mua bán.</p><div className="mt-8 grid max-w-lg grid-cols-3 gap-3 border-t border-black/10 pt-5 text-xs text-black/55 sm:text-sm"><span><strong className="block text-lg text-black">01</strong>Tạo tài khoản</span><span><strong className="block text-lg text-black">02</strong>Xác thực email</span><span><strong className="block text-lg text-black">03</strong>Khám phá</span></div></div>
       <div className="rounded-[24px] border border-black/10 bg-white p-5 shadow-sm sm:p-8">
         {tokens ? <div className="space-y-4">
           <div className="mb-5"><span className="text-xs font-medium uppercase tracking-wider text-[#2f7049]">Đăng nhập thành công</span><h2 className="mt-2 text-2xl font-bold">Xin chào, {tokens.user.full_name || tokens.user.email}!</h2><p className="mt-2 text-sm text-black/55">Email <strong className="text-black">{tokens.user.email}</strong> đã được xác nhận.</p></div>
           {error && <Alert variant="error">{error}</Alert>}
-          <div className="grid grid-cols-2 gap-2"><Button onClick={() => navigate('/sell')}>Đăng bán</Button><Button variant="outline" onClick={() => navigate('/products')}>Xem sản phẩm</Button><Button variant="outline" onClick={() => navigate('/me/products')}>Sản phẩm của tôi</Button><Button variant="outline" onClick={() => navigate('/me/offers')}>Đề nghị mua bán</Button><Button variant="outline" onClick={() => navigate('/me/orders')}>Đơn hàng</Button><Button variant="outline" onClick={() => navigate('/me/messages')}>Tin nhắn</Button>{tokens.user.role === 'admin' && <Button variant="outline" onClick={() => navigate('/admin')}>Quản trị viên</Button>}</div>
+          <div className="grid grid-cols-2 gap-2"><Button onClick={() => navigate('/sell')}>Đăng bán</Button><Button variant="outline" onClick={() => navigate('/products')}>Xem sản phẩm</Button><Button variant="outline" onClick={() => navigate('/me/products')}>Sản phẩm của tôi</Button><Button variant="outline" onClick={() => navigate('/me/offers')}>Đề nghị mua bán</Button><Button variant="outline" onClick={() => navigate('/me/orders')}>Đơn hàng</Button><Button variant="outline" onClick={() => navigate('/me/messages')}>Tin nhắn</Button><Button variant="outline" onClick={() => navigate('/me/profile')}>Hồ sơ và địa chỉ</Button>{tokens.user.role === 'admin' && <Button variant="outline" onClick={() => navigate('/admin')}>Quản trị viên</Button>}</div>
           <form className="space-y-3 border-t border-black/10 pt-5" onSubmit={submitChange}><h3 className="font-bold">Đổi mật khẩu</h3><label className="block text-sm">Mật khẩu hiện tại<input className="mt-1 w-full rounded-full border border-black/15 px-4 py-3 outline-none focus:border-black" type="password" autoComplete="current-password" required value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label><label className="block text-sm">Mật khẩu mới<input className="mt-1 w-full rounded-full border border-black/15 px-4 py-3 outline-none focus:border-black" type="password" autoComplete="new-password" minLength={8} maxLength={128} required value={password} onChange={(event) => setPassword(event.target.value)} /></label><label className="block text-sm">Nhập lại mật khẩu mới<input className="mt-1 w-full rounded-full border border-black/15 px-4 py-3 outline-none focus:border-black" type="password" autoComplete="new-password" required value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></label><Button className="w-full" type="submit" disabled={loading}>Đổi mật khẩu</Button></form>
           <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={logout} disabled={loading}>Đăng xuất</Button><Button variant="ghost" onClick={logoutAll} disabled={loading}>Đăng xuất khỏi mọi thiết bị</Button></div>
         </div> : isVerifying ? <div className="space-y-4"><span className="text-xs font-medium uppercase tracking-wider text-black/50">Xác nhận email</span><h2 className="text-2xl font-bold">Xác nhận email</h2>{loading && <p>Đang xác nhận email…</p>}{notice && <Alert variant="success" role="status">{notice}</Alert>}{error && <Alert variant="error">{error}</Alert>}{!verificationToken && !notice && !error && <Alert variant="error">Liên kết xác nhận không hợp lệ. Mở lại email để thử lần nữa.</Alert>}<Button onClick={() => navigate('/')}>Về trang đăng nhập</Button></div> : isResetting ? <div><span className="text-xs uppercase tracking-wider text-black/50">Khôi phục tài khoản</span><h2 className="mt-2 text-2xl font-bold">Đặt lại mật khẩu</h2><p className="mt-2 text-sm text-black/55">Mật khẩu mới cần có ít nhất 8 ký tự.</p>{notice && <Alert variant="success" className="mt-4" role="status">{notice}</Alert>}{error && <Alert variant="error" className="mt-4">{error}</Alert>}{!resetToken && !notice && <Alert variant="error" className="mt-4">Liên kết đặt lại mật khẩu không hợp lệ. Mở lại email để thử lần nữa.</Alert>}{resetToken && <form className="mt-5 space-y-4" onSubmit={submitReset}><label className="block text-sm">Mật khẩu mới<input className="mt-1 w-full rounded-full border border-black/15 px-4 py-3 outline-none focus:border-black" type="password" autoComplete="new-password" minLength={8} maxLength={128} required value={password} onChange={(event) => setPassword(event.target.value)} /></label><label className="block text-sm">Nhập lại mật khẩu<input className="mt-1 w-full rounded-full border border-black/15 px-4 py-3 outline-none focus:border-black" type="password" autoComplete="new-password" required value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></label><Button className="w-full" type="submit" disabled={loading}>{loading ? 'Đang xử lý…' : 'Đặt lại mật khẩu'}</Button></form>}<Button className="mt-4 w-full" variant="outline" onClick={() => navigate('/')}>Về trang đăng nhập</Button></div> : <>
@@ -194,8 +209,9 @@ function App() {
         </>}
       </div>
     </section>
+  const content = pageContent ?? (path === '/' ? <HomePage isAuthenticated={Boolean(tokens)} accessToken={tokens?.accessToken ?? ''} navigate={navigate} /> : authContent)
 
-  return <div className="min-h-screen bg-white text-black"><TopBanner onSignUp={() => { switchMode('register'); navigate('/') }} /><Navbar user={tokens?.user ?? null} navigate={navigate} onLogout={logout} currentPath={path} /><div>{content}</div><Footer onSignUp={() => { switchMode('register'); navigate('/') }} navigate={navigate} /></div>
+  return <div className="font-vietnamese min-h-screen bg-white text-black"><Navbar user={tokens?.user ?? null} navigate={navigate} onLogout={logout} onAuth={switchMode} currentPath={path} /><div>{content}</div><Footer onSignUp={() => switchMode('register')} navigate={navigate} /></div>
 }
 
 export default App

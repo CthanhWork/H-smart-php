@@ -117,8 +117,11 @@ class OrderTest extends TestCase
         $this->withHeaders($this->headers($buyer))->postJson("/api/v1/orders/{$orderId}/confirm")->assertNotFound();
         $this->withHeaders($this->headers($seller))->postJson("/api/v1/orders/{$orderId}/confirm")
             ->assertOk()->assertJsonPath('data.status', 'processing');
-        $this->withHeaders($this->headers($seller))->postJson("/api/v1/orders/{$orderId}/ship")
-            ->assertOk()->assertJsonPath('data.status', 'shipping');
+        $this->withHeaders($this->headers($seller))->postJson("/api/v1/orders/{$orderId}/ship", [
+            'shipping_carrier' => 'GHN', 'tracking_number' => 'GHN123456',
+        ])->assertOk()->assertJsonPath('data.status', 'shipping')
+            ->assertJsonPath('data.shipping_carrier', 'GHN')
+            ->assertJsonPath('data.tracking_number', 'GHN123456');
         $this->withHeaders($this->headers($seller))->postJson("/api/v1/orders/{$orderId}/complete")->assertNotFound();
         $this->withHeaders($this->headers($buyer))->postJson("/api/v1/orders/{$orderId}/complete")
             ->assertOk()->assertJsonPath('data.status', 'completed');

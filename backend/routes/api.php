@@ -2,6 +2,7 @@
 
 use App\Modules\Auth\Http\Controllers\AuthController;
 use App\Modules\Auth\Http\Middleware\AuthenticateJwt;
+use App\Modules\User\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/auth')->group(function (): void {
@@ -18,4 +19,9 @@ Route::prefix('v1/auth')->group(function (): void {
         Route::post('change-password', [AuthController::class, 'changePassword'])->middleware('throttle:auth-recovery');
         Route::get('me', [AuthController::class, 'me']);
     });
+});
+
+Route::middleware(AuthenticateJwt::class)->prefix('v1/me')->group(function (): void {
+    Route::get('profile', [ProfileController::class, 'show']);
+    Route::put('profile', [ProfileController::class, 'update']);
 });

@@ -13,6 +13,9 @@
 }
 
 @layer utilities {
+  .font-vietnamese {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
   .text-balance {
     text-wrap: balance;
   }

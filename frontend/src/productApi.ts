@@ -5,6 +5,7 @@ export type Product = {
   negotiable: boolean; min_price: number | null
   category_id: number | null; category: { id: number; name: string; slug: string } | null
   rating_average?: number | null; review_count?: number
+  is_favorite?: boolean
 }
 export type Category = { id: number; name: string; slug: string }
 export type ProductPage = { content: Product[]; pageNo: number; pageSize: number; totalElements: number; totalPages: number; last: boolean }

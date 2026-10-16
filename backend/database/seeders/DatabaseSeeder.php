@@ -24,5 +24,7 @@ class DatabaseSeeder extends Seeder
                 'full_name' => 'Quản trị viên',
             ]
         );
+
+        $this->call(DemoProductSeeder::class);
     }
 }

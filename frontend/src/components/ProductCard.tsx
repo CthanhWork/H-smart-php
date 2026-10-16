@@ -1,92 +1,39 @@
-import { cn } from "../lib/utils"
-import { Star } from "lucide-react"
-import type { Product } from "../productApi"
-import { conditionLabel, statusLabel } from "../productApi"
+import { Heart, Star } from 'lucide-react'
+import type { Product } from '../productApi'
+import { conditionLabel } from '../productApi'
 
 type ProductCardProps = {
   product: Product
   onClick?: () => void
+  onToggleFavorite?: () => void
+  favoriteBusy?: boolean
+  compact?: boolean
 }
+const money = (amount: number) => new Intl.NumberFormat('vi-VN').format(amount)
 
-const formatVnd = (amount: number) =>
-  new Intl.NumberFormat("vi-VN").format(amount) + " đ"
+export default function ProductCard({ product, onClick, onToggleFavorite, favoriteBusy = false, compact = false }: ProductCardProps) {
+  const image = product.images?.[0]?.url
+  const hasReviews = (product.review_count ?? 0) > 0 && product.rating_average != null
+  const isFavorite = Boolean(product.is_favorite)
 
-const ProductCard = ({ product, onClick }: ProductCardProps) => {
-  const cover = product.images?.[0]?.url
-  const rating = product.rating_average ?? 0
-  const reviewCount = product.review_count ?? 0
-
-  return (
-    <button
-      onClick={onClick}
-      className="group text-left flex flex-col gap-3 rounded-2xl transition-transform hover:-translate-y-1"
-    >
-      <div className="relative bg-[#F0EEED] rounded-2xl aspect-square overflow-hidden">
-        {cover ? (
-          <img
-            src={cover}
-            alt={product.title}
-            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform"
-            loading="lazy"
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-black/30 text-sm">
-            Không có ảnh
-          </div>
-        )}
-        {product.status && product.status !== "active" && (
-          <span
-            className={cn(
-              "absolute top-3 left-3 text-xs font-medium px-2.5 py-1 rounded-full",
-              product.status === "sold"
-                ? "bg-black/70 text-white"
-                : product.status === "pending_review"
-                ? "bg-amber-100 text-amber-900"
-                : product.status === "hidden"
-                ? "bg-[#FF3333] text-white"
-                : "bg-white text-black"
-            )}
-          >
-            {statusLabel[product.status] ?? product.status}
-          </span>
-        )}
-      </div>
-
-      <div className="px-1">
-        <h3 className="font-bold text-sm sm:text-base text-black truncate">
-          {product.title}
-        </h3>
-
-        <div className="flex items-center gap-1 mt-1">
-          <Star size={14} className="fill-amber-400 text-amber-400" />
-          <span className="text-sm font-medium">{rating.toFixed(1)}</span>
-          <span className="text-xs text-black/60">({reviewCount})</span>
-        </div>
-
-        <div className="flex items-center justify-between mt-2">
-          <p className="font-bold text-lg sm:text-xl text-black">
-            {formatVnd(product.price)}
-            {product.negotiable && (
-              <span className="ml-1 text-xs font-normal text-black/60">trở lên</span>
-            )}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 mt-1">
-          {product.category && (
-            <span className="text-xs text-black/60 bg-muted rounded-full px-2 py-0.5">
-              {product.category.name}
-            </span>
-          )}
-          {product.condition && (
-            <span className="text-xs text-black/60">
-              {conditionLabel[product.condition] ?? product.condition}
-            </span>
-          )}
-        </div>
-      </div>
+  return <article className={`group relative h-full min-w-0 overflow-hidden border border-[#ededed] bg-white text-[#333] transition duration-150 hover:-translate-y-0.5 hover:border-[#ee4d2d] hover:shadow-[0_8px_22px_-18px_rgba(238,77,45,.75)] ${compact ? 'text-xs' : ''}`}>
+    <button type="button" onClick={onClick} className="block h-full w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ee4d2d]">
+      <span className="relative block aspect-square overflow-hidden bg-[#f7f7f7]">
+        {image ? <img src={image} alt={product.title} loading="lazy" className="h-full w-full object-cover object-center transition duration-200 group-hover:scale-[1.035]" /> : <span className="flex h-full items-center justify-center text-sm text-black/35">Không có ảnh</span>}
+        {product.negotiable && <span className="absolute left-0 top-0 bg-[#ee4d2d] px-2 py-1 text-[10px] font-bold text-white">Có thể trả giá</span>}
+      </span>
+      <span className="grid content-start gap-1.5 p-2.5 sm:p-3">
+        <span className="truncate text-[11px] font-semibold leading-tight text-[#888]">{product.category?.name || 'Chưa phân loại'}</span>
+        <span className="line-clamp-2 min-h-9 text-[13px] font-medium leading-[1.4] text-[#222]">{product.title}</span>
+        {hasReviews && <span className="flex items-center gap-1 text-xs text-[#777]"><Star size={12} className="fill-[#ee4d2d] text-[#ee4d2d]" /><span className="font-semibold text-[#ee4d2d]">{product.rating_average?.toFixed(1)}</span><span>({product.review_count})</span></span>}
+        <span className="flex min-w-0 items-center justify-between gap-2 pt-0.5">
+          <span className="truncate text-[15px] font-bold text-[#ee4d2d]">{money(product.price)} <span className="text-[11px]">₫</span></span>
+          <span className="shrink-0 text-[10px] text-[#888]">{conditionLabel[product.condition] ?? 'Đã qua sử dụng'}</span>
+        </span>
+      </span>
     </button>
-  )
+    {onToggleFavorite && <button type="button" onClick={(event) => { event.stopPropagation(); onToggleFavorite() }} disabled={favoriteBusy} aria-label={isFavorite ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'} aria-pressed={isFavorite} className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full bg-white/95 text-[#555] shadow-sm transition hover:text-[#e65332] disabled:opacity-50">
+      <Heart size={18} className={isFavorite ? 'fill-[#e65332] text-[#e65332]' : ''} />
+    </button>}
+  </article>
 }
-
-export default ProductCard

@@ -23,6 +23,7 @@ class ProductResource extends JsonResource
             'negotiable' => (bool) $this->negotiable,
             'min_price' => $this->min_price,
             'status' => $this->status,
+            'is_favorite' => $this->when(isset($this->is_favorite), (bool) $this->is_favorite),
             'images' => $this->images->map(fn ($image) => [
                 'id' => $image->id,
                 'url' => $image->url,

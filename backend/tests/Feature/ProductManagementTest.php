@@ -37,15 +37,17 @@ class ProductManagementTest extends TestCase
         return ['title' => 'Máy tính cầm tay mới', 'description' => 'Mô tả đã cập nhật và đủ dài.', 'price' => 180000, 'category_id' => 1, 'condition' => 'like_new'];
     }
 
-    public function test_buyer_only_sees_active_products_with_search_filters_and_pagination(): void
+    public function test_guests_and_buyers_can_browse_active_products_with_search_filters_and_pagination(): void
     {
         $seller = $this->user('seller@example.com');
         $buyer = $this->user('buyer@example.com');
-        $this->getJson('/api/v1/products')->assertUnauthorized();
         $visible = $this->product($seller, 'Máy tính Casio', 'active', 'good', 150000);
         $this->product($seller, 'Máy tính đắt', 'active', 'new', 500000);
         $pending = $this->product($seller, 'Máy tính chờ', 'pending_review');
         $sold = $this->product($seller, 'Máy tính bán', 'sold');
+        $this->getJson('/api/v1/products?q=Máy&filter[condition]=good&filter[max_price]=200000&page[size]=1')
+            ->assertOk()->assertJsonPath('data.totalElements', 1)->assertJsonPath('data.content.0.id', $visible->id);
+        $this->getJson("/api/v1/products/{$visible->id}")->assertOk();
         $this->withToken($this->token($buyer))->getJson('/api/v1/products?q=Máy&filter[condition]=good&filter[max_price]=200000&page[size]=1')
             ->assertOk()->assertJsonPath('data.totalElements', 1)->assertJsonPath('data.content.0.id', $visible->id);
         $this->withToken($this->token($buyer))->getJson('/api/v1/products?page[size]=1&page[number]=1')

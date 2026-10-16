@@ -25,7 +25,7 @@ class Order extends Model
         'product_id', 'buyer_id', 'seller_id', 'offer_id', 'product_amount',
         'shipping_fee', 'platform_fee', 'total_amount', 'status',
         'shipping_address_snapshot', 'expires_at', 'paid_at', 'shipped_at',
-        'completed_at', 'cancelled_at',
+        'confirmed_at', 'shipping_carrier', 'tracking_number', 'completed_at', 'cancelled_at',
     ];
 
     protected function casts(): array
@@ -38,6 +38,7 @@ class Order extends Model
             'shipping_address_snapshot' => 'array',
             'expires_at' => 'datetime',
             'paid_at' => 'datetime',
+            'confirmed_at' => 'datetime',
             'shipped_at' => 'datetime',
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',

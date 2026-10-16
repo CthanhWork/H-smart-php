@@ -7,6 +7,7 @@ use App\Modules\Order\Actions\CancelOrderAction;
 use App\Modules\Order\Actions\CreateOrderAction;
 use App\Modules\Order\Actions\SimulatePaymentAction;
 use App\Modules\Order\Http\Requests\CreateOrderRequest;
+use App\Modules\Order\Http\Requests\ShipOrderRequest;
 use App\Modules\Order\Http\Resources\OrderResource;
 use App\Modules\Order\Models\Order;
 use Illuminate\Http\JsonResponse;
@@ -80,9 +81,9 @@ class OrderController
         return response()->json(['status' => 'success', 'message' => 'Đã xác nhận đơn hàng. Hãy chuẩn bị sản phẩm để gửi.', 'data' => new OrderResource($order)]);
     }
 
-    public function ship(Request $request, int $id, AdvanceOrderAction $advance): JsonResponse
+    public function ship(ShipOrderRequest $request, int $id, AdvanceOrderAction $advance): JsonResponse
     {
-        $order = $advance->execute($id, (int) $request->user()->id, 'ship');
+        $order = $advance->execute($id, (int) $request->user()->id, 'ship', $request->validated());
 
         return response()->json(['status' => 'success', 'message' => 'Đơn hàng đã được chuyển sang trạng thái đang giao.', 'data' => new OrderResource($order)]);
     }

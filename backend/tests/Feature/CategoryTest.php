@@ -47,4 +47,17 @@ class CategoryTest extends TestCase
         $this->withToken($this->token($buyer))->getJson('/api/v1/products?filter[category_id]='.$categories[0]->id)
             ->assertOk()->assertJsonPath('data.totalElements', 1)->assertJsonPath('data.content.0.category.id', $categories[0]->id);
     }
+
+    public function test_guests_can_browse_categories_and_active_products(): void
+    {
+        $seller = $this->user('seller@example.com');
+        $category = Category::query()->firstOrFail();
+        $active = Product::create(['seller_id' => $seller->id, 'category_id' => $category->id, 'title' => 'Sách đang bán', 'price' => 10000, 'condition' => 'good', 'status' => 'active']);
+        $pending = Product::create(['seller_id' => $seller->id, 'category_id' => $category->id, 'title' => 'Sách chờ duyệt', 'price' => 12000, 'condition' => 'good', 'status' => 'pending_review']);
+
+        $this->getJson('/api/v1/categories')->assertOk()->assertJsonFragment(['id' => $category->id, 'name' => $category->name]);
+        $this->getJson('/api/v1/products')->assertOk()->assertJsonPath('data.totalElements', 1)->assertJsonPath('data.content.0.id', $active->id);
+        $this->getJson('/api/v1/products/'.$active->id)->assertOk()->assertJsonPath('data.id', $active->id);
+        $this->getJson('/api/v1/products/'.$pending->id)->assertNotFound();
+    }
 }

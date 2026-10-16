@@ -12,8 +12,9 @@ type Offer = {
 type Order = {
   id: number; product_amount: number; shipping_fee: number; total_amount: number; status: string
   shipping_address: { recipient_name: string; phone: string; address: string }
-  expires_at: string; paid_at: string | null; shipped_at: string | null; completed_at: string | null
-  created_at: string; product: Product; buyer: { id: number; full_name: string | null }
+  expires_at: string; paid_at: string | null; confirmed_at: string | null; shipped_at: string | null; completed_at: string | null
+  shipping_carrier: string | null; tracking_number: string | null
+  created_at: string; cancelled_at: string | null; product: Product; buyer: { id: number; full_name: string | null }
   seller: { id: number; full_name: string | null }; offer_id: number
   payment: { id: number; txn_ref: string; provider: string; amount: number; status: string; paid_at: string | null }
   review: { id: number; rating: number; comment: string | null } | null
@@ -44,16 +45,22 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
   const [notice, setNotice] = useState('')
   const [reviewRating, setReviewRating] = useState('5')
   const [reviewComment, setReviewComment] = useState('')
+  const [shipments, setShipments] = useState<Record<number, { carrier: string; tracking: string }>>({})
   const [version, setVersion] = useState(0)
 
   useEffect(() => {
     let cancelled = false
     if (mode === 'create' && offerId) {
-      productRequest<Offer>(`offers/${offerId}`, accessToken)
-        .then(({ data }) => {
+      const profilePromise = productRequest<{ full_name: string | null; phone_number: string | null; shipping_address: string | null }>('me/profile', accessToken)
+        .then(({ data }) => data)
+        .catch(() => null)
+      Promise.all([productRequest<Offer>(`offers/${offerId}`, accessToken), profilePromise])
+        .then(([{ data }, profile]) => {
           if (cancelled) return
           setOffer(data)
-          setRecipientName(data.buyer.full_name ?? '')
+          setRecipientName(profile?.full_name || data.buyer.full_name || '')
+          setPhone(profile?.phone_number ?? '')
+          setAddress(profile?.shipping_address ?? '')
           if (data.status !== 'accepted') setError('Bạn chỉ có thể đặt hàng sau khi người bán chấp nhận đề nghị.')
         })
         .catch((cause: Error) => { if (!cancelled) setError(cause.message) })
@@ -81,10 +88,13 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
     finally { setBusy(false) }
   }
 
-  async function act(orderId: number, action: 'simulate-payment' | 'cancel' | 'confirm' | 'ship' | 'complete') {
+  async function act(orderId: number, action: 'simulate-payment' | 'cancel' | 'confirm' | 'ship' | 'complete', shipment?: { shipping_carrier: string; tracking_number: string }) {
     setBusy(true); setLoading(mode === 'list'); setError(''); setNotice('')
     try {
-      const result = await productRequest<Order>(`orders/${orderId}/${action}`, accessToken, { method: 'POST' })
+      const result = await productRequest<Order>(`orders/${orderId}/${action}`, accessToken, {
+        method: 'POST',
+        ...(shipment ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(shipment) } : {}),
+      })
       setNotice(result.message)
       if (mode === 'create') setOrder(result.data)
       else setVersion((value) => value + 1)
@@ -111,7 +121,14 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
       <Button variant="outline" disabled={busy} onClick={() => act(item.id, 'cancel')}>Hủy đơn</Button>
     </>
     if (item.status === 'paid' && !buyer) return <Button disabled={busy} onClick={() => act(item.id, 'confirm')}>Xác nhận đơn</Button>
-    if (item.status === 'processing' && !buyer) return <Button disabled={busy} onClick={() => act(item.id, 'ship')}>Xác nhận gửi hàng</Button>
+    if (item.status === 'processing' && !buyer) {
+      const shipment = shipments[item.id] ?? { carrier: '', tracking: '' }
+      return <form className="flex w-full flex-col gap-3 rounded-2xl bg-[#f6f7f8] p-4 sm:flex-row sm:items-end" onSubmit={(event) => { event.preventDefault(); void act(item.id, 'ship', { shipping_carrier: shipment.carrier.trim(), tracking_number: shipment.tracking.trim() }) }}>
+        <label className="flex-1 text-xs font-medium text-black/60">Đơn vị vận chuyển<input required minLength={2} maxLength={80} className={fieldClass} placeholder="Ví dụ: GHN, Viettel Post" value={shipment.carrier} onChange={(event) => setShipments((current) => ({ ...current, [item.id]: { ...shipment, carrier: event.target.value } }))} /></label>
+        <label className="flex-1 text-xs font-medium text-black/60">Mã vận đơn (nếu có)<input maxLength={80} className={fieldClass} value={shipment.tracking} onChange={(event) => setShipments((current) => ({ ...current, [item.id]: { ...shipment, tracking: event.target.value } }))} /></label>
+        <Button type="submit" disabled={busy}>Xác nhận gửi hàng</Button>
+      </form>
+    }
     if (item.status === 'shipping' && buyer) return <Button disabled={busy} onClick={() => act(item.id, 'complete')}>Đã nhận hàng</Button>
     return null
   }
@@ -130,7 +147,16 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
         <div className="sm:col-span-2"><dt className="text-black/50">Giao đến</dt><dd className="mt-1 font-medium">{item.shipping_address.recipient_name}, {item.shipping_address.phone}, {item.shipping_address.address}</dd></div>
         <div><dt className="text-black/50">Thanh toán</dt><dd className="mt-1 font-medium">{item.payment.provider === 'mock' ? 'Mô phỏng' : item.payment.provider} · {item.payment.status === 'paid' ? 'Đã thanh toán' : item.payment.status === 'pending' ? 'Chưa thanh toán' : item.payment.status}</dd></div>
         {item.status === 'pending_payment' && <div><dt className="text-black/50">Giữ sản phẩm đến</dt><dd className="mt-1 font-medium">{new Date(item.expires_at).toLocaleString('vi-VN')}</dd></div>}
+        {item.shipping_carrier && <div><dt className="text-black/50">Đơn vị vận chuyển</dt><dd className="mt-1 font-medium">{item.shipping_carrier}</dd></div>}
+        {item.tracking_number && <div><dt className="text-black/50">Mã vận đơn</dt><dd className="mt-1 font-mono font-medium">{item.tracking_number}</dd></div>}
       </dl>
+      {item.status === 'cancelled' ? <p className="mb-5 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700">Đơn hàng đã hủy{item.cancelled_at ? ` lúc ${new Date(item.cancelled_at).toLocaleString('vi-VN')}` : ''}.</p> : <section className="mb-5 rounded-2xl bg-[#f8f8f8] p-4 sm:p-5"><h3 className="text-sm font-bold">Tiến trình đơn hàng</h3><ol className="mt-4 grid gap-3 sm:grid-cols-5">{[
+        { label: 'Tạo đơn', done: true, at: item.created_at },
+        { label: 'Thanh toán', done: Boolean(item.paid_at), at: item.paid_at },
+        { label: 'Người bán xác nhận', done: Boolean(item.confirmed_at), at: item.confirmed_at },
+        { label: 'Đang giao', done: Boolean(item.shipped_at), at: item.shipped_at },
+        { label: 'Hoàn tất', done: Boolean(item.completed_at), at: item.completed_at },
+      ].map((step) => <li key={step.label} className="flex items-start gap-2 text-xs sm:flex-col"><span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold ${step.done ? 'bg-[#2f7049] text-white' : 'border border-black/20 bg-white text-black/35'}`}>{step.done ? '✓' : '·'}</span><span><span className={step.done ? 'font-semibold text-black' : 'text-black/45'}>{step.label}</span>{step.at && <time className="mt-1 block text-[10px] text-black/45">{new Date(step.at).toLocaleString('vi-VN')}</time>}</span></li>)}</ol></section>}
       {item.review && <div className="rounded-2xl bg-[#F0F0F0] p-4 text-sm"><p className="font-medium">Đánh giá của bạn <span className="ml-2 text-amber-500">{'★'.repeat(item.review.rating)}{'☆'.repeat(5 - item.review.rating)}</span></p>{item.review.comment && <p className="mt-1 text-black/70">{item.review.comment}</p>}</div>}
       {item.status === 'completed' && item.buyer.id === userId && !item.review && <form className="mt-5 rounded-2xl bg-[#F0F0F0] p-4 sm:p-5" onSubmit={(event) => submitReview(event, item.id)}>
         <h3 className="flex items-center gap-2 font-bold"><Star size={17} /> Đánh giá món hàng</h3>

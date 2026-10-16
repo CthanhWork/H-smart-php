@@ -10,13 +10,14 @@ class ListProductsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        return true;
     }
 
     public function rules(): array
     {
         return [
             'q' => ['sometimes', 'string', 'max:200'],
+            'sort' => ['sometimes', Rule::in(['newest', 'price_asc', 'price_desc'])],
             'page' => ['sometimes', 'array'],
             'page.number' => ['sometimes', 'integer', 'min:0'],
             'page.size' => ['sometimes', 'integer', 'min:1', 'max:100'],

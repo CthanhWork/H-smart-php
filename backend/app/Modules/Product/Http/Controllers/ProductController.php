@@ -31,6 +31,9 @@ class ProductController
 
     private function page(ListProductsRequest $request, Builder $query): JsonResponse
     {
+        if ($userId = $request->user()?->id) {
+            $query->withExists(['favorites as is_favorite' => fn (Builder $favoriteQuery) => $favoriteQuery->where('user_id', $userId)]);
+        }
         if ($term = trim((string) $request->input('q', ''))) {
             $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($term));
             $query->whereRaw("LOWER(title) LIKE ? ESCAPE '!'", ['%'.$escaped.'%']);
@@ -49,7 +52,13 @@ class ProductController
         }
         $number = (int) $request->input('page.number', 0);
         $size = (int) $request->input('page.size', 12);
-        $results = $query->with(['images', 'category'])->orderByDesc('created_at')->orderByDesc('id')
+        $results = $query->with(['images', 'category']);
+        match ($request->input('sort', 'newest')) {
+            'price_asc' => $results->orderBy('price')->orderByDesc('id'),
+            'price_desc' => $results->orderByDesc('price')->orderByDesc('id'),
+            default => $results->orderByDesc('created_at')->orderByDesc('id'),
+        };
+        $results = $results
             ->paginate($size, ['*'], 'page', $number + 1);
         $totalPages = $results->lastPage();
 
@@ -67,8 +76,13 @@ class ProductController
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $product = Product::with(['images', 'category'])->withAvg('reviews', 'rating')->withCount('reviews')->findOrFail($id);
-        abort_unless($product->status === Product::STATUS_ACTIVE || $product->seller_id === $request->user()->id, 404);
+        $productQuery = Product::with(['images', 'category'])->withAvg('reviews', 'rating')->withCount('reviews');
+        if ($userId = $request->user()?->id) {
+            $productQuery->withExists(['favorites as is_favorite' => fn (Builder $favoriteQuery) => $favoriteQuery->where('user_id', $userId)]);
+        }
+        $product = $productQuery->findOrFail($id);
+        $user = $request->user();
+        abort_unless($product->status === Product::STATUS_ACTIVE || ($user && $product->seller_id === $user->id), 404);
 
         return response()->json(['status' => 'success', 'message' => 'Đã tải sản phẩm.', 'data' => new ProductResource($product)]);
     }
