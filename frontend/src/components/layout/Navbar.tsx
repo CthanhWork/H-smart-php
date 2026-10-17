@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import {
   LogOut,
+  Bell,
   Menu,
   MessageCircle,
   Search,
@@ -12,6 +13,7 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { getUnreadNotificationCount } from '../../notificationApi'
 
 type NavUser = {
   id: number
@@ -27,6 +29,7 @@ type NavbarProps = {
   onLogout: () => void
   onAuth: (mode: 'login' | 'register') => void
   currentPath: string
+  accessToken: string | null
 }
 
 const guestLinks = [
@@ -45,10 +48,30 @@ const memberLinks = [
   { label: 'Đăng bán', href: '/sell' },
 ]
 
-const Navbar = ({ user, navigate, onLogout, onAuth, currentPath }: NavbarProps) => {
+const Navbar = ({ user, navigate, onLogout, onAuth, currentPath, accessToken }: NavbarProps) => {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get('q') ?? '')
   const links = user ? memberLinks : guestLinks
+
+  const refreshUnreadCount = useCallback(async () => {
+    if (!accessToken) { setUnreadCount(0); return }
+    try { setUnreadCount(await getUnreadNotificationCount(accessToken)) }
+    catch { /* A page-level notification request will show the actionable error. */ }
+  }, [accessToken])
+
+  useEffect(() => {
+    void refreshUnreadCount()
+    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') void refreshUnreadCount() }
+    window.addEventListener('focus', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    window.addEventListener('hsmart:notifications-updated', refreshWhenVisible)
+    return () => {
+      window.removeEventListener('focus', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+      window.removeEventListener('hsmart:notifications-updated', refreshWhenVisible)
+    }
+  }, [refreshUnreadCount, currentPath])
 
   const go = (path: string) => {
     setMenuOpen(false)
@@ -98,6 +121,7 @@ const Navbar = ({ user, navigate, onLogout, onAuth, currentPath }: NavbarProps) 
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           {user ? <>
             <button type="button" onClick={() => go('/me/messages')} aria-label="Tin nhắn" title="Tin nhắn" className="relative flex h-10 w-10 items-center justify-center rounded-xl text-[#343434] transition hover:bg-[#fff0eb] hover:text-[#d94b2b]"><MessageCircle size={21} /></button>
+            <button type="button" onClick={() => go('/me/notifications')} aria-label={`Thông báo${unreadCount ? `, ${unreadCount} chưa đọc` : ''}`} title="Thông báo" className={cn('relative flex h-10 w-10 items-center justify-center rounded-xl text-[#343434] transition hover:bg-[#fff0eb] hover:text-[#d94b2b]', currentPath === '/me/notifications' && 'bg-[#fff0eb] text-[#d94b2b]')}><Bell size={21} />{unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-[#e65332] px-1 text-center text-[10px] font-bold leading-4 text-white">{unreadCount > 99 ? '99+' : unreadCount}</span>}</button>
             <button type="button" onClick={() => go('/me/orders')} aria-label="Đơn mua" title="Đơn mua" className="flex h-10 w-10 items-center justify-center rounded-xl text-[#343434] transition hover:bg-[#fff0eb] hover:text-[#d94b2b]"><ShoppingBag size={21} /></button>
             <button type="button" onClick={() => go('/me/favorites')} aria-label="Yêu thích" title="Yêu thích" className="flex h-10 w-10 items-center justify-center rounded-xl text-[#343434] transition hover:bg-[#fff0eb] hover:text-[#d94b2b]"><Heart size={20} /></button>
             <button type="button" onClick={onLogout} aria-label="Đăng xuất" title="Đăng xuất" className="hidden h-10 w-10 items-center justify-center rounded-xl text-black/55 transition hover:bg-black/5 hover:text-black sm:flex"><LogOut size={19} /></button>

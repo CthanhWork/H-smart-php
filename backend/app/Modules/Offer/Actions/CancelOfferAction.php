@@ -23,7 +23,6 @@ class CancelOfferAction
 
         $offer->update(['status' => Offer::STATUS_CANCELLED]);
 
-        // TODO: Fire OfferCancelled event for notifications
 
         return $offer->load(['product.images', 'buyer', 'seller']);
     }

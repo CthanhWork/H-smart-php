@@ -4,13 +4,13 @@ namespace App\Modules\Order\Actions;
 
 use App\Modules\Offer\Models\Offer;
 use App\Modules\Order\Models\Order;
-use App\Modules\Order\Models\Payment;
+use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Product\Models\Product;
 use Illuminate\Support\Facades\DB;
 
 class ExpirePendingOrdersAction
 {
-    public function execute(): int
+    public function execute(NotificationService $notifications): int
     {
         $orderIds = Order::where('status', Order::STATUS_PENDING_PAYMENT)
             ->where('expires_at', '<=', now())
@@ -33,16 +33,15 @@ class ExpirePendingOrdersAction
                     return false;
                 }
 
-                $payment = Payment::where('order_id', $order->id)->lockForUpdate()->first();
-                if (! $payment || $payment->status !== 'pending') {
+                if ($order->payment_status !== 'pending') {
                     return false;
                 }
 
                 $order->update([
                     'status' => Order::STATUS_CANCELLED,
                     'cancelled_at' => now(),
+                    'payment_status' => 'expired',
                 ]);
-                $payment->update(['status' => 'expired']);
                 if ($product->status === Product::STATUS_RESERVED) {
                     $product->update(['status' => Product::STATUS_ACTIVE]);
                 }
@@ -55,7 +54,15 @@ class ExpirePendingOrdersAction
                 return true;
             });
 
-            $expiredCount += $expired ? 1 : 0;
+            if ($expired) {
+                $expiredCount++;
+                $order = Order::with(['buyer', 'seller', 'product'])->find($orderId);
+                if ($order) {
+                    $body = 'Đơn hàng #'.$order->id.' đã hết hạn thanh toán; sản phẩm được mở bán lại.';
+                    $notifications->send($order->buyer, null, 'order_expired', 'Đơn hàng đã hết hạn', $body, '/me/orders', ['order_id' => $order->id]);
+                    $notifications->send($order->seller, null, 'order_expired', 'Đơn hàng đã hết hạn', $body, '/me/orders', ['order_id' => $order->id]);
+                }
+            }
         }
 
         return $expiredCount;

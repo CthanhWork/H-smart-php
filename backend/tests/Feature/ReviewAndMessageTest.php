@@ -42,7 +42,7 @@ class ReviewAndMessageTest extends TestCase
         $this->withToken($this->token($buyer))->postJson("/api/v1/orders/{$order->id}/review", ['rating' => 4])->assertUnprocessable();
         $this->withToken($this->token($buyer))->getJson("/api/v1/products/{$order->product_id}/reviews")
             ->assertOk()->assertJsonPath('data.average', 5)->assertJsonPath('data.content.0.comment', 'Đúng mô tả');
-        $this->assertDatabaseHas('reviews', ['order_id' => $order->id, 'buyer_id' => $buyer->id]);
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'buyer_id' => $buyer->id, 'review_rating' => 5]);
     }
 
     public function test_review_is_rejected_until_order_is_completed(): void
@@ -51,7 +51,7 @@ class ReviewAndMessageTest extends TestCase
         $order = $this->completedOrder($buyer, $seller);
         $order->update(['status' => 'shipping', 'completed_at' => null]);
         $this->withToken($this->token($buyer))->postJson("/api/v1/orders/{$order->id}/review", ['rating' => 4])->assertStatus(409);
-        $this->assertDatabaseCount('reviews', 0);
+        $this->assertDatabaseMissing('orders', ['id' => $order->id, 'review_rating' => 4]);
     }
 
     public function test_buyer_and_seller_can_exchange_messages_on_a_product(): void

@@ -3,6 +3,7 @@
 namespace App\Modules\Offer\Http\Controllers;
 
 use App\Modules\Offer\Actions\AcceptOfferAction;
+use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Offer\Http\Resources\OfferResource;
 use App\Modules\Offer\Models\Offer;
 use Illuminate\Http\JsonResponse;
@@ -11,7 +12,7 @@ use InvalidArgumentException;
 
 class AcceptOfferController
 {
-    public function __invoke(Request $request, int $id, AcceptOfferAction $action): JsonResponse
+    public function __invoke(Request $request, int $id, AcceptOfferAction $action, NotificationService $notifications): JsonResponse
     {
         $offer = Offer::findOrFail($id);
 
@@ -26,6 +27,7 @@ class AcceptOfferController
 
         try {
             $offer = $action->execute($id, (int) $request->user()->id);
+            $notifications->send($offer->buyer, $request->user(), 'offer_accepted', 'Đề nghị giá được chấp nhận', 'Người bán đã chấp nhận đề nghị cho “'.$offer->product->title.'”. Bạn có thể tạo đơn hàng.', '/me/offers', ['offer_id' => $offer->id, 'product_id' => $offer->product_id]);
 
             return response()->json([
                 'status' => 'success',

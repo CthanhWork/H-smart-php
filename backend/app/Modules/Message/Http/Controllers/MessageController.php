@@ -3,6 +3,7 @@
 namespace App\Modules\Message\Http\Controllers;
 
 use App\Modules\Message\Models\Message;
+use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Product\Models\Product;
 use App\Modules\User\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -51,7 +52,7 @@ class MessageController
         ]]);
     }
 
-    public function store(Request $request, int $productId): JsonResponse
+    public function store(Request $request, int $productId, NotificationService $notifications): JsonResponse
     {
         $request->merge(['body' => trim((string) $request->input('body'))]);
         $data = $request->validate(['recipient_id' => ['required', 'integer', 'exists:users,id'], 'body' => ['required', 'string', 'min:1', 'max:2000']]);
@@ -69,6 +70,7 @@ class MessageController
         }
         $message = Message::create(['product_id' => $productId, 'sender_id' => $senderId, 'recipient_id' => $recipientId, 'body' => trim($data['body'])])
             ->load(['sender:id,full_name', 'recipient:id,full_name']);
+        $notifications->send($message->recipient, $message->sender, 'new_message', 'Tin nhắn mới', 'Bạn có tin nhắn mới về “'.$product->title.'”.', '/me/messages?productId='.$productId.'&userId='.$senderId, ['product_id' => $productId, 'message_id' => $message->id]);
         return response()->json(['status' => 'success', 'message' => 'Đã gửi tin nhắn.', 'data' => $this->resource($message)], 201);
     }
 

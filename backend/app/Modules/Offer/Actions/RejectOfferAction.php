@@ -23,7 +23,6 @@ class RejectOfferAction
 
         $offer->update(['status' => Offer::STATUS_REJECTED]);
 
-        // TODO: Fire OfferRejected event for notifications
 
         return $offer->load(['product.images', 'buyer', 'seller']);
     }

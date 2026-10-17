@@ -46,7 +46,7 @@ class Product extends Model
 
     public function reviews(): HasMany
     {
-        return $this->hasMany(\App\Modules\Review\Models\Review::class);
+        return $this->hasMany(\App\Modules\Order\Models\Order::class)->whereNotNull('review_rating');
     }
 
     public function favorites(): HasMany

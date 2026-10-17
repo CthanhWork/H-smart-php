@@ -11,12 +11,26 @@ import AdminPage from './AdminPage'
 import MessagePages from './MessagePages'
 import HomePage from './HomePage'
 import ProfilePage from './ProfilePage'
+import NotificationsPage from './NotificationsPage'
 
 const demoMailboxUrl = import.meta.env.VITE_DEMO_MAILBOX_URL as string | undefined
 
 type User = { id: number; email: string; full_name: string | null; status: string; role: 'member' | 'admin' }
 type Tokens = { accessToken: string; refreshToken: string; tokenType: 'Bearer'; user: User }
 type ApiResult<T> = { status: 'success' | 'error'; message: string; data: T; errors?: Record<string, string[]> }
+const refreshTokenStorageKey = 'hsmart.refresh-token'
+
+function storedRefreshToken(): string | null {
+  try { return window.sessionStorage.getItem(refreshTokenStorageKey) }
+  catch { return null }
+}
+
+function saveRefreshToken(token: string | null) {
+  try {
+    if (token) window.sessionStorage.setItem(refreshTokenStorageKey, token)
+    else window.sessionStorage.removeItem(refreshTokenStorageKey)
+  } catch { /* Session restoration is optional when browser storage is unavailable. */ }
+}
 
 async function api<T>(path: string, options: RequestInit = {}): Promise<ApiResult<T>> {
   let response: Response
@@ -31,7 +45,9 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<ApiResul
   const result = await response.json() as ApiResult<T>
   if (!response.ok) {
     const detail = result.errors && Object.values(result.errors)[0]?.[0]
-    throw new Error(detail || result.message || 'Yêu cầu không thành công.')
+    const error = new Error(detail || result.message || 'Yêu cầu không thành công.') as Error & { status?: number }
+    error.status = response.status
+    throw error
   }
   return result
 }
@@ -49,29 +65,93 @@ function App() {
   const isOrders = path === '/me/orders'
   const isMessages = path === '/me/messages'
   const isProfile = path === '/me/profile'
+  const isNotifications = path === '/me/notifications'
   const isOrderCreation = path === '/orders/create'
   const verificationToken = isVerifying ? new URLSearchParams(window.location.search).get('token') : null
   const [resetToken, setResetToken] = useState(() => isResetting ? new URLSearchParams(window.location.search).get('token') : null)
   const verificationAttempted = useRef(false)
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login')
+  const sessionRestoreAttempted = useRef(false)
+  const sessionVersion = useRef(0)
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(() => window.location.pathname === '/register' ? 'register' : window.location.pathname === '/forgot-password' ? 'forgot' : 'login')
   const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [tokens, setTokens] = useState<Tokens | null>(null)
+  const currentRefreshToken = tokens?.refreshToken ?? null
+  const [restoringSession, setRestoringSession] = useState(() => Boolean(storedRefreshToken()))
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(Boolean(verificationToken))
 
   useEffect(() => {
-    if (path === '/login') setMode('login')
-    if (path === '/register') setMode('register')
-    if (path === '/forgot-password') setMode('forgot')
-  }, [path])
+    const refreshToken = storedRefreshToken()
+    if (!refreshToken || sessionRestoreAttempted.current) return
+    sessionRestoreAttempted.current = true
+    api<Tokens>('refresh', { method: 'POST', body: JSON.stringify({ refreshToken }) })
+      .then((result) => {
+        saveRefreshToken(result.data.refreshToken)
+        setTokens(result.data)
+      })
+      .catch((cause: Error & { status?: number }) => {
+        if (cause.status === 401 || cause.status === 403 || cause.status === 422) saveRefreshToken(null)
+        setError(cause.message)
+      })
+      .finally(() => setRestoringSession(false))
+  }, [])
 
   useEffect(() => {
-    const onPopState = () => { setPath(window.location.pathname); setNavigationVersion((version) => version + 1) }
+    if (!currentRefreshToken) return
+    let refreshing = false
+    let lastRefreshAt = Date.now()
+    let retryTimer: number | undefined
+
+    const refreshSession = async () => {
+      if (refreshing || Date.now() - lastRefreshAt < 10 * 60 * 1000) return
+      refreshing = true
+      const version = sessionVersion.current
+      try {
+        const result = await api<Tokens>('refresh', {
+          method: 'POST', body: JSON.stringify({ refreshToken: currentRefreshToken }),
+        })
+        if (sessionVersion.current !== version) return
+        saveRefreshToken(result.data.refreshToken)
+        lastRefreshAt = Date.now()
+        setTokens(result.data)
+      } catch (cause) {
+        if (sessionVersion.current !== version) return
+        const status = (cause as Error & { status?: number }).status
+        if (status === 401 || status === 403 || status === 422) {
+          saveRefreshToken(null)
+          setTokens(null)
+          setMode('login')
+          navigate('/login')
+          setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
+        } else {
+          retryTimer = window.setTimeout(() => { void refreshSession() }, 60_000)
+        }
+      } finally { refreshing = false }
+    }
+
+    const interval = window.setInterval(() => { void refreshSession() }, 12 * 60 * 1000)
+    window.addEventListener('focus', refreshSession)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refreshSession)
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer)
+    }
+  }, [currentRefreshToken])
+
+  useEffect(() => {
+    const onPopState = () => {
+      const nextPath = window.location.pathname
+      setPath(nextPath)
+      if (nextPath === '/login') setMode('login')
+      if (nextPath === '/register') setMode('register')
+      if (nextPath === '/forgot-password') setMode('forgot')
+      setNavigationVersion((version) => version + 1)
+    }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
@@ -119,6 +199,8 @@ function App() {
         setNotice(result.message); setPassword(''); setConfirmation('')
       } else {
         const result = await api<Tokens>('login', { method: 'POST', body: JSON.stringify({ email, password }) })
+        sessionVersion.current += 1
+        saveRefreshToken(result.data.refreshToken)
         setTokens(result.data); setPassword(''); navigate('/')
       }
     } catch (cause) { setError((cause as Error).message) }
@@ -150,7 +232,7 @@ function App() {
         method: 'POST', headers: { Authorization: `Bearer ${tokens.accessToken}` },
         body: JSON.stringify({ currentPassword, password, password_confirmation: confirmation }),
       })
-      setTokens(null); setCurrentPassword(''); setPassword(''); setConfirmation(''); setNotice(result.message)
+      sessionVersion.current += 1; saveRefreshToken(null); setTokens(null); setCurrentPassword(''); setPassword(''); setConfirmation(''); setNotice(result.message)
     } catch (cause) { setError((cause as Error).message) }
     finally { setLoading(false) }
   }
@@ -160,7 +242,7 @@ function App() {
     setError(''); setLoading(true)
     try {
       const result = await api<null>('logout-all', { method: 'POST', headers: { Authorization: `Bearer ${tokens.accessToken}` } })
-      setTokens(null); setNotice(result.message)
+      sessionVersion.current += 1; saveRefreshToken(null); setTokens(null); setNotice(result.message)
     } catch (cause) { setError((cause as Error).message) }
     finally { setLoading(false) }
   }
@@ -176,15 +258,16 @@ function App() {
 
   async function logout() {
     if (!tokens) return
+    sessionVersion.current += 1
     setLoading(true)
     try {
       await api<null>('logout', { method: 'POST', headers: { Authorization: `Bearer ${tokens.accessToken}` }, body: JSON.stringify({ refreshToken: tokens.refreshToken }) })
     } catch { /* The local session must still be cleared. */ }
-    finally { setTokens(null); setLoading(false) }
+    finally { saveRefreshToken(null); setTokens(null); setLoading(false) }
   }
 
   const isPrivateProductList = path === '/me/products' || path === '/me/favorites'
-  const pageContent = isSelling || editMatch ? <SellPage key={path} accessToken={tokens?.accessToken ?? null} editId={editMatch ? Number(editMatch[1]) : undefined} onSaved={(id) => navigate(`/products/${id}`)} onBack={() => navigate(editMatch ? `/products/${editMatch[1]}` : '/')} /> : isAdmin && tokens ? <AdminPage accessToken={tokens.accessToken} onBack={() => navigate('/')} /> : isProfile && tokens ? <ProfilePage accessToken={tokens.accessToken} navigate={navigate} onSaved={(fullName) => setTokens((current) => current ? { ...current, user: { ...current.user, full_name: fullName } } : current)} /> : isProducts && (!isPrivateProductList || tokens) ? path === '/products' || isPrivateProductList ? <ProductListPage key={`${path}${window.location.search}`} accessToken={tokens?.accessToken ?? ''} navigate={navigate} mine={path === '/me/products'} favorites={path === '/me/favorites'} /> : <ProductDetailPage key={path} accessToken={tokens?.accessToken ?? ''} userId={tokens?.user.id ?? null} navigate={navigate} /> : isOffers && tokens ? <OfferPages key={path} accessToken={tokens.accessToken} userId={tokens.user.id} navigate={navigate} /> : (isOrders || isOrderCreation) && tokens ? <OrderPages key={`${path}${window.location.search}`} accessToken={tokens.accessToken} userId={tokens.user.id} navigate={navigate} mode={isOrderCreation ? 'create' : 'list'} /> : isMessages && tokens ? <MessagePages key={`${path}${window.location.search}${navigationVersion}`} accessToken={tokens.accessToken} userId={tokens.user.id} navigate={navigate} /> : null
+  const pageContent = isSelling || editMatch ? <SellPage key={path} accessToken={tokens?.accessToken ?? null} editId={editMatch ? Number(editMatch[1]) : undefined} onSaved={(id) => navigate(`/products/${id}`)} onBack={() => navigate(editMatch ? `/products/${editMatch[1]}` : '/')} /> : isAdmin && tokens ? <AdminPage accessToken={tokens.accessToken} onBack={() => navigate('/')} /> : isProfile && tokens ? <ProfilePage accessToken={tokens.accessToken} navigate={navigate} onSaved={(fullName) => setTokens((current) => current ? { ...current, user: { ...current.user, full_name: fullName } } : current)} /> : isNotifications && tokens ? <NotificationsPage accessToken={tokens.accessToken} navigate={navigate} /> : isProducts && (!isPrivateProductList || tokens) ? path === '/products' || isPrivateProductList ? <ProductListPage key={`${path}${window.location.search}`} accessToken={tokens?.accessToken ?? ''} navigate={navigate} mine={path === '/me/products'} favorites={path === '/me/favorites'} /> : <ProductDetailPage key={path} accessToken={tokens?.accessToken ?? ''} userId={tokens?.user.id ?? null} navigate={navigate} /> : isOffers && tokens ? <OfferPages key={path} accessToken={tokens.accessToken} userId={tokens.user.id} navigate={navigate} /> : (isOrders || isOrderCreation) && tokens ? <OrderPages key={`${path}${window.location.search}`} accessToken={tokens.accessToken} userId={tokens.user.id} navigate={navigate} mode={isOrderCreation ? 'create' : 'list'} /> : isMessages && tokens ? <MessagePages key={`${path}${window.location.search}${navigationVersion}`} accessToken={tokens.accessToken} userId={tokens.user.id} navigate={navigate} /> : null
   const authContent = <section className="font-vietnamese mx-auto grid max-w-frame items-center gap-10 px-4 py-12 md:grid-cols-[1fr_0.85fr] md:py-20 xl:px-0">
       <div><span className="text-xs font-medium uppercase tracking-[0.18em] text-black/50">Chợ đồ cũ dành cho sinh viên</span><h1 className="mt-4 font-bold tracking-tight text-4xl uppercase leading-tight sm:text-5xl lg:text-6xl">Mua bán đồ cũ.<br /><span className="text-black/45">Dễ dàng, an tâm.</span></h1><p className="mt-5 max-w-lg text-base leading-relaxed text-black/60">Tìm sách, thiết bị học tập và đồ dùng đã qua sử dụng từ sinh viên khác. Đăng nhập bằng email đã xác nhận để mua bán.</p><div className="mt-8 grid max-w-lg grid-cols-3 gap-3 border-t border-black/10 pt-5 text-xs text-black/55 sm:text-sm"><span><strong className="block text-lg text-black">01</strong>Tạo tài khoản</span><span><strong className="block text-lg text-black">02</strong>Xác thực email</span><span><strong className="block text-lg text-black">03</strong>Khám phá</span></div></div>
       <div className="rounded-[24px] border border-black/10 bg-white p-5 shadow-sm sm:p-8">
@@ -209,9 +292,11 @@ function App() {
         </>}
       </div>
     </section>
-  const content = pageContent ?? (path === '/' ? <HomePage isAuthenticated={Boolean(tokens)} accessToken={tokens?.accessToken ?? ''} navigate={navigate} /> : authContent)
+  const content = restoringSession
+    ? <main className="mx-auto flex min-h-[55vh] max-w-frame items-center justify-center px-4"><p className="text-sm text-black/55" role="status">Đang khôi phục phiên đăng nhập…</p></main>
+    : pageContent ?? (path === '/' ? <HomePage isAuthenticated={Boolean(tokens)} accessToken={tokens?.accessToken ?? ''} navigate={navigate} /> : authContent)
 
-  return <div className="font-vietnamese min-h-screen bg-white text-black"><Navbar user={tokens?.user ?? null} navigate={navigate} onLogout={logout} onAuth={switchMode} currentPath={path} /><div>{content}</div><Footer onSignUp={() => switchMode('register')} navigate={navigate} /></div>
+  return <div className="font-vietnamese min-h-screen bg-white text-black"><Navbar user={tokens?.user ?? null} navigate={navigate} onLogout={logout} onAuth={switchMode} currentPath={path} accessToken={tokens?.accessToken ?? null} /><div>{content}</div><Footer onSignUp={() => switchMode('register')} navigate={navigate} /></div>
 }
 
 export default App

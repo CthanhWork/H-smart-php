@@ -36,17 +36,17 @@ class OrderResource extends JsonResource
                 'full_name' => $this->seller->full_name,
             ]),
             'offer_id' => $this->offer_id,
-            'review' => $this->whenLoaded('review', fn () => $this->review ? [
-                'id' => $this->review->id, 'rating' => $this->review->rating, 'comment' => $this->review->comment,
-            ] : null),
-            'payment' => $this->whenLoaded('payment', fn () => [
-                'id' => $this->payment->id,
-                'txn_ref' => $this->payment->txn_ref,
-                'provider' => $this->payment->provider,
-                'amount' => $this->payment->amount,
-                'status' => $this->payment->status,
-                'paid_at' => $this->payment->paid_at?->toIso8601String(),
-            ]),
+            'review' => $this->review_rating === null ? null : [
+                'id' => $this->id, 'rating' => $this->review_rating, 'comment' => $this->review_comment,
+            ],
+            'payment' => $this->payment_status === null ? null : [
+                'id' => $this->id,
+                'txn_ref' => $this->payment_txn_ref,
+                'provider' => $this->payment_provider,
+                'amount' => $this->payment_amount,
+                'status' => $this->payment_status,
+                'paid_at' => $this->payment_paid_at?->toIso8601String(),
+            ],
         ];
     }
 }

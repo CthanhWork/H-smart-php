@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Modules\User\Actions\RestoreUserAction;
 use App\Modules\User\Models\User;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use App\Modules\Admin\Services\AdminAuditLogger;
 
 class AdminUserRestoreController extends Controller
 {
@@ -13,7 +15,7 @@ class AdminUserRestoreController extends Controller
         private readonly RestoreUserAction $restoreUserAction
     ) {}
 
-    public function __invoke(int $userId): JsonResponse
+    public function __invoke(Request $request, int $userId, AdminAuditLogger $audit): JsonResponse
     {
         $user = User::find($userId);
 
@@ -28,6 +30,7 @@ class AdminUserRestoreController extends Controller
 
         try {
             $user = $this->restoreUserAction->execute($user);
+            $audit->record($request->user(), 'user_restored', 'user', $user->id, 'Mở khóa tài khoản '.$user->email);
 
             return response()->json([
                 'success' => true,

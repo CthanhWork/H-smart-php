@@ -4,7 +4,6 @@ namespace App\Modules\Order\Actions;
 
 use App\Modules\Offer\Models\Offer;
 use App\Modules\Order\Models\Order;
-use App\Modules\Order\Models\Payment;
 use App\Modules\Product\Models\Product;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
@@ -18,28 +17,31 @@ class SimulatePaymentAction
             $product = Product::lockForUpdate()->findOrFail($snapshot->product_id);
             $order = Order::lockForUpdate()->findOrFail($orderId);
             abort_unless($order->buyer_id === $buyerId, 404);
-            $payment = Payment::where('order_id', $order->id)->lockForUpdate()->firstOrFail();
-
-            if ($order->status !== Order::STATUS_PENDING_PAYMENT || $payment->status !== 'pending') {
+            if ($order->status !== Order::STATUS_PENDING_PAYMENT || $order->payment_status !== 'pending') {
                 throw new ConflictHttpException('Đơn hàng không còn chờ thanh toán.');
             }
             if ($order->expires_at->isPast()) {
-                $order->update(['status' => Order::STATUS_CANCELLED, 'cancelled_at' => now()]);
-                $payment->update(['status' => 'expired']);
+                $order->update(['status' => Order::STATUS_CANCELLED, 'cancelled_at' => now(), 'payment_status' => 'expired']);
                 $product->update(['status' => Product::STATUS_ACTIVE]);
                 if ($order->offer_id) {
                     Offer::whereKey($order->offer_id)->update(['status' => Offer::STATUS_ACCEPTED]);
                 }
 
-                return $order->load(['product.images', 'buyer', 'seller', 'offer', 'payment']);
+                return $order->load(['product.images', 'buyer', 'seller', 'offer']);
             }
 
             if ($product->status !== Product::STATUS_RESERVED) {
                 throw new ConflictHttpException('Sản phẩm không còn được giữ cho đơn này.');
             }
 
-            $payment->update(['status' => 'paid', 'paid_at' => now(), 'response_code' => '00']);
-            $order->update(['status' => Order::STATUS_PAID, 'paid_at' => now()]);
+            $paidAt = now();
+            $order->update([
+                'status' => Order::STATUS_PAID,
+                'paid_at' => $paidAt,
+                'payment_status' => 'paid',
+                'payment_paid_at' => $paidAt,
+                'payment_response_code' => '00',
+            ]);
             $product->update(['status' => Product::STATUS_SOLD]);
             if ($order->offer_id) {
                 Offer::where('product_id', $product->id)
@@ -47,7 +49,7 @@ class SimulatePaymentAction
                     ->update(['status' => Offer::STATUS_REJECTED]);
             }
 
-            return $order->load(['product.images', 'buyer', 'seller', 'offer', 'payment']);
+            return $order->load(['product.images', 'buyer', 'seller', 'offer']);
         });
     }
 }

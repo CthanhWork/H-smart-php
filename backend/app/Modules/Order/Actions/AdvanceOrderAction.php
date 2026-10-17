@@ -38,7 +38,7 @@ class AdvanceOrderAction
                 $order->update(['status' => Order::STATUS_COMPLETED, 'completed_at' => now()]);
             }
 
-            return $order->load(['product.images', 'buyer', 'seller', 'offer', 'payment']);
+            return $order->load(['product.images', 'buyer', 'seller', 'offer']);
         });
     }
 }

@@ -16,7 +16,7 @@ type Order = {
   shipping_carrier: string | null; tracking_number: string | null
   created_at: string; cancelled_at: string | null; product: Product; buyer: { id: number; full_name: string | null }
   seller: { id: number; full_name: string | null }; offer_id: number
-  payment: { id: number; txn_ref: string; provider: string; amount: number; status: string; paid_at: string | null }
+  payment: { id: number; txn_ref: string; provider: string; amount: number; status: string; paid_at: string | null } | null
   review: { id: number; rating: number; comment: string | null } | null
 }
 type OrderPage = { content: Order[]; pageNo: number; pageSize: number; totalElements: number; totalPages: number; last: boolean }
@@ -55,13 +55,21 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
         .then(({ data }) => data)
         .catch(() => null)
       Promise.all([productRequest<Offer>(`offers/${offerId}`, accessToken), profilePromise])
-        .then(([{ data }, profile]) => {
+        .then(async ([{ data }, profile]) => {
           if (cancelled) return
           setOffer(data)
           setRecipientName(profile?.full_name || data.buyer.full_name || '')
           setPhone(profile?.phone_number ?? '')
           setAddress(profile?.shipping_address ?? '')
-          if (data.status !== 'accepted') setError('Bạn chỉ có thể đặt hàng sau khi người bán chấp nhận đề nghị.')
+          if (data.status === 'ordered') {
+            const { data: orderPage } = await productRequest<OrderPage>(`orders?offer_id=${offerId}`, accessToken)
+            if (cancelled) return
+            const existingOrder = orderPage.content[0]
+            if (existingOrder) setOrder(existingOrder)
+            else setError('Không tìm thấy đơn hàng đã tạo cho đề nghị này.')
+          } else if (data.status !== 'accepted') {
+            setError('Bạn chỉ có thể đặt hàng sau khi người bán chấp nhận đề nghị.')
+          }
         })
         .catch((cause: Error) => { if (!cancelled) setError(cause.message) })
         .finally(() => { if (!cancelled) setLoading(false) })
@@ -145,7 +153,7 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
         <div><dt className="text-black/50">Giá đã thỏa thuận</dt><dd className="mt-1 font-medium">{money(item.product_amount)}</dd></div>
         <div><dt className="text-black/50">Tổng thanh toán</dt><dd className="mt-1 font-bold">{money(item.total_amount)}</dd></div>
         <div className="sm:col-span-2"><dt className="text-black/50">Giao đến</dt><dd className="mt-1 font-medium">{item.shipping_address.recipient_name}, {item.shipping_address.phone}, {item.shipping_address.address}</dd></div>
-        <div><dt className="text-black/50">Thanh toán</dt><dd className="mt-1 font-medium">{item.payment.provider === 'mock' ? 'Mô phỏng' : item.payment.provider} · {item.payment.status === 'paid' ? 'Đã thanh toán' : item.payment.status === 'pending' ? 'Chưa thanh toán' : item.payment.status}</dd></div>
+        <div><dt className="text-black/50">Thanh toán</dt><dd className="mt-1 font-medium">{item.payment ? `${item.payment.provider === 'mock' ? 'Mô phỏng' : item.payment.provider} · ${item.payment.status === 'paid' ? 'Đã thanh toán' : item.payment.status === 'pending' ? 'Chưa thanh toán' : item.payment.status}` : 'Chưa có thông tin thanh toán'}</dd></div>
         {item.status === 'pending_payment' && <div><dt className="text-black/50">Giữ sản phẩm đến</dt><dd className="mt-1 font-medium">{new Date(item.expires_at).toLocaleString('vi-VN')}</dd></div>}
         {item.shipping_carrier && <div><dt className="text-black/50">Đơn vị vận chuyển</dt><dd className="mt-1 font-medium">{item.shipping_carrier}</dd></div>}
         {item.tracking_number && <div><dt className="text-black/50">Mã vận đơn</dt><dd className="mt-1 font-mono font-medium">{item.tracking_number}</dd></div>}

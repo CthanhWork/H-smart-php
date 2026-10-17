@@ -7,8 +7,6 @@ use App\Modules\Product\Models\Product;
 use App\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
-use App\Modules\Review\Models\Review;
 
 class Order extends Model
 {
@@ -26,6 +24,9 @@ class Order extends Model
         'shipping_fee', 'platform_fee', 'total_amount', 'status',
         'shipping_address_snapshot', 'expires_at', 'paid_at', 'shipped_at',
         'confirmed_at', 'shipping_carrier', 'tracking_number', 'completed_at', 'cancelled_at',
+        'payment_txn_ref', 'payment_provider', 'payment_amount', 'payment_status', 'payment_transaction_no',
+        'payment_response_code', 'payment_bank_code', 'payment_paid_at', 'review_rating',
+        'review_comment', 'review_created_at', 'review_updated_at',
     ];
 
     protected function casts(): array
@@ -42,6 +43,11 @@ class Order extends Model
             'shipped_at' => 'datetime',
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'payment_paid_at' => 'datetime',
+            'payment_amount' => 'integer',
+            'review_rating' => 'integer',
+            'review_created_at' => 'datetime',
+            'review_updated_at' => 'datetime',
         ];
     }
 
@@ -65,13 +71,4 @@ class Order extends Model
         return $this->belongsTo(Offer::class);
     }
 
-    public function payment(): HasOne
-    {
-        return $this->hasOne(Payment::class);
-    }
-
-    public function review(): HasOne
-    {
-        return $this->hasOne(Review::class);
-    }
 }

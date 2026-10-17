@@ -46,7 +46,6 @@ class AcceptOfferAction
             // Accept the offer
             $offer->update(['status' => Offer::STATUS_ACCEPTED]);
 
-            // TODO: Fire OfferAccepted event for notifications
 
             return $offer->load(['product.images', 'buyer', 'seller']);
         });

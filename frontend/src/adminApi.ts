@@ -44,6 +44,11 @@ export type ApiResult<T> = {
 }
 
 export type Category = { id: number; name: string; slug: string; products_count: number }
+export type AdminStats = { users: number; products: number; orders: number; hidden_products: number; pending_reports: number }
+export type AdminReport = { id: number; target_type: 'product' | 'user'; target_id: number; reason: string; details: string | null; status: string; created_at: string; reporter: User; product: (Product & { seller_id: number }) | null; reported_user: User | null }
+export type AdminOrder = { id: number; status: string; total_amount: number; tracking_number: string | null; shipping_carrier: string | null; created_at: string; buyer: User; seller: User; product: { id: number; title: string } }
+export type AdminAuditLog = { id: number; action: string; subject_type: string; subject_id: number | null; summary: string; details: Record<string, unknown> | null; created_at: string; admin: User | null }
+export type AdminPageResult<T> = { data: T[]; current_page: number; last_page: number; total: number }
 
 async function adminRequest<T>(
   path: string,
@@ -124,4 +129,19 @@ export async function updateCategory(token: string, id: number, name: string): P
 
 export async function deleteCategory(token: string, id: number): Promise<void> {
   await adminRequest<null>(`categories/${id}`, token, { method: 'DELETE' })
+}
+
+export async function getAdminStats(token: string): Promise<AdminStats> { return (await adminRequest<AdminStats>('stats', token)).data }
+export async function getAdminReports(token: string, status = 'pending'): Promise<AdminPageResult<AdminReport>> {
+  return (await adminRequest<AdminPageResult<AdminReport>>(`reports?status=${encodeURIComponent(status)}`, token)).data
+}
+export async function resolveReport(token: string, id: number, action: 'hide_product' | 'suspend_user' | 'dismiss'): Promise<void> {
+  await adminRequest(`reports/${id}/resolve`, token, { method: 'POST', body: JSON.stringify({ action }) })
+}
+export async function getAdminOrders(token: string, q = '', status = ''): Promise<AdminPageResult<AdminOrder>> {
+  const params = new URLSearchParams(); if (q) params.set('q', q); if (status) params.set('status', status)
+  return (await adminRequest<AdminPageResult<AdminOrder>>(`orders?${params}`, token)).data
+}
+export async function getAdminAuditLogs(token: string): Promise<AdminPageResult<AdminAuditLog>> {
+  return (await adminRequest<AdminPageResult<AdminAuditLog>>('audit-logs', token)).data
 }

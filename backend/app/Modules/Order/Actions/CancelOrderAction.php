@@ -3,7 +3,6 @@
 namespace App\Modules\Order\Actions;
 
 use App\Modules\Order\Models\Order;
-use App\Modules\Order\Models\Payment;
 use App\Modules\Offer\Models\Offer;
 use App\Modules\Product\Models\Product;
 use Illuminate\Support\Facades\DB;
@@ -22,12 +21,10 @@ class CancelOrderAction
                 throw new ConflictHttpException('Chỉ có thể hủy đơn đang chờ thanh toán.');
             }
 
-            $payment = Payment::where('order_id', $order->id)->lockForUpdate()->firstOrFail();
-            if ($payment->status !== 'pending') {
+            if ($order->payment_status !== 'pending') {
                 throw new ConflictHttpException('Trạng thái thanh toán không cho phép hủy đơn.');
             }
-            $payment->update(['status' => 'failed', 'response_code' => 'CANCELLED']);
-            $order->update(['status' => Order::STATUS_CANCELLED, 'cancelled_at' => now()]);
+            $order->update(['payment_status' => 'failed', 'payment_response_code' => 'CANCELLED', 'status' => Order::STATUS_CANCELLED, 'cancelled_at' => now()]);
             if ($product->status === Product::STATUS_RESERVED) {
                 $product->update(['status' => Product::STATUS_ACTIVE]);
             }
@@ -35,7 +32,7 @@ class CancelOrderAction
                 Offer::whereKey($order->offer_id)->where('status', Offer::STATUS_ORDERED)->update(['status' => Offer::STATUS_ACCEPTED]);
             }
 
-            return $order->load(['product.images', 'buyer', 'seller', 'offer', 'payment']);
+            return $order->load(['product.images', 'buyer', 'seller', 'offer']);
         });
     }
 }

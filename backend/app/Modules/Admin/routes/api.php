@@ -7,6 +7,10 @@ use App\Modules\Admin\Http\Controllers\AdminUserController;
 use App\Modules\Admin\Http\Controllers\AdminUserRestoreController;
 use App\Modules\Admin\Http\Controllers\AdminUserSuspendController;
 use App\Modules\Admin\Http\Controllers\AdminCategoryController;
+use App\Modules\Admin\Http\Controllers\AdminDashboardController;
+use App\Modules\Admin\Http\Controllers\AdminOrderController;
+use App\Modules\Admin\Http\Controllers\AdminReportController;
+use App\Modules\Admin\Http\Controllers\AdminAuditLogController;
 use App\Modules\Admin\Http\Middleware\EnsureAdmin;
 use App\Modules\Auth\Http\Middleware\AuthenticateJwt;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +18,11 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1/admin')
     ->middleware([AuthenticateJwt::class, EnsureAdmin::class])
     ->group(function (): void {
+        Route::get('stats', AdminDashboardController::class);
+        Route::get('orders', AdminOrderController::class);
+        Route::get('reports', [AdminReportController::class, 'index']);
+        Route::post('reports/{id}/resolve', [AdminReportController::class, 'resolve'])->whereNumber('id');
+        Route::get('audit-logs', AdminAuditLogController::class);
         // Product moderation
         Route::get('products/pending', AdminProductPendingController::class);
         Route::post('products/{productId}/approve', AdminProductApproveController::class);

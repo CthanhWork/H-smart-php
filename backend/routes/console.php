@@ -37,8 +37,8 @@ Artisan::command('make:admin {email} {password=Admin@123456}', function (string 
     }
 })->purpose('Tạo mới hoặc nâng cấp tài khoản Admin');
 
-Artisan::command('orders:expire-pending', function (\App\Modules\Order\Actions\ExpirePendingOrdersAction $expire) {
-    $count = $expire->execute();
+Artisan::command('orders:expire-pending', function (\App\Modules\Order\Actions\ExpirePendingOrdersAction $expire, \App\Modules\Notification\Services\NotificationService $notifications) {
+    $count = $expire->execute($notifications);
     $this->info("Đã giải phóng {$count} đơn chờ thanh toán hết hạn.");
 })->purpose('Giải phóng sản phẩm đã hết thời gian chờ thanh toán');
 

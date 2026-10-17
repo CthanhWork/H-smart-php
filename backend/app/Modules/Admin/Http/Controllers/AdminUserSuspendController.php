@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Admin\Http\Requests\AdminUserSuspendRequest;
 use App\Modules\User\Actions\SuspendUserAction;
 use App\Modules\User\Models\User;
+use App\Modules\Admin\Services\AdminAuditLogger;
 use Illuminate\Http\JsonResponse;
 
 class AdminUserSuspendController extends Controller
@@ -14,7 +15,7 @@ class AdminUserSuspendController extends Controller
         private readonly SuspendUserAction $suspendUserAction
     ) {}
 
-    public function __invoke(AdminUserSuspendRequest $request, int $userId): JsonResponse
+    public function __invoke(AdminUserSuspendRequest $request, int $userId, AdminAuditLogger $audit): JsonResponse
     {
         $currentUser = $request->user();
 
@@ -44,6 +45,7 @@ class AdminUserSuspendController extends Controller
 
         try {
             $user = $this->suspendUserAction->execute($user, $request->validated('reason'));
+            $audit->record($currentUser, 'user_suspended', 'user', $user->id, 'Khóa tài khoản '.$user->email, ['reason' => $request->validated('reason')]);
 
             return response()->json([
                 'success' => true,

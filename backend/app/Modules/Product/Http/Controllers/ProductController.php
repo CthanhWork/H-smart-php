@@ -76,7 +76,7 @@ class ProductController
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $productQuery = Product::with(['images', 'category'])->withAvg('reviews', 'rating')->withCount('reviews');
+        $productQuery = Product::with(['images', 'category'])->withAvg('reviews as reviews_avg_rating', 'review_rating')->withCount('reviews');
         if ($userId = $request->user()?->id) {
             $productQuery->withExists(['favorites as is_favorite' => fn (Builder $favoriteQuery) => $favoriteQuery->where('user_id', $userId)]);
         }

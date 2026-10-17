@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Admin\Http\Requests\AdminProductHideRequest;
 use App\Modules\Product\Actions\HideProductAction;
 use App\Modules\Product\Models\Product;
+use App\Modules\Admin\Services\AdminAuditLogger;
 use Illuminate\Http\JsonResponse;
 
 class AdminProductHideController extends Controller
@@ -14,7 +15,7 @@ class AdminProductHideController extends Controller
         private readonly HideProductAction $hideProductAction
     ) {}
 
-    public function __invoke(AdminProductHideRequest $request, int $productId): JsonResponse
+    public function __invoke(AdminProductHideRequest $request, int $productId, AdminAuditLogger $audit): JsonResponse
     {
         $product = Product::find($productId);
 
@@ -29,6 +30,7 @@ class AdminProductHideController extends Controller
 
         try {
             $product = $this->hideProductAction->execute($product, $request->validated('reason'));
+            $audit->record($request->user(), 'product_hidden', 'product', $product->id, 'Ẩn sản phẩm: '.$product->title, ['reason' => $request->validated('reason')]);
 
             return response()->json([
                 'success' => true,

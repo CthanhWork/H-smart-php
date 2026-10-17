@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Modules\Auth\Services\TokenService;
 use App\Modules\Offer\Models\Offer;
 use App\Modules\Order\Models\Order;
-use App\Modules\Order\Models\Payment;
 use App\Modules\Product\Models\Product;
 use App\Modules\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -76,7 +75,30 @@ class OrderTest extends TestCase
         $this->assertDatabaseHas('orders', ['id' => $orderId, 'buyer_id' => $buyer->id, 'seller_id' => $seller->id]);
         $this->assertDatabaseHas('products', ['id' => $offer->product_id, 'status' => Product::STATUS_RESERVED]);
         $this->assertDatabaseHas('offers', ['id' => $offer->id, 'status' => Offer::STATUS_ORDERED]);
-        $this->assertDatabaseHas('payments', ['order_id' => $orderId, 'amount' => 180000, 'status' => 'pending']);
+        $this->assertDatabaseHas('orders', ['id' => $orderId, 'payment_status' => 'pending', 'payment_provider' => 'mock']);
+    }
+
+    public function test_buyer_can_reopen_the_order_created_from_an_offer(): void
+    {
+        $buyer = $this->user('buyer@example.com');
+        $seller = $this->user('seller@example.com');
+        $offer = $this->acceptedOffer($buyer, $seller);
+        $orderId = $this->withHeaders($this->headers($buyer))->postJson('/api/v1/orders', [
+            'offer_id' => $offer->id, ...$this->address(),
+        ])->assertCreated()->json('data.id');
+
+        $this->withHeaders($this->headers($buyer))->getJson('/api/v1/orders?offer_id='.$offer->id)
+            ->assertOk()
+            ->assertJsonPath('data.content.0.id', $orderId)
+            ->assertJsonPath('data.content.0.offer_id', $offer->id);
+
+        $this->withHeaders($this->headers($seller))->getJson('/api/v1/orders?offer_id='.$offer->id)
+            ->assertOk()
+            ->assertJsonPath('data.content.0.id', $orderId);
+
+        $this->withHeaders($this->headers($this->user('other@example.com')))->getJson('/api/v1/orders?offer_id='.$offer->id)
+            ->assertOk()
+            ->assertJsonPath('data.content', []);
     }
 
     public function test_only_offer_buyer_can_create_order_and_product_cannot_be_reserved_twice(): void
@@ -141,7 +163,7 @@ class OrderTest extends TestCase
             ->assertOk()->assertJsonPath('data.status', 'cancelled');
         $this->assertDatabaseHas('products', ['id' => $offer->product_id, 'status' => Product::STATUS_ACTIVE]);
         $this->assertDatabaseHas('offers', ['id' => $offer->id, 'status' => Offer::STATUS_ACCEPTED]);
-        $this->assertDatabaseHas('payments', ['order_id' => $orderId, 'status' => 'failed']);
+        $this->assertDatabaseHas('orders', ['id' => $orderId, 'payment_status' => 'failed']);
         $this->withHeaders($this->headers($buyer))->postJson('/api/v1/orders', [
             'offer_id' => $offer->id, ...$this->address(),
         ])->assertCreated();
@@ -176,8 +198,10 @@ class OrderTest extends TestCase
         $this->withHeaders($this->headers($buyer))->postJson("/api/v1/orders/{$orderId}/simulate-payment")
             ->assertStatus(409)->assertJsonPath('data.status', 'cancelled');
         $this->assertDatabaseHas('products', ['id' => $offer->product_id, 'status' => Product::STATUS_ACTIVE]);
-        $this->assertDatabaseHas('payments', ['order_id' => $orderId, 'status' => 'expired']);
+        $this->assertDatabaseHas('orders', ['id' => $orderId, 'payment_status' => 'expired']);
         $this->assertDatabaseHas('offers', ['id' => $offer->id, 'status' => Offer::STATUS_ACCEPTED]);
+        $this->assertDatabaseHas('notifications', ['recipient_id' => $buyer->id, 'type' => 'order_expired']);
+        $this->assertDatabaseHas('notifications', ['recipient_id' => $seller->id, 'type' => 'order_expired']);
     }
 
     public function test_scheduled_expiry_releases_abandoned_checkout(): void
@@ -195,8 +219,10 @@ class OrderTest extends TestCase
             ->assertSuccessful();
 
         $this->assertDatabaseHas('orders', ['id' => $orderId, 'status' => Order::STATUS_CANCELLED]);
-        $this->assertDatabaseHas('payments', ['order_id' => $orderId, 'status' => 'expired']);
+        $this->assertDatabaseHas('orders', ['id' => $orderId, 'payment_status' => 'expired']);
         $this->assertDatabaseHas('products', ['id' => $offer->product_id, 'status' => Product::STATUS_ACTIVE]);
         $this->assertDatabaseHas('offers', ['id' => $offer->id, 'status' => Offer::STATUS_ACCEPTED]);
+        $this->assertDatabaseHas('notifications', ['recipient_id' => $buyer->id, 'type' => 'order_expired']);
+        $this->assertDatabaseHas('notifications', ['recipient_id' => $seller->id, 'type' => 'order_expired']);
     }
 }

@@ -20,7 +20,7 @@ class FavoriteController
             ->where('status', Product::STATUS_ACTIVE)
             ->whereHas('favorites', fn ($query) => $query->where('user_id', $userId))
             ->with(['images', 'category'])
-            ->withAvg('reviews', 'rating')
+            ->withAvg('reviews as reviews_avg_rating', 'review_rating')
             ->withCount('reviews')
             ->select('products.*')
             ->withExists(['favorites as is_favorite' => fn ($query) => $query->where('user_id', $userId)])

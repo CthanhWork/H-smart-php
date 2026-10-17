@@ -4,7 +4,6 @@ namespace App\Modules\Order\Actions;
 
 use App\Modules\Offer\Models\Offer;
 use App\Modules\Order\Models\Order;
-use App\Modules\Order\Models\Payment;
 use App\Modules\Product\Models\Product;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -27,8 +26,8 @@ class CreateOrderAction
                 $expiredOrder->update([
                     'status' => Order::STATUS_CANCELLED,
                     'cancelled_at' => now(),
+                    'payment_status' => 'expired',
                 ]);
-                $expiredOrder->payment()->update(['status' => 'expired']);
                 if ($expiredOrder->offer_id) {
                     Offer::whereKey($expiredOrder->offer_id)->where('status', Offer::STATUS_ORDERED)->update(['status' => Offer::STATUS_ACCEPTED]);
                 }
@@ -61,20 +60,16 @@ class CreateOrderAction
                 'status' => Order::STATUS_PENDING_PAYMENT,
                 'shipping_address_snapshot' => $address,
                 'expires_at' => now()->addMinutes(30),
-            ]);
-
-            Payment::create([
-                'order_id' => $order->id,
-                'txn_ref' => 'MOCK-'.Str::upper((string) Str::uuid()),
-                'provider' => 'mock',
-                'amount' => $order->total_amount,
-                'status' => 'pending',
+                'payment_txn_ref' => 'MOCK-'.Str::upper((string) Str::uuid()),
+                'payment_provider' => 'mock',
+                'payment_amount' => $offer->offer_price,
+                'payment_status' => 'pending',
             ]);
 
             $product->update(['status' => Product::STATUS_RESERVED]);
             $offer->update(['status' => Offer::STATUS_ORDERED]);
 
-            return $order->load(['product.images', 'buyer', 'seller', 'offer', 'payment', 'review']);
+            return $order->load(['product.images', 'buyer', 'seller', 'offer']);
         });
     }
 }

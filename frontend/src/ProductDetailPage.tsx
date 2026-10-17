@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { ArrowLeft, ArrowRight, BadgeCheck, ChevronLeft, ChevronRight, Copy, Heart, MessageCircle, Percent, ShieldCheck, ShoppingBag, Star, Store } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BadgeCheck, ChevronLeft, ChevronRight, Copy, Flag, Heart, MessageCircle, Percent, ShieldCheck, ShoppingBag, Star, Store } from 'lucide-react'
 import ProductCard from './components/ProductCard'
 import { Button } from './components/ui/button'
 import { conditionLabel, productRequest, statusLabel, type Product, type ProductPage } from './productApi'
@@ -20,6 +20,12 @@ export default function ProductDetailPage({ accessToken, userId, navigate }: Pro
   const [shareNotice, setShareNotice] = useState('')
   const [favoriteBusy, setFavoriteBusy] = useState(false)
   const [favoriteNotice, setFavoriteNotice] = useState('')
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportTarget, setReportTarget] = useState<'product' | 'user'>('product')
+  const [reportReason, setReportReason] = useState('')
+  const [reportDetails, setReportDetails] = useState('')
+  const [reportError, setReportError] = useState('')
+  const [reportNotice, setReportNotice] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -84,6 +90,20 @@ export default function ProductDetailPage({ accessToken, userId, navigate }: Pro
     }
   }
 
+  async function submitReport(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!product || !requireAccount()) return
+    setBusy(true); setReportError(''); setReportNotice('')
+    try {
+      const result = await productRequest<unknown>('reports', accessToken, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_type: reportTarget, target_id: reportTarget === 'product' ? product.id : product.seller_id, reason: reportReason, details: reportDetails || undefined }),
+      })
+      setReportNotice(result.message); setReportOpen(false); setReportReason(''); setReportDetails('')
+    } catch (cause) { setReportError((cause as Error).message) }
+    finally { setBusy(false) }
+  }
+
   async function shareProduct() {
     if (!product) return
     const url = window.location.href
@@ -126,7 +146,7 @@ export default function ProductDetailPage({ accessToken, userId, navigate }: Pro
             {images.length > 1 && <><button type="button" aria-label="Ảnh trước" onClick={() => setActiveImage((index) => (index - 1 + images.length) % images.length)} className="absolute left-0 top-1/2 grid h-10 w-8 -translate-y-1/2 place-items-center bg-white/85 text-[#444] opacity-100 transition hover:bg-white sm:opacity-0 sm:group-hover:opacity-100"><ChevronLeft size={20} /></button><button type="button" aria-label="Ảnh tiếp theo" onClick={() => setActiveImage((index) => (index + 1) % images.length)} className="absolute right-0 top-1/2 grid h-10 w-8 -translate-y-1/2 place-items-center bg-white/85 text-[#444] opacity-100 transition hover:bg-white sm:opacity-0 sm:group-hover:opacity-100"><ChevronRight size={20} /></button></>}
           </div>
           {images.length > 1 && <div className="mt-2 grid grid-cols-5 gap-2" aria-label="Ảnh sản phẩm">{images.slice(0, 10).map((image, index) => <button key={image.id} type="button" aria-label={`Xem ảnh ${index + 1}`} onClick={() => setActiveImage(index)} className={`aspect-square overflow-hidden border-2 ${index === activeImage ? 'border-[#ee4d2d]' : 'border-transparent hover:border-[#ee4d2d]/50'}`}><img src={image.url} alt={`${product.title} ${index + 1}`} loading="lazy" className="h-full w-full object-cover" /></button>)}</div>}
-          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-[#666] sm:text-sm"><span className="mr-1">Chia sẻ:</span><button type="button" onClick={shareProduct} className="inline-flex h-8 items-center gap-1.5 border border-[#e7e7e7] px-2.5 hover:border-[#ee4d2d] hover:text-[#ee4d2d]"><Copy size={14} />Sao chép liên kết</button>{shareNotice && <span role="status" className="text-emerald-700">{shareNotice}</span>}</div>
+          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-[#666] sm:text-sm"><span className="mr-1">Chia sẻ:</span><button type="button" onClick={shareProduct} className="inline-flex h-8 items-center gap-1.5 border border-[#e7e7e7] px-2.5 hover:border-[#ee4d2d] hover:text-[#ee4d2d]"><Copy size={14} />Sao chép liên kết</button>{!isOwner && <button type="button" onClick={() => { if (requireAccount()) { setReportTarget('product'); setReportOpen(true); setReportError('') } }} className="inline-flex h-8 items-center gap-1.5 border border-[#e7e7e7] px-2.5 hover:border-[#ee4d2d] hover:text-[#ee4d2d]"><Flag size={14} />Báo cáo</button>}{shareNotice && <span role="status" className="text-emerald-700">{shareNotice}</span>}{reportNotice && <span role="status" className="text-emerald-700">{reportNotice}</span>}</div>
         </div>
 
         <div className="min-w-0 py-1 sm:px-1">
@@ -172,7 +192,7 @@ export default function ProductDetailPage({ accessToken, userId, navigate }: Pro
             <h2 className="border-b border-[#eee] bg-[#fafafa] px-3 py-3 text-sm font-semibold uppercase tracking-wide">Thông tin người bán</h2>
             <div className="flex flex-wrap items-center justify-between gap-4 px-2 py-4 sm:px-3">
               <div className="flex min-w-0 items-center gap-3"><span className="grid h-14 w-14 shrink-0 place-items-center rounded-full border border-[#ffd8ce] bg-[#fff5f1] text-[#ee4d2d]"><Store size={24} /></span><div className="min-w-0"><strong className="block truncate text-sm font-semibold">Tài khoản #{product.seller_id}</strong><span className="mt-1 block text-xs text-[#777]">Người bán trên H-Smart</span><div className="mt-2 inline-flex items-center gap-1 text-xs text-[#13804a]"><BadgeCheck size={13} />Trao đổi qua tin nhắn H-Smart</div></div></div>
-              {!isOwner && isActive && <button type="button" onClick={contactSeller} className="inline-flex h-9 items-center gap-1.5 border border-[#ee4d2d] px-3 text-xs font-semibold text-[#ee4d2d] hover:bg-[#fff5f1]"><MessageCircle size={14} />Chat ngay</button>}
+              {!isOwner && <div className="flex gap-2"><button type="button" onClick={() => { if (requireAccount()) { setReportTarget('user'); setReportOpen(true); setReportError('') } }} className="inline-flex h-9 items-center gap-1.5 border border-[#ddd] px-3 text-xs font-semibold text-[#666] hover:border-[#ee4d2d] hover:text-[#ee4d2d]"><Flag size={14} />Báo cáo người bán</button>{isActive && <button type="button" onClick={contactSeller} className="inline-flex h-9 items-center gap-1.5 border border-[#ee4d2d] px-3 text-xs font-semibold text-[#ee4d2d] hover:bg-[#fff5f1]"><MessageCircle size={14} />Chat ngay</button>}</div>}
             </div>
           </section>
 
@@ -198,5 +218,6 @@ export default function ProductDetailPage({ accessToken, userId, navigate }: Pro
         </aside>
       </div>
     </div>
+    {reportOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setReportOpen(false)}><section role="dialog" aria-modal="true" aria-labelledby="report-title" className="w-full max-w-lg bg-white p-5 shadow-2xl sm:p-6" onClick={(event) => event.stopPropagation()}><h2 id="report-title" className="text-lg font-semibold">Gửi báo cáo</h2><p className="mt-1 text-sm text-[#666]">Báo cáo sẽ được quản trị viên xem xét.</p>{reportError && <p role="alert" className="mt-3 text-sm text-red-700">{reportError}</p>}<form className="mt-4 grid gap-3" onSubmit={submitReport}><label className="text-sm">Nội dung báo cáo<select className="mt-1 block h-11 w-full border border-[#ddd] bg-white px-3" value={reportTarget} onChange={(event) => setReportTarget(event.target.value as 'product' | 'user')}><option value="product">Sản phẩm: {product.title}</option><option value="user">Người bán</option></select></label><label className="text-sm">Lý do<textarea className="mt-1 block w-full border border-[#ddd] p-3" minLength={5} maxLength={500} rows={3} required value={reportReason} onChange={(event) => setReportReason(event.target.value)} placeholder="Mô tả lý do báo cáo" /></label><label className="text-sm">Thông tin bổ sung (không bắt buộc)<textarea className="mt-1 block w-full border border-[#ddd] p-3" maxLength={2000} rows={3} value={reportDetails} onChange={(event) => setReportDetails(event.target.value)} placeholder="Cung cấp thêm chi tiết nếu cần" /></label><div className="mt-1 flex justify-end gap-2"><button type="button" className="h-10 border border-[#ddd] px-4 text-sm" onClick={() => setReportOpen(false)}>Đóng</button><button type="submit" disabled={busy} className="h-10 bg-[#ee4d2d] px-4 text-sm font-semibold text-white disabled:opacity-60">{busy ? 'Đang gửi…' : 'Gửi báo cáo'}</button></div></form></section></div>}
   </main>
 }
