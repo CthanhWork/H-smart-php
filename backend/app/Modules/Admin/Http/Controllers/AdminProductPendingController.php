@@ -14,7 +14,7 @@ class AdminProductPendingController extends Controller
         $perPage = min((int) $request->input('per_page', 15), 100);
         $page = (int) $request->input('page', 1);
 
-        $products = Product::where('status', Product::STATUS_PENDING_REVIEW)
+        $products = Product::with(['images', 'category'])->where('status', Product::STATUS_PENDING_REVIEW)
             ->orderBy('created_at', 'desc')
             ->paginate($perPage, ['*'], 'page', $page);
 

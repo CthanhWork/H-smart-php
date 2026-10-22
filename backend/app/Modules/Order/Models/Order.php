@@ -7,9 +7,29 @@ use App\Modules\Product\Models\Product;
 use App\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Auth;
 
 class Order extends Model
 {
+    protected static function booted(): void
+    {
+        static::created(function (Order $order): void {
+            OrderStatusHistory::create([
+                'order_id' => $order->id, 'from_status' => null, 'to_status' => $order->status,
+                'changed_by' => Auth::id(), 'changed_at' => $order->created_at ?? now(),
+            ]);
+        });
+
+        static::updated(function (Order $order): void {
+            if (! $order->wasChanged('status')) return;
+            OrderStatusHistory::create([
+                'order_id' => $order->id, 'from_status' => $order->getOriginal('status'), 'to_status' => $order->status,
+                'changed_by' => Auth::id(), 'changed_at' => now(),
+            ]);
+        });
+    }
+
     public const STATUS_PENDING_PAYMENT = 'pending_payment';
     public const STATUS_PAID = 'paid';
     public const STATUS_PROCESSING = 'processing';
@@ -69,6 +89,11 @@ class Order extends Model
     public function offer(): BelongsTo
     {
         return $this->belongsTo(Offer::class);
+    }
+
+    public function statusHistory(): HasMany
+    {
+        return $this->hasMany(OrderStatusHistory::class)->orderBy('changed_at')->orderBy('id');
     }
 
 }

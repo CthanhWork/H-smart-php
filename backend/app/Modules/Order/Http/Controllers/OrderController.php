@@ -19,7 +19,7 @@ class OrderController
     public function index(Request $request): JsonResponse
     {
         $userId = $request->user()->id;
-        $query = Order::with(['product.images', 'buyer', 'seller', 'offer'])
+        $query = Order::with(['product.images', 'buyer', 'seller', 'offer', 'statusHistory'])
             ->where(fn ($query) => $query->where('buyer_id', $userId)->orWhere('seller_id', $userId));
         if ($request->filled('offer_id')) {
             $query->where('offer_id', (int) $request->query('offer_id'));
@@ -42,7 +42,7 @@ class OrderController
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $order = Order::with(['product.images', 'buyer', 'seller', 'offer'])->findOrFail($id);
+        $order = Order::with(['product.images', 'buyer', 'seller', 'offer', 'statusHistory'])->findOrFail($id);
         abort_unless(in_array($request->user()->id, [$order->buyer_id, $order->seller_id], true), 404);
 
         return response()->json(['status' => 'success', 'message' => 'Chi tiết đơn hàng.', 'data' => new OrderResource($order)]);
@@ -68,7 +68,7 @@ class OrderController
             $body = 'Đơn hàng #'.$order->id.' đã hết hạn chờ thanh toán.';
             $notifications->send($order->buyer, null, 'order_expired', 'Đơn hàng đã hết hạn', $body, '/me/orders', ['order_id' => $order->id]);
             $notifications->send($order->seller, null, 'order_expired', 'Đơn hàng đã hết hạn', $body, '/me/orders', ['order_id' => $order->id]);
-            return response()->json(['status' => 'error', 'message' => 'Thời gian giữ chỗ đã hết. Tạo đơn mới để tiếp tục.', 'data' => new OrderResource($order)], 409);
+            return response()->json(['status' => 'error', 'message' => 'Thời gian giữ chỗ đã hết. Tạo đơn mới để tiếp tục.', 'data' => new OrderResource($order->load('statusHistory'))], 409);
         }
         $notifications->send($order->seller, $request->user(), 'order_paid', 'Đơn hàng đã thanh toán', 'Đơn hàng #'.$order->id.' đã được thanh toán mô phỏng.', '/me/orders', ['order_id' => $order->id]);
 

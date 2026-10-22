@@ -4,10 +4,10 @@ import ProductCard from './components/ProductCard'
 import { Button } from './components/ui/button'
 import { conditionLabel, productRequest, statusLabel, type Product, type ProductPage } from './productApi'
 
-type Props = { accessToken: string; userId: number | null; navigate: (path: string) => void }
+type Props = { accessToken: string; userId: number | null; navigate: (path: string) => void; isAdmin?: boolean }
 const formatPrice = (value: number) => `${new Intl.NumberFormat('vi-VN').format(value)} ₫`
 
-export default function ProductDetailPage({ accessToken, userId, navigate }: Props) {
+export default function ProductDetailPage({ accessToken, userId, navigate, isAdmin = false }: Props) {
   const productId = window.location.pathname.split('/').pop()
   const [product, setProduct] = useState<Product | null>(null)
   const [recommendations, setRecommendations] = useState<Product[]>([])
@@ -169,7 +169,7 @@ export default function ProductDetailPage({ accessToken, userId, navigate }: Pro
           {favoriteNotice && <p role="status" className="mt-3 text-sm text-emerald-700">{favoriteNotice}</p>}
           <div className="mt-6 flex flex-wrap gap-2.5 border-t border-[#eee] pt-5">
             <button type="button" onClick={toggleFavorite} disabled={favoriteBusy} aria-pressed={Boolean(product.is_favorite)} className="inline-flex min-h-11 items-center justify-center gap-2 border border-[#ddd] px-4 text-sm font-semibold text-[#444] transition hover:border-[#ee4d2d] hover:text-[#ee4d2d] disabled:opacity-60"><Heart size={17} className={product.is_favorite ? 'fill-[#ee4d2d] text-[#ee4d2d]' : ''} />{product.is_favorite ? 'Đã yêu thích' : 'Yêu thích'}</button>
-          {!isOwner && isActive && <>
+          {!isOwner && isActive && !isAdmin && <>
             {canOffer && <button type="button" onClick={() => document.getElementById('offer-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="inline-flex min-h-11 items-center justify-center gap-2 border border-[#ee4d2d] bg-[#fff5f1] px-4 text-sm font-semibold text-[#ee4d2d] transition hover:bg-[#ffebe3]"><Percent size={17} />Đề nghị giá</button>}
             <button type="button" onClick={contactSeller} disabled={busy} className="inline-flex min-h-11 items-center justify-center gap-2 bg-[#ee4d2d] px-5 text-sm font-semibold text-white transition hover:bg-[#dc4326] disabled:opacity-60"><MessageCircle size={17} />{busy ? 'Đang mở tin nhắn…' : 'Nhắn tin người bán'}</button>
           </>}

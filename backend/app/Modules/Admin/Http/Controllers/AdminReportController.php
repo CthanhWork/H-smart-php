@@ -18,7 +18,7 @@ class AdminReportController extends Controller
     public function index(Request $request): JsonResponse
     {
         $data = $request->validate(['status' => ['nullable', 'in:pending,actioned,dismissed'], 'q' => ['nullable', 'string', 'max:120']]);
-        $query = AdminReport::with(['reporter:id,email,username,full_name', 'product:id,title,seller_id,status', 'reportedUser:id,email,username,full_name,status'])->latest();
+        $query = AdminReport::with(['reporter:id,email,username,full_name', 'product:id,title,seller_id,status,description,price,condition,category_id,created_at', 'product.images', 'product.category', 'reportedUser:id,email,username,full_name,status'])->latest();
         if (!empty($data['status'])) $query->where('status', $data['status']);
         if (!empty($data['q'])) $query->where(fn ($q) => $q->where('reason', 'like', '%'.$data['q'].'%')->orWhereHas('reporter', fn ($u) => $u->where('email', 'like', '%'.$data['q'].'%')));
         return response()->json(['success' => true, 'message' => 'Danh sách báo cáo.', 'data' => $query->paginate(20)]);

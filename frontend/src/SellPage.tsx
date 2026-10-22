@@ -27,12 +27,19 @@ export default function SellPage({ accessToken, onBack, editId, onSaved }: Props
   const [negotiable, setNegotiable] = useState(false)
   const [minPrice, setMinPrice] = useState('')
   const [images, setImages] = useState<File[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [existingImages, setExistingImages] = useState<ProductImage[]>([])
   const [removedIds, setRemovedIds] = useState<number[]>([])
   const [errors, setErrors] = useState<FieldErrors>({})
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const urls = images.map((image) => URL.createObjectURL(image))
+    setImagePreviews(urls)
+    return () => urls.forEach((url) => URL.revokeObjectURL(url))
+  }, [images])
 
   useEffect(() => {
     if (!accessToken) return
@@ -62,6 +69,19 @@ export default function SellPage({ accessToken, onBack, editId, onSaved }: Props
     setErrors({})
     setError('')
     setNotice('')
+    const remainingImages = existingImages.filter((image) => !removedIds.includes(image.id)).length
+    if (remainingImages + images.length > 5) {
+      setErrors({ images: ['Tối đa 5 ảnh cho một sản phẩm.'] })
+      return
+    }
+    if (remainingImages + images.length < 1) {
+      setErrors({ images: ['Vui lòng thêm ít nhất một ảnh rõ nét cho sản phẩm.'] })
+      return
+    }
+    if (images.some((image) => !['image/jpeg', 'image/png', 'image/webp'].includes(image.type) || image.size > 10 * 1024 * 1024)) {
+      setErrors({ images: ['Chỉ nhận ảnh JPEG, PNG hoặc WebP, tối đa 10 MB mỗi ảnh.'] })
+      return
+    }
     setLoading(true)
 
     const body = new FormData()
@@ -283,14 +303,25 @@ export default function SellPage({ accessToken, onBack, editId, onSaved }: Props
             )}
 
             <div>
-              <label className="block text-sm font-medium mb-1.5">Ảnh sản phẩm <span className="text-black/60 font-normal">(không bắt buộc, tối đa 5 ảnh)</span></label>
+              <label className="block text-sm font-medium mb-1.5">Ảnh sản phẩm <span className="text-black/60 font-normal">(bắt buộc, tối đa 5 ảnh)</span></label>
               <input
                 ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" multiple
-                onChange={(event) => setImages(Array.from(event.target.files ?? []))}
+                onChange={(event) => {
+                  const selected = Array.from(event.target.files ?? [])
+                  const retainedCount = existingImages.filter((image) => !removedIds.includes(image.id)).length
+                  if (retainedCount + images.length + selected.length > 5) {
+                    setErrors((current) => ({ ...current, images: ['Tối đa 5 ảnh cho một sản phẩm. Hãy bỏ bớt ảnh trước khi thêm.'] }))
+                    event.target.value = ''
+                    return
+                  }
+                  setErrors((current) => ({ ...current, images: [] }))
+                  setImages((current) => [...current, ...selected])
+                  event.target.value = ''
+                }}
                 className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-black file:text-white file:cursor-pointer"
               />
               <p className="text-xs text-black/60 mt-1">JPEG, PNG hoặc WebP, mỗi ảnh tối đa 10 MB.</p>
-              {images.length > 0 && <p className="text-xs text-black/60 mt-1">Đã chọn {images.length} ảnh.</p>}
+              {imagePreviews.length > 0 && <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">{imagePreviews.map((src, index) => <div key={`${src}-${index}`} className="overflow-hidden rounded-xl border border-black/10 bg-white"><img src={src} alt={`Ảnh chi tiết đã chọn ${index + 1}`} className="aspect-square w-full object-cover" /><button type="button" onClick={() => setImages((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="w-full px-3 py-2 text-left text-xs text-red-700">Bỏ ảnh {index + 1}</button></div>)}</div>}
               {errors.images && <p className="mt-1 text-xs text-[#FF3333]">{errors.images[0]}</p>}
             </div>
 

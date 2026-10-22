@@ -69,7 +69,7 @@ class CreateOrderAction
             $product->update(['status' => Product::STATUS_RESERVED]);
             $offer->update(['status' => Offer::STATUS_ORDERED]);
 
-            return $order->load(['product.images', 'buyer', 'seller', 'offer']);
+            return $order->load(['product.images', 'buyer', 'seller', 'offer', 'statusHistory']);
         });
     }
 }

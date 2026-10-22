@@ -12,7 +12,7 @@ class AdminOrderController extends Controller
     public function __invoke(Request $request): JsonResponse
     {
         $data = $request->validate(['status' => ['nullable', 'string', 'in:pending_payment,paid,processing,shipping,completed,cancelled'], 'q' => ['nullable', 'string', 'max:120']]);
-        $query = Order::with(['product:id,title', 'buyer:id,email,full_name', 'seller:id,email,full_name'])->latest();
+        $query = Order::with(['product:id,title,description,price,condition,category_id', 'product.images', 'buyer:id,email,full_name', 'seller:id,email,full_name', 'statusHistory'])->latest();
         if (!empty($data['status'])) $query->where('status', $data['status']);
         if (!empty($data['q'])) {
             $term = trim($data['q']);

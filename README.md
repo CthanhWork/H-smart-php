@@ -48,8 +48,6 @@ Trong phpMyAdmin, chọn máy chủ `db`, đăng nhập với tên người dùn
 # Xem log
  docker compose logs -f
 
-# Chạy kiểm thử backend
- docker compose exec backend php artisan test
 ```
 
 Có thể chạy `docker compose up -d --build` để build và khởi động lại sau khi cập nhật mã nguồn.

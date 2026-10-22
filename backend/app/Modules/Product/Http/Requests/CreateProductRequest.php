@@ -23,7 +23,7 @@ class CreateProductRequest extends FormRequest
             'condition' => ['required', 'string', Rule::in(Product::CONDITIONS)],
             'negotiable' => ['sometimes', 'boolean'],
             'min_price' => ['nullable', 'required_if:negotiable,1', 'integer', 'min:1', 'lte:price'],
-            'images' => ['sometimes', 'array', 'max:5'],
+            'images' => ['required', 'array', 'min:1', 'max:5'],
             'images.*' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'extensions:jpg,jpeg,png,webp', 'max:10240'],
             'seller_id' => ['prohibited'],
             'status' => ['prohibited'],

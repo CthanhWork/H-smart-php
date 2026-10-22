@@ -8,6 +8,8 @@ class UpdateProductRequest extends CreateProductRequest
     {
         return [
             ...parent::rules(),
+            'images' => ['sometimes', 'array', 'max:5'],
+            'images.*' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'extensions:jpg,jpeg,png,webp', 'max:10240'],
             'remove_image_ids' => ['sometimes', 'array'],
             'remove_image_ids.*' => ['required', 'integer', 'distinct', 'min:1'],
             'image_order' => ['sometimes', 'array'],

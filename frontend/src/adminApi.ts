@@ -18,6 +18,8 @@ export type Product = {
   status: string
   created_at: string
   updated_at: string
+  category?: { id: number; name: string; slug?: string } | null
+  images?: Array<{ id: number; url: string; sort_order: number }>
 }
 
 export type PaginatedUsers = {
@@ -46,7 +48,7 @@ export type ApiResult<T> = {
 export type Category = { id: number; name: string; slug: string; products_count: number }
 export type AdminStats = { users: number; products: number; orders: number; hidden_products: number; pending_reports: number }
 export type AdminReport = { id: number; target_type: 'product' | 'user'; target_id: number; reason: string; details: string | null; status: string; created_at: string; reporter: User; product: (Product & { seller_id: number }) | null; reported_user: User | null }
-export type AdminOrder = { id: number; status: string; total_amount: number; tracking_number: string | null; shipping_carrier: string | null; created_at: string; buyer: User; seller: User; product: { id: number; title: string } }
+export type AdminOrder = { id: number; status: string; total_amount: number; product_amount: number; shipping_fee: number; tracking_number: string | null; shipping_carrier: string | null; shipping_address_snapshot?: Record<string, unknown> | null; created_at: string; paid_at: string | null; confirmed_at: string | null; shipped_at: string | null; completed_at: string | null; cancelled_at: string | null; buyer: User; seller: User; product: Product & { id: number; title: string }; status_history?: Array<{from_status:string|null;to_status:string;changed_at:string}> }
 export type AdminAuditLog = { id: number; action: string; subject_type: string; subject_id: number | null; summary: string; details: Record<string, unknown> | null; created_at: string; admin: User | null }
 export type AdminPageResult<T> = { data: T[]; current_page: number; last_page: number; total: number }
 

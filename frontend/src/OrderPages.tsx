@@ -18,6 +18,7 @@ type Order = {
   seller: { id: number; full_name: string | null }; offer_id: number
   payment: { id: number; txn_ref: string; provider: string; amount: number; status: string; paid_at: string | null } | null
   review: { id: number; rating: number; comment: string | null } | null
+  status_history: Array<{ from_status: string | null; to_status: string; changed_at: string }>
 }
 type OrderPage = { content: Order[]; pageNo: number; pageSize: number; totalElements: number; totalPages: number; last: boolean }
 type Props = { accessToken: string; userId: number; navigate: (path: string) => void; mode: 'list' | 'create' }
@@ -158,13 +159,7 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
         {item.shipping_carrier && <div><dt className="text-black/50">Đơn vị vận chuyển</dt><dd className="mt-1 font-medium">{item.shipping_carrier}</dd></div>}
         {item.tracking_number && <div><dt className="text-black/50">Mã vận đơn</dt><dd className="mt-1 font-mono font-medium">{item.tracking_number}</dd></div>}
       </dl>
-      {item.status === 'cancelled' ? <p className="mb-5 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700">Đơn hàng đã hủy{item.cancelled_at ? ` lúc ${new Date(item.cancelled_at).toLocaleString('vi-VN')}` : ''}.</p> : <section className="mb-5 rounded-2xl bg-[#f8f8f8] p-4 sm:p-5"><h3 className="text-sm font-bold">Tiến trình đơn hàng</h3><ol className="mt-4 grid gap-3 sm:grid-cols-5">{[
-        { label: 'Tạo đơn', done: true, at: item.created_at },
-        { label: 'Thanh toán', done: Boolean(item.paid_at), at: item.paid_at },
-        { label: 'Người bán xác nhận', done: Boolean(item.confirmed_at), at: item.confirmed_at },
-        { label: 'Đang giao', done: Boolean(item.shipped_at), at: item.shipped_at },
-        { label: 'Hoàn tất', done: Boolean(item.completed_at), at: item.completed_at },
-      ].map((step) => <li key={step.label} className="flex items-start gap-2 text-xs sm:flex-col"><span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold ${step.done ? 'bg-[#2f7049] text-white' : 'border border-black/20 bg-white text-black/35'}`}>{step.done ? '✓' : '·'}</span><span><span className={step.done ? 'font-semibold text-black' : 'text-black/45'}>{step.label}</span>{step.at && <time className="mt-1 block text-[10px] text-black/45">{new Date(step.at).toLocaleString('vi-VN')}</time>}</span></li>)}</ol></section>}
+      <section className="mb-5 rounded-2xl bg-[#f8f8f8] p-4 sm:p-5"><h3 className="text-sm font-bold">Lịch sử và tiến trình đơn hàng</h3><ol className="mt-4 space-y-3">{(item.status_history ?? []).map((event, index) => <li key={`${event.to_status}-${event.changed_at}-${index}`} className="flex items-start gap-3 text-sm"><span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold ${event.to_status === 'cancelled' ? 'bg-red-600 text-white' : 'bg-[#2f7049] text-white'}`}>{event.to_status === 'cancelled' ? '!' : '✓'}</span><span><strong className={event.to_status === 'cancelled' ? 'text-red-700' : 'text-black'}>{index === 0 ? 'Đơn được tạo · ' : ''}{labels[event.to_status] ?? event.to_status}</strong><time className="mt-0.5 block text-xs text-black/50">{new Date(event.changed_at).toLocaleString('vi-VN')}</time></span></li>)}{(!item.status_history || item.status_history.length === 0) && <li className="text-sm text-black/55">{labels[item.status] ?? item.status} · {new Date(item.created_at).toLocaleString('vi-VN')}</li>}</ol></section>
       {item.review && <div className="rounded-2xl bg-[#F0F0F0] p-4 text-sm"><p className="font-medium">Đánh giá của bạn <span className="ml-2 text-amber-500">{'★'.repeat(item.review.rating)}{'☆'.repeat(5 - item.review.rating)}</span></p>{item.review.comment && <p className="mt-1 text-black/70">{item.review.comment}</p>}</div>}
       {item.status === 'completed' && item.buyer.id === userId && !item.review && <form className="mt-5 rounded-2xl bg-[#F0F0F0] p-4 sm:p-5" onSubmit={(event) => submitReview(event, item.id)}>
         <h3 className="flex items-center gap-2 font-bold"><Star size={17} /> Đánh giá món hàng</h3>
@@ -182,7 +177,7 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
       <div><p className="text-xs font-medium uppercase tracking-[0.16em] text-black/50">Giao dịch</p><h1 className="mt-2 font-satoshi font-bold tracking-tight text-2xl uppercase sm:text-4xl">{mode === 'create' ? 'Tạo đơn hàng' : 'Đơn hàng của tôi'}</h1></div>
       {mode === 'create' && <Button variant="outline" onClick={() => navigate('/me/orders')}>Xem đơn hàng <ArrowRight className="ml-2" size={16} /></Button>}
     </div>
-    <p className="mb-6 text-sm text-black/55">Đây là bước thanh toán thử nghiệm, chưa trừ tiền thật.</p>
+    <p className="mb-6 text-sm text-black/55">{mode === 'create' ? 'Thanh toán đang ở chế độ mô phỏng, chưa trừ tiền thật.' : 'Theo dõi trạng thái xử lý và thông tin giao hàng của từng đơn.'}</p>
     {notice && <Alert variant="success" className="mb-4" role="status">{notice}</Alert>}
     {error && <Alert variant="error" className="mb-4">{error}</Alert>}
     {mode === 'create' && !offerId && <Alert variant="error" className="mb-4">Thiếu mã đề nghị mua.</Alert>}
@@ -196,6 +191,6 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
       <Button className="w-full sm:w-auto" type="submit" disabled={busy}>{busy ? 'Đang tạo đơn…' : 'Tạo đơn và giữ sản phẩm'}</Button>
     </form>}
     {mode === 'create' && order && <div className="space-y-4">{card(order)}<div className="flex flex-wrap gap-2">{actions(order)}<Button variant="outline" onClick={() => navigate('/me/orders')}>Tất cả đơn hàng</Button></div></div>}
-    {mode === 'list' && !loading && <div className="space-y-4">{orders.length ? orders.map(card) : <div className="rounded-[20px] border border-dashed border-black/20 bg-white p-10 text-center text-sm text-black/55"><PackageCheck className="mx-auto mb-3" size={28} />Chưa có đơn hàng nào.</div>}</div>}
+    {mode === 'list' && !loading && <div className="space-y-4">{orders.length ? orders.map(card) : <div className="rounded-[20px] border border-dashed border-black/20 bg-white p-10 text-center"><PackageCheck className="mx-auto mb-3 text-black/45" size={28} /><h2 className="font-semibold">Chưa có đơn hàng nào</h2><p className="mt-2 text-sm text-black/55">Đơn hàng sẽ xuất hiện tại đây sau khi người bán chấp nhận đề nghị của bạn.</p><Button className="mt-5" variant="outline" onClick={() => navigate('/products')}>Khám phá sản phẩm</Button></div>}</div>}
   </main>
 }

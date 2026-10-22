@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { getUnreadNotificationCount } from '../../notificationApi'
+import { productRequest } from '../../productApi'
 
 type NavUser = {
   id: number
@@ -34,7 +35,7 @@ type NavbarProps = {
 
 const guestLinks = [
   { label: 'Khám phá sản phẩm', href: '/products' },
-  { label: 'Cách hoạt động', href: '#how-it-works' },
+  { label: 'Danh mục sản phẩm', href: '#categories' },
 ]
 
 const memberLinks = [
@@ -51,8 +52,12 @@ const memberLinks = [
 const Navbar = ({ user, navigate, onLogout, onAuth, currentPath, accessToken }: NavbarProps) => {
   const [menuOpen, setMenuOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0)
   const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get('q') ?? '')
-  const links = user ? memberLinks : guestLinks
+  const links = user
+    ? memberLinks.map((link) => user.role === 'admin' && link.href === '/me/messages' ? { label: 'Tin nhắn hỗ trợ', href: '/admin/messages' } : link)
+    : guestLinks
+  const messagePath = user?.role === 'admin' ? '/admin/messages' : '/me/messages'
 
   const refreshUnreadCount = useCallback(async () => {
     if (!accessToken) { setUnreadCount(0); return }
@@ -60,18 +65,34 @@ const Navbar = ({ user, navigate, onLogout, onAuth, currentPath, accessToken }: 
     catch { /* A page-level notification request will show the actionable error. */ }
   }, [accessToken])
 
+  const refreshUnreadMessageCount = useCallback(async () => {
+    if (!accessToken) { setUnreadMessageCount(0); return }
+    try {
+      const { data } = await productRequest<Array<{ unread_count?: number }>>('messages', accessToken)
+      setUnreadMessageCount(data.reduce((total, thread) => total + Math.max(0, thread.unread_count ?? 0), 0))
+    } catch { /* The inbox shows the actionable error if messages cannot load. */ }
+  }, [accessToken])
+
   useEffect(() => {
     void refreshUnreadCount()
-    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') void refreshUnreadCount() }
+    void refreshUnreadMessageCount()
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshUnreadCount()
+        void refreshUnreadMessageCount()
+      }
+    }
     window.addEventListener('focus', refreshWhenVisible)
     document.addEventListener('visibilitychange', refreshWhenVisible)
     window.addEventListener('hsmart:notifications-updated', refreshWhenVisible)
+    window.addEventListener('hsmart:messages-updated', refreshWhenVisible)
     return () => {
       window.removeEventListener('focus', refreshWhenVisible)
       document.removeEventListener('visibilitychange', refreshWhenVisible)
       window.removeEventListener('hsmart:notifications-updated', refreshWhenVisible)
+      window.removeEventListener('hsmart:messages-updated', refreshWhenVisible)
     }
-  }, [refreshUnreadCount, currentPath])
+  }, [refreshUnreadCount, refreshUnreadMessageCount, currentPath])
 
   const go = (path: string) => {
     setMenuOpen(false)
@@ -120,7 +141,7 @@ const Navbar = ({ user, navigate, onLogout, onAuth, currentPath, accessToken }: 
 
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           {user ? <>
-            <button type="button" onClick={() => go('/me/messages')} aria-label="Tin nhắn" title="Tin nhắn" className="relative flex h-10 w-10 items-center justify-center rounded-xl text-[#343434] transition hover:bg-[#fff0eb] hover:text-[#d94b2b]"><MessageCircle size={21} /></button>
+            <button type="button" onClick={() => go(messagePath)} aria-label={`${user.role === 'admin' ? 'Tin nhắn hỗ trợ' : 'Tin nhắn'}${unreadMessageCount ? `, ${unreadMessageCount} chưa đọc` : ''}`} aria-current={currentPath === messagePath ? 'page' : undefined} title={user.role === 'admin' ? 'Tin nhắn hỗ trợ' : 'Tin nhắn'} className={cn('relative flex h-10 w-10 items-center justify-center rounded-xl text-[#343434] transition hover:bg-[#fff0eb] hover:text-[#d94b2b]', currentPath === messagePath && 'bg-[#fff0eb] text-[#d94b2b]')}><MessageCircle size={21} />{unreadMessageCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-[#1684ff] px-1 text-center text-[10px] font-bold leading-4 text-white" aria-hidden="true">{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</span>}</button>
             <button type="button" onClick={() => go('/me/notifications')} aria-label={`Thông báo${unreadCount ? `, ${unreadCount} chưa đọc` : ''}`} title="Thông báo" className={cn('relative flex h-10 w-10 items-center justify-center rounded-xl text-[#343434] transition hover:bg-[#fff0eb] hover:text-[#d94b2b]', currentPath === '/me/notifications' && 'bg-[#fff0eb] text-[#d94b2b]')}><Bell size={21} />{unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-[#e65332] px-1 text-center text-[10px] font-bold leading-4 text-white">{unreadCount > 99 ? '99+' : unreadCount}</span>}</button>
             <button type="button" onClick={() => go('/me/orders')} aria-label="Đơn mua" title="Đơn mua" className="flex h-10 w-10 items-center justify-center rounded-xl text-[#343434] transition hover:bg-[#fff0eb] hover:text-[#d94b2b]"><ShoppingBag size={21} /></button>
             <button type="button" onClick={() => go('/me/favorites')} aria-label="Yêu thích" title="Yêu thích" className="flex h-10 w-10 items-center justify-center rounded-xl text-[#343434] transition hover:bg-[#fff0eb] hover:text-[#d94b2b]"><Heart size={20} /></button>
@@ -129,21 +150,21 @@ const Navbar = ({ user, navigate, onLogout, onAuth, currentPath, accessToken }: 
             <button type="button" onClick={() => onAuth('login')} className="hidden items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-[#343434] hover:bg-black/5 sm:flex"><UserRound size={18} /> <span>Đăng nhập</span></button>
             <button type="button" onClick={() => onAuth('register')} className="hidden items-center gap-2 rounded-xl bg-[#e65332] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#cc4528] sm:flex"><UserRoundPlus size={18} /> <span>Tạo tài khoản</span></button>
           </>}
-          <button type="button" aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)} className="flex h-10 w-10 items-center justify-center rounded-xl text-black hover:bg-black/5 md:hidden">{menuOpen ? <X size={21} /> : <Menu size={21} />}</button>
+          <button type="button" aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)} className="flex h-10 w-10 items-center justify-center rounded-xl text-black hover:bg-black/5 lg:hidden">{menuOpen ? <X size={21} /> : <Menu size={21} />}</button>
         </div>
       </div>
 
-      <div className="hidden border-t border-black/[0.05] md:block">
+      <div className="hidden border-t border-black/[0.05] lg:block">
         <div className="mx-auto flex h-11 max-w-frame items-center gap-6 overflow-x-auto px-4 xl:px-0">
-          {links.map((link) => <button key={link.href} type="button" onClick={() => go(link.href)} className={cn('h-full shrink-0 border-b-2 border-transparent text-[13px] font-medium text-black/60 transition hover:border-[#e65332] hover:text-[#d94b2b]', currentPath === link.href && 'border-[#e65332] font-semibold text-[#d94b2b]', user && link.href === '/sell' && 'ml-auto inline-flex h-8 items-center gap-2 rounded-lg border-0 bg-[#fff0eb] px-3 text-[#d94b2b] hover:bg-[#ffe3d8]')}>
-            {user && link.href === '/sell' && <Store size={15} />}{link.label}
+          {links.map((link) => <button key={link.href} type="button" onClick={() => go(link.href)} className={cn('inline-flex h-full shrink-0 items-center gap-1.5 border-b-2 border-transparent text-[13px] font-medium text-black/60 transition hover:border-[#e65332] hover:text-[#d94b2b]', currentPath === link.href && 'border-[#e65332] font-semibold text-[#d94b2b]', user && link.href === '/sell' && 'ml-auto inline-flex h-8 items-center gap-2 rounded-lg border-0 bg-[#fff0eb] px-3 text-[#d94b2b] hover:bg-[#ffe3d8]')}>
+            {user && link.href === '/sell' && <Store size={15} />}{link.label}{link.href === '/me/messages' && unreadMessageCount > 0 && <span className="rounded-full bg-[#1684ff] px-1.5 text-[10px] font-bold leading-[18px] text-white">{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</span>}
           </button>)}
           {user?.role === 'admin' && <button type="button" onClick={() => go('/admin')} className={cn('h-full shrink-0 border-b-2 border-transparent text-[13px] font-medium text-black/60 hover:border-[#e65332] hover:text-[#d94b2b]', currentPath === '/admin' && 'border-[#e65332] font-semibold text-[#d94b2b]')}>Quản trị</button>}
         </div>
       </div>
 
-      {menuOpen && <div className="border-t border-black/10 bg-white px-4 py-3 md:hidden"><div className="mx-auto flex max-w-frame flex-col">
-        {links.map((link) => <button key={link.href} type="button" onClick={() => go(link.href)} className={cn('rounded-xl px-3 py-3 text-left text-sm', currentPath === link.href ? 'bg-[#fff0eb] font-semibold text-[#d94b2b]' : 'text-black/70')}>{link.label}</button>)}
+      {menuOpen && <div className="border-t border-black/10 bg-white px-4 py-3 lg:hidden"><div className="mx-auto flex max-w-frame flex-col">
+        {links.map((link) => <button key={link.href} type="button" onClick={() => go(link.href)} className={cn('flex items-center justify-between rounded-xl px-3 py-3 text-left text-sm', currentPath === link.href ? 'bg-[#fff0eb] font-semibold text-[#d94b2b]' : 'text-black/70')}><span>{link.label}</span>{link.href === '/me/messages' && unreadMessageCount > 0 && <span className="rounded-full bg-[#1684ff] px-2 py-0.5 text-[10px] font-bold text-white">{unreadMessageCount > 99 ? '99+' : unreadMessageCount} chưa đọc</span>}</button>)}
         {user?.role === 'admin' && <button type="button" onClick={() => go('/admin')} className="rounded-xl px-3 py-3 text-left text-sm text-black/70">Quản trị</button>}
         {user ? <button type="button" onClick={() => { setMenuOpen(false); onLogout() }} className="flex items-center gap-2 rounded-xl px-3 py-3 text-left text-sm text-black/70"><LogOut size={17} /> Đăng xuất</button> : <div className="mt-2 grid grid-cols-2 gap-2 border-t border-black/10 pt-3"><button type="button" onClick={() => { setMenuOpen(false); onAuth('login') }} className="rounded-xl border border-black/10 px-3 py-2.5 text-sm font-semibold">Đăng nhập</button><button type="button" onClick={() => { setMenuOpen(false); onAuth('register') }} className="rounded-xl bg-[#e65332] px-3 py-2.5 text-sm font-semibold text-white">Tạo tài khoản</button></div>}
       </div></div>}

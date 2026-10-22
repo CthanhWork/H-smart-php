@@ -26,6 +26,11 @@ class OrderResource extends JsonResource
             'completed_at' => $this->completed_at?->toIso8601String(),
             'cancelled_at' => $this->cancelled_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
+            'status_history' => $this->whenLoaded('statusHistory', fn () => $this->statusHistory->map(fn ($event) => [
+                'from_status' => $event->from_status,
+                'to_status' => $event->to_status,
+                'changed_at' => $event->changed_at?->toIso8601String(),
+            ])->values()),
             'product' => new ProductResource($this->whenLoaded('product')),
             'buyer' => $this->whenLoaded('buyer', fn () => [
                 'id' => $this->buyer->id,

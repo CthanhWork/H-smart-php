@@ -12,7 +12,7 @@ const InputGroup = ({ className, children }: InputGroupProps) => {
   return (
     <div
       className={cn(
-        "focus-within:shadow-md transition-all relative flex items-center w-full rounded-full overflow-hidden border border-black/20 bg-white focus-within:border-black",
+        "focus-within:shadow-md transition-[box-shadow,border-color] relative flex items-center w-full rounded-full overflow-hidden border border-black/20 bg-white focus-within:border-black",
         className ?? ""
       )}
     >

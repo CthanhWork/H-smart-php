@@ -32,7 +32,7 @@ class CancelOrderAction
                 Offer::whereKey($order->offer_id)->where('status', Offer::STATUS_ORDERED)->update(['status' => Offer::STATUS_ACCEPTED]);
             }
 
-            return $order->load(['product.images', 'buyer', 'seller', 'offer']);
+            return $order->load(['product.images', 'buyer', 'seller', 'offer', 'statusHistory']);
         });
     }
 }

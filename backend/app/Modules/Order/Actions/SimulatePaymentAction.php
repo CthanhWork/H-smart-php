@@ -27,7 +27,7 @@ class SimulatePaymentAction
                     Offer::whereKey($order->offer_id)->update(['status' => Offer::STATUS_ACCEPTED]);
                 }
 
-                return $order->load(['product.images', 'buyer', 'seller', 'offer']);
+                return $order->load(['product.images', 'buyer', 'seller', 'offer', 'statusHistory']);
             }
 
             if ($product->status !== Product::STATUS_RESERVED) {
@@ -49,7 +49,7 @@ class SimulatePaymentAction
                     ->update(['status' => Offer::STATUS_REJECTED]);
             }
 
-            return $order->load(['product.images', 'buyer', 'seller', 'offer']);
+            return $order->load(['product.images', 'buyer', 'seller', 'offer', 'statusHistory']);
         });
     }
 }

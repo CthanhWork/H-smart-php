@@ -41,6 +41,7 @@ export default function HomePage({ isAuthenticated, accessToken, navigate }: Hom
   const [favoriteBusyIds, setFavoriteBusyIds] = useState<Set<number>>(() => new Set())
 
   useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const timer = window.setInterval(() => setSlide((current) => (current + 1) % slides.length), 6000)
     return () => window.clearInterval(timer)
   }, [])
@@ -90,7 +91,7 @@ export default function HomePage({ isAuthenticated, accessToken, navigate }: Hom
     <div className="mx-auto w-[min(calc(100%-24px),1200px)] pt-4 sm:w-[min(calc(100%-40px),1200px)] sm:pt-5">
       <section className="grid gap-1 md:grid-cols-[minmax(0,2fr)_minmax(220px,1fr)]" aria-label="Gợi ý mua sắm">
         <div className="relative min-h-[210px] overflow-hidden bg-[#50433b] sm:min-h-[270px]">
-          {slides.map((item, index) => <button key={item.title} type="button" aria-label={item.action} onClick={() => navigate(index === 2 && isAuthenticated ? '/sell' : '/products')} className={`absolute inset-0 h-full w-full text-left transition-opacity duration-500 ${index === slide ? 'z-[1] opacity-100' : 'pointer-events-none opacity-0'}`} style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,.72) 0%, rgba(0,0,0,.32) 55%, rgba(0,0,0,.05) 100%), url("${item.image}")`, backgroundPosition: 'center', backgroundSize: 'cover' }}>
+          {slides.map((item, index) => <button key={item.title} type="button" aria-label={item.action} onClick={() => navigate(index === 2 ? isAuthenticated ? '/sell' : '/register' : '/products')} className={`absolute inset-0 h-full w-full text-left transition-opacity duration-500 motion-reduce:transition-none ${index === slide ? 'z-[1] opacity-100' : 'pointer-events-none opacity-0'}`} style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,.72) 0%, rgba(0,0,0,.32) 55%, rgba(0,0,0,.05) 100%), url("${item.image}")`, backgroundPosition: 'center', backgroundSize: 'cover' }}>
             <span className="absolute bottom-8 left-5 max-w-[470px] text-white sm:bottom-10 sm:left-9"><span className="inline-flex bg-[#ee4d2d] px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide">H-Smart · Chợ sinh viên</span><span className="mt-3 block text-2xl font-extrabold leading-tight sm:text-4xl">{item.title}</span><span className="mt-2 block max-w-md text-sm leading-6 text-white/90 sm:text-base">{item.subtitle}</span><span className="mt-4 inline-flex items-center gap-2 text-sm font-bold">{item.action}<ArrowRight size={16} /></span></span>
           </button>)}
           <button type="button" aria-label="Banner trước" onClick={() => moveSlide(slide - 1)} className="absolute left-0 top-1/2 z-[2] grid h-10 w-8 -translate-y-1/2 place-items-center bg-white/80 text-[#444] hover:bg-white"><ChevronLeft size={20} /></button>
@@ -105,7 +106,7 @@ export default function HomePage({ isAuthenticated, accessToken, navigate }: Hom
         </div>
       </section>
 
-      <section className="mt-3 bg-white px-2 py-3 shadow-[0_1px_2px_rgba(0,0,0,.06)] sm:px-4" aria-label="Danh mục nổi bật">
+      <section id="categories" className="mt-3 scroll-mt-32 bg-white px-2 py-3 shadow-[0_1px_2px_rgba(0,0,0,.06)] sm:px-4" aria-label="Danh mục nổi bật">
         <div className="grid grid-cols-4 gap-y-2 sm:grid-cols-6 lg:grid-cols-8">
           {categories.slice(0, 8).map((category) => {
             const Icon = categoryIcons[category.slug] ?? ShoppingBag
