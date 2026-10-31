@@ -1,3 +1,5 @@
+param([switch]$LowMemory)
+
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 
@@ -18,10 +20,14 @@ if ($useWsl -and -not (Get-Command wsl -ErrorAction SilentlyContinue)) {
 
 function Invoke-DockerCompose {
     param([string[]]$ComposeArgs)
+    $configArgs = @()
+    if ($LowMemory) {
+        $configArgs = @('-f', 'compose.yaml', '-f', 'compose.low-memory.yaml', '--parallel', '1')
+    }
     if ($useWsl) {
-        & wsl -- docker compose @ComposeArgs
+        & wsl -- docker compose @configArgs @ComposeArgs
     } else {
-        & docker compose @ComposeArgs
+        & docker compose @configArgs @ComposeArgs
     }
 }
 
@@ -50,12 +56,15 @@ if (-not (Test-Path -LiteralPath '.env')) {
 
 # Kiểm tra DB_PASSWORD
 if (-not (Select-String -LiteralPath '.env' -Pattern '^DB_PASSWORD=.+$' -Quiet)) {
-    Write-Host "Loi: File .env can co dong DB_PASSWORD voi mat khau PostgreSQL." -ForegroundColor Red
+    Write-Host "Loi: File .env can co dong DB_PASSWORD voi mat khau MySQL." -ForegroundColor Red
     exit 1
 }
 
 Write-Host ""
 Write-Host "Dang khoi dong Docker containers..." -ForegroundColor Yellow
+if ($LowMemory) {
+    Write-Host "Che do laptop 8 GB: frontend tinh, gioi han RAM, build tuan tu." -ForegroundColor Cyan
+}
 Write-Host "(Lan dau tien se mat 2-5 phut de build images)" -ForegroundColor Gray
 Write-Host ""
 
@@ -84,14 +93,18 @@ Write-Host "        ✓ Khoi dong thanh cong!" -ForegroundColor Green
 Write-Host "===================================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Truy cap ung dung:" -ForegroundColor Cyan
-Write-Host "  • Giao dien web:     http://localhost:5173" -ForegroundColor White
-Write-Host "  • Email thu nghiem:  http://localhost:8025" -ForegroundColor White
-Write-Host "  • Backend API:       http://localhost:8000" -ForegroundColor White
-Write-Host "  • Quan ly database:  http://localhost:8081" -ForegroundColor White
+Write-Host "  • Giao dien web:     http://localhost:5174" -ForegroundColor White
+Write-Host "  • Email thu nghiem:  http://localhost:8026" -ForegroundColor White
+Write-Host "  • Backend API:       http://localhost:8001" -ForegroundColor White
+if ($LowMemory) {
+    Write-Host "  • phpMyAdmin: chi bat khi can (xem README)." -ForegroundColor Gray
+} else {
+    Write-Host "  • Quan ly database:  http://localhost:8082" -ForegroundColor White
+}
 Write-Host ""
 Write-Host "Huong dan su dung:" -ForegroundColor Cyan
-Write-Host "  1. Mo http://localhost:5173 va chon 'Dang ky'" -ForegroundColor Gray
-Write-Host "  2. Mo http://localhost:8025 de xem email xac thuc" -ForegroundColor Gray
+Write-Host "  1. Mo http://localhost:5174 va chon 'Dang ky'" -ForegroundColor Gray
+Write-Host "  2. Mo http://localhost:8026 de xem email xac thuc" -ForegroundColor Gray
 Write-Host "  3. Nhan lien ket trong email de xac thuc tai khoan" -ForegroundColor Gray
 Write-Host "  4. Quay lai giao dien va dang nhap" -ForegroundColor Gray
 Write-Host ""

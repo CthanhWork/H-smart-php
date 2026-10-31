@@ -30,7 +30,9 @@ export async function productRequest<T>(path: string, token: string, options: Re
   const result = await response.json() as ProductResult<T>
   if (!response.ok) {
     const detail = result.errors && Object.values(result.errors)[0]?.[0]
-    throw new Error(detail || result.message || 'Yêu cầu không thành công.')
+    const error = new Error(detail || result.message || 'Yêu cầu không thành công.') as Error & { status?: number }
+    error.status = response.status
+    throw error
   }
   return result
 }

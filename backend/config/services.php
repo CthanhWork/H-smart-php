@@ -1,6 +1,12 @@
 <?php
 
 return [
+    'ai' => [
+        'url' => env('AI_SERVICE_URL', 'http://ai:8000'),
+        'timeout' => (int) env('AI_SERVICE_TIMEOUT', 25),
+        'vision_timeout' => (int) env('AI_VISION_SERVICE_TIMEOUT', 40),
+        'description_timeout' => (int) env('AI_DESCRIPTION_SERVICE_TIMEOUT', 65),
+    ],
 
     /*
     |--------------------------------------------------------------------------

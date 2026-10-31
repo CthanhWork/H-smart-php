@@ -37,3 +37,7 @@ reports/
 # Allow important markdown files
 !README.md
 !WORKLOG_*.md
+
+# Python cache
+__pycache__/
+*.py[cod]

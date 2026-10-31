@@ -72,7 +72,9 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
             setError('Bạn chỉ có thể đặt hàng sau khi người bán chấp nhận đề nghị.')
           }
         })
-        .catch((cause: Error) => { if (!cancelled) setError(cause.message) })
+        .catch((cause: Error & { status?: number }) => {
+          if (!cancelled) setError(cause.status === 404 ? 'Không tìm thấy đề nghị mua hoặc đề nghị không còn tồn tại.' : cause.message)
+        })
         .finally(() => { if (!cancelled) setLoading(false) })
     } else if (mode === 'list') {
       productRequest<OrderPage>('orders?page=1', accessToken)

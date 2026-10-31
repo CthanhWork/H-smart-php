@@ -33,19 +33,33 @@ class TokenService
     {
         $config = $this->jwtConfig();
         $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $expiresAt = $now->modify('+15 minutes');
 
-        return $config->builder()
+        $raw = $config->builder()
             ->issuedBy((string) config('auth_tokens.issuer'))
             ->permittedFor((string) config('auth_tokens.audience'))
             ->relatedTo((string) $user->id)
             ->issuedAt($now)
             ->canOnlyBeUsedAfter($now)
-            ->expiresAt($now->modify('+15 minutes'))
+            ->expiresAt($expiresAt)
             ->withClaim('type', 'access')
             ->withClaim('role', $user->role)
             ->withClaim('auth_version', (int) $user->auth_version)
             ->getToken($config->signer(), $config->signingKey())
             ->toString();
+
+        AccountToken::where('user_id', $user->id)
+            ->where('type', 'access')
+            ->where('expires_at', '<=', now())
+            ->delete();
+        AccountToken::create([
+            'user_id' => $user->id,
+            'type' => 'access',
+            'token_hash' => hash('sha256', $raw),
+            'expires_at' => $expiresAt,
+        ]);
+
+        return $raw;
     }
 
     /** @return array{id: int, version: int}|null */
@@ -68,9 +82,18 @@ class TokenService
 
             $version = $token->claims()->get('auth_version');
 
-            return $token->claims()->get('type') === 'access' && ctype_digit((string) $id) && is_int($version) && $version >= 0
-                ? ['id' => (int) $id, 'version' => $version]
-                : null;
+            if ($token->claims()->get('type') !== 'access' || ! ctype_digit((string) $id) || ! is_int($version) || $version < 0) {
+                return null;
+            }
+
+            $active = AccountToken::where('user_id', (int) $id)
+                ->where('type', 'access')
+                ->where('token_hash', hash('sha256', $raw))
+                ->whereNull('used_at')
+                ->where('expires_at', '>', now())
+                ->exists();
+
+            return $active ? ['id' => (int) $id, 'version' => $version] : null;
         } catch (Throwable) {
             return null;
         }

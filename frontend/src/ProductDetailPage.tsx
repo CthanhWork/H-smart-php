@@ -38,7 +38,9 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
       if (cancelled) return
       setProduct(result.data)
       setRecommendations((page?.data.content ?? []).filter((item) => item.id !== result.data.id).slice(0, 4))
-    }).catch((cause: Error) => { if (!cancelled) setError(cause.message) })
+    }).catch((cause: Error & { status?: number }) => {
+      if (!cancelled) setError(cause.status === 404 ? 'Không tìm thấy sản phẩm hoặc sản phẩm không còn hiển thị.' : cause.message)
+    })
     return () => { cancelled = true }
   }, [accessToken, productId])
 

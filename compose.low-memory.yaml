@@ -1,0 +1,62 @@
+# Run with: .\docker-start.ps1 -LowMemory
+# Keep the same volumes and ports as compose.yaml.
+x-small-logs: &small-logs
+  driver: json-file
+  options:
+    max-size: "5m"
+    max-file: "2"
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      target: low-memory
+    mem_limit: 64m
+    logging: *small-logs
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:5173/"]
+      interval: 30s
+
+  db:
+    mem_limit: 384m
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --innodb-buffer-pool-size=64M
+      - --max-connections=40
+      - --table-open-cache=400
+      - --performance-schema=OFF
+    logging: *small-logs
+    healthcheck:
+      interval: 30s
+
+  backend:
+    mem_limit: 384m
+    logging: *small-logs
+    healthcheck:
+      interval: 30s
+
+  ai:
+    mem_limit: 1024m
+    environment:
+      WEB_CONCURRENCY: "1"
+      GUNICORN_THREADS: "1"
+      OMP_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+      OPENBLAS_NUM_THREADS: "2"
+    logging: *small-logs
+    healthcheck:
+      interval: 30s
+
+  scheduler:
+    # Leave room for schedule:work and the PHP command it launches each minute.
+    mem_limit: 256m
+    logging: *small-logs
+
+  mailpit:
+    mem_limit: 64m
+    logging: *small-logs
+
+  phpmyadmin:
+    profiles: [tools]
+    mem_limit: 128m
+    logging: *small-logs

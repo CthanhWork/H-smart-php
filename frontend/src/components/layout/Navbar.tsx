@@ -11,6 +11,7 @@ import {
   UserRound,
   UserRoundPlus,
   X,
+  Bot,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { getUnreadNotificationCount } from '../../notificationApi'
@@ -46,6 +47,7 @@ const memberLinks = [
   { label: 'Yêu thích', href: '/me/favorites' },
   { label: 'Hồ sơ và địa chỉ', href: '/me/profile' },
   { label: 'Tin nhắn', href: '/me/messages' },
+  { label: 'Trợ lý H-Smart', href: '/assistant' },
   { label: 'Đăng bán', href: '/sell' },
 ]
 
@@ -143,6 +145,7 @@ const Navbar = ({ user, navigate, onLogout, onAuth, currentPath, accessToken }: 
           {user ? <>
             <button type="button" onClick={() => go(messagePath)} aria-label={`${user.role === 'admin' ? 'Tin nhắn hỗ trợ' : 'Tin nhắn'}${unreadMessageCount ? `, ${unreadMessageCount} chưa đọc` : ''}`} aria-current={currentPath === messagePath ? 'page' : undefined} title={user.role === 'admin' ? 'Tin nhắn hỗ trợ' : 'Tin nhắn'} className={cn('relative flex h-10 w-10 items-center justify-center rounded-xl text-[#343434] transition hover:bg-[#fff0eb] hover:text-[#d94b2b]', currentPath === messagePath && 'bg-[#fff0eb] text-[#d94b2b]')}><MessageCircle size={21} />{unreadMessageCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-[#1684ff] px-1 text-center text-[10px] font-bold leading-4 text-white" aria-hidden="true">{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</span>}</button>
             <button type="button" onClick={() => go('/me/notifications')} aria-label={`Thông báo${unreadCount ? `, ${unreadCount} chưa đọc` : ''}`} title="Thông báo" className={cn('relative flex h-10 w-10 items-center justify-center rounded-xl text-[#343434] transition hover:bg-[#fff0eb] hover:text-[#d94b2b]', currentPath === '/me/notifications' && 'bg-[#fff0eb] text-[#d94b2b]')}><Bell size={21} />{unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-[#e65332] px-1 text-center text-[10px] font-bold leading-4 text-white">{unreadCount > 99 ? '99+' : unreadCount}</span>}</button>
+            <button type="button" onClick={() => go('/assistant')} aria-label="Trợ lý H-Smart" title="Trợ lý H-Smart" className={cn('flex h-10 w-10 items-center justify-center rounded-xl text-[#343434] transition hover:bg-[#fff0eb] hover:text-[#d94b2b]', currentPath === '/assistant' && 'bg-[#fff0eb] text-[#d94b2b]')}><Bot size={21} /></button>
             <button type="button" onClick={() => go('/me/orders')} aria-label="Đơn mua" title="Đơn mua" className="flex h-10 w-10 items-center justify-center rounded-xl text-[#343434] transition hover:bg-[#fff0eb] hover:text-[#d94b2b]"><ShoppingBag size={21} /></button>
             <button type="button" onClick={() => go('/me/favorites')} aria-label="Yêu thích" title="Yêu thích" className="flex h-10 w-10 items-center justify-center rounded-xl text-[#343434] transition hover:bg-[#fff0eb] hover:text-[#d94b2b]"><Heart size={20} /></button>
             <button type="button" onClick={onLogout} aria-label="Đăng xuất" title="Đăng xuất" className="hidden h-10 w-10 items-center justify-center rounded-xl text-black/55 transition hover:bg-black/5 hover:text-black sm:flex"><LogOut size={19} /></button>
