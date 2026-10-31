@@ -162,6 +162,9 @@ class AuthController extends Controller
         AccountToken::where('token_hash', hash('sha256', $data['refreshToken']))
             ->where('type', 'refresh')->where('user_id', $request->user()->id)
             ->whereNull('used_at')->update(['used_at' => now()]);
+        AccountToken::where('token_hash', hash('sha256', (string) $request->bearerToken()))
+            ->where('type', 'access')->where('user_id', $request->user()->id)
+            ->whereNull('used_at')->update(['used_at' => now()]);
 
         return $this->response('Đã đăng xuất.');
     }

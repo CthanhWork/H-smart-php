@@ -10,18 +10,20 @@ class ListProductsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        return true;
     }
 
     public function rules(): array
     {
         return [
             'q' => ['sometimes', 'string', 'max:200'],
+            'sort' => ['sometimes', Rule::in(['newest', 'price_asc', 'price_desc'])],
             'page' => ['sometimes', 'array'],
             'page.number' => ['sometimes', 'integer', 'min:0'],
             'page.size' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'filter' => ['sometimes', 'array'],
             'filter.condition' => ['sometimes', Rule::in(Product::CONDITIONS)],
+            'filter.category_id' => ['sometimes', 'integer', 'exists:categories,id'],
             'filter.min_price' => ['sometimes', 'integer', 'min:1'],
             'filter.max_price' => ['sometimes', 'integer', 'min:1', Rule::when($this->input('filter.min_price') !== null, ['gte:filter.min_price'])],
             'filter.status' => ['sometimes', Rule::in(Product::STATUSES)],

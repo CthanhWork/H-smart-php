@@ -18,19 +18,25 @@ class CreateProductAction
         string $title,
         ?string $description,
         int $price,
+        int $categoryId,
         string $condition,
+        bool $negotiable,
+        ?int $minPrice,
         array $images,
     ): Product {
         $stored = [];
 
         try {
-            return DB::transaction(function () use ($sellerId, $title, $description, $price, $condition, $images, &$stored): Product {
+            return DB::transaction(function () use ($sellerId, $title, $description, $price, $categoryId, $condition, $negotiable, $minPrice, $images, &$stored): Product {
                 $product = Product::create([
                     'seller_id' => $sellerId,
                     'title' => $title,
                     'description' => $description,
                     'price' => $price,
+                    'category_id' => $categoryId,
                     'condition' => $condition,
+                    'negotiable' => $negotiable,
+                    'min_price' => $negotiable ? $minPrice : null,
                     'status' => Product::STATUS_PENDING_REVIEW,
                 ]);
 

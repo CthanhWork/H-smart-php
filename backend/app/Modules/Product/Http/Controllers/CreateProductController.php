@@ -17,7 +17,10 @@ class CreateProductController
             $data['title'],
             $data['description'] ?? null,
             (int) $data['price'],
+            (int) $data['category_id'],
             $data['condition'],
+            (bool) ($data['negotiable'] ?? false),
+            isset($data['min_price']) ? (int) $data['min_price'] : null,
             $request->file('images', []),
         );
 

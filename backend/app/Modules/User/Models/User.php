@@ -2,13 +2,22 @@
 
 namespace App\Modules\User\Models;
 
+use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class User extends Authenticatable
 {
-    protected $fillable = ['username', 'email', 'password_hash', 'role', 'full_name', 'status'];
+    use HasFactory;
+
+    protected $fillable = ['username', 'email', 'password_hash', 'role', 'full_name', 'phone_number', 'shipping_address', 'status'];
 
     protected $hidden = ['password_hash'];
+
+    protected static function newFactory()
+    {
+        return \Database\Factories\UserFactory::new();
+    }
 
     public function getAuthPasswordName(): string
     {

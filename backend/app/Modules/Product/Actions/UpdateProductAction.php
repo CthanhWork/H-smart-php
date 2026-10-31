@@ -40,6 +40,9 @@ class UpdateProductAction
                 if ($retained->count() + count($uploads) > 5) {
                     throw ValidationException::withMessages(['images' => 'Tối đa 5 ảnh cho một sản phẩm.']);
                 }
+                if ($retained->isEmpty() && count($uploads) === 0) {
+                    throw ValidationException::withMessages(['images' => 'Sản phẩm cần có ít nhất một ảnh.']);
+                }
 
                 $oldUrls = $current->only($removed)->pluck('url')->all();
                 $product->images()->whereIn('id', $removed)->delete();
@@ -56,7 +59,10 @@ class UpdateProductAction
                     'title' => $data['title'],
                     'description' => $data['description'],
                     'price' => $data['price'],
+                    'category_id' => $data['category_id'],
                     'condition' => $data['condition'],
+                    'negotiable' => (bool) ($data['negotiable'] ?? false),
+                    'min_price' => ! empty($data['negotiable']) && isset($data['min_price']) ? $data['min_price'] : null,
                     'status' => Product::STATUS_PENDING_REVIEW,
                 ]);
                 DB::afterCommit(fn () => $this->imageStorage->deleteUrls($oldUrls));

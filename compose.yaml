@@ -1,0 +1,138 @@
+services:
+  ai:
+    build: ../H-smart/ai-service
+    environment:
+      KNOWLEDGE_DIR: /knowledge
+      OPENAI_BASE_URL: ${AI_BASE_URL:-}
+      OPENAI_API_KEY: ${AI_API_KEY:-}
+      OPENAI_CHAT_MODEL: ${AI_CHAT_MODEL:-}
+    volumes:
+      - ./docs/assistant/approved:/knowledge:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)); assert d.get('status') == 'healthy' and d.get('model_loaded')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 90s
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: hsmart
+      MYSQL_USER: hsmart
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Run docker-start.ps1 to create the local database password}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?Run docker-start.ps1 to create the local database password}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/hsmart-demo.sql:/docker-entrypoint-initdb.d/01-hsmart-demo.sql:ro
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "hsmart", "-p${DB_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PMA_HOST: db
+      PMA_PORT: "3306"
+    ports:
+      - "${PHPMYADMIN_PORT:-127.0.0.1:8082}:80"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    environment:
+      MP_DATABASE: /data/mailpit.db
+    volumes:
+      - mailpit_data:/data
+    ports:
+      - "${MAILPIT_PORT:-127.0.0.1:8026}:8025"
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+      ai:
+        condition: service_healthy
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8001
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_DATABASE: hsmart
+      DB_USERNAME: hsmart
+      DB_PASSWORD: ${DB_PASSWORD:?Run docker-start.ps1 to create the local database password}
+      MAIL_MAILER: smtp
+      MAIL_HOST: mailpit
+      MAIL_PORT: "1025"
+      MAIL_SCHEME: smtp
+      MAIL_FROM_ADDRESS: noreply@hsmart.local
+      FRONTEND_URL: http://localhost:5174
+      CORS_ALLOWED_ORIGINS: http://localhost:5174
+      AI_SERVICE_URL: http://ai:8000
+    volumes:
+      - backend_config:/run/hsmart
+      - backend_storage:/var/www/html/storage
+    ports:
+      - "${BACKEND_PORT:-127.0.0.1:8001}:8000"
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8000/up') === false ? 1 : 0);"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  scheduler:
+    build: ./backend
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: ["php", "artisan", "schedule:work"]
+    environment:
+      HSMART_SKIP_BOOTSTRAP: "1"
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8001
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_DATABASE: hsmart
+      DB_USERNAME: hsmart
+      DB_PASSWORD: ${DB_PASSWORD:?Run docker-start.ps1 to create the local database password}
+    volumes:
+      - backend_config:/run/hsmart
+      - backend_storage:/var/www/html/storage
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:8000
+      VITE_DEMO_MAILBOX_URL: http://localhost:8026
+    ports:
+      - "${FRONTEND_PORT:-127.0.0.1:5174}:5173"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+volumes:
+  mysql_data:
+  backend_config:
+  backend_storage:
+  mailpit_data:
