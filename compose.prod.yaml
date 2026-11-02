@@ -3,12 +3,12 @@
 
 services:
   ai:
-    build: ../H-smart/ai-service
+    build: ./ai-service
     environment:
       KNOWLEDGE_DIR: /knowledge
-      OPENAI_BASE_URL: ${AI_BASE_URL:-}
+      OPENAI_BASE_URL: ${AI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}
       OPENAI_API_KEY: ${AI_API_KEY:-}
-      OPENAI_CHAT_MODEL: ${AI_CHAT_MODEL:-}
+      OPENAI_CHAT_MODEL: ${AI_CHAT_MODEL:-gemini-2.5-flash}
     volumes:
       - ./docs/assistant/approved:/knowledge:ro
     restart: unless-stopped

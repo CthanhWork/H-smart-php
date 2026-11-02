@@ -50,14 +50,20 @@ if (-not (Test-Path -LiteralPath '.env')) {
     } finally {
         $random.Dispose()
     }
-    [System.IO.File]::WriteAllText((Join-Path $PSScriptRoot '.env'), "DB_PASSWORD=$password`n", [System.Text.Encoding]::ASCII)
-    Write-Host "Da tao .env voi mat khau database ngau nhien." -ForegroundColor Green
+    $environmentTemplate = Get-Content -LiteralPath (Join-Path $PSScriptRoot '.env.example') -Raw
+    $environmentTemplate = $environmentTemplate -replace '(?m)^DB_PASSWORD=.*$', "DB_PASSWORD=$password"
+    [System.IO.File]::WriteAllText((Join-Path $PSScriptRoot '.env'), $environmentTemplate, [System.Text.Encoding]::UTF8)
+    Write-Host "Da tao .env tu mau voi mat khau database ngau nhien." -ForegroundColor Green
 }
 
 # Kiểm tra DB_PASSWORD
 if (-not (Select-String -LiteralPath '.env' -Pattern '^DB_PASSWORD=.+$' -Quiet)) {
     Write-Host "Loi: File .env can co dong DB_PASSWORD voi mat khau MySQL." -ForegroundColor Red
     exit 1
+}
+
+if (-not (Select-String -LiteralPath '.env' -Pattern '^AI_API_KEY=.+$' -Quiet)) {
+    Write-Host "YOLO nhan dien anh dung model cuc bo. De bat Gemini cho chat va tao mo ta, them AI_API_KEY vao .env roi khoi dong lai AI/backend." -ForegroundColor Yellow
 }
 
 Write-Host ""
