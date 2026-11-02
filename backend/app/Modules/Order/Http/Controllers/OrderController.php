@@ -5,7 +5,6 @@ namespace App\Modules\Order\Http\Controllers;
 use App\Modules\Order\Actions\AdvanceOrderAction;
 use App\Modules\Order\Actions\CancelOrderAction;
 use App\Modules\Order\Actions\CreateOrderAction;
-use App\Modules\Order\Actions\SimulatePaymentAction;
 use App\Modules\Order\Http\Requests\CreateOrderRequest;
 use App\Modules\Order\Http\Requests\ShipOrderRequest;
 use App\Modules\Order\Http\Resources\OrderResource;
@@ -59,20 +58,6 @@ class OrderController
         $notifications->send($order->seller, $order->buyer, 'order_created', 'Có đơn hàng mới', 'Bạn có đơn hàng #'.$order->id.' cho sản phẩm “'.$order->product->title.'”.', '/me/orders', ['order_id' => $order->id]);
 
         return response()->json(['status' => 'success', 'message' => 'Đơn hàng đã được tạo và sản phẩm đang được giữ trong 30 phút.', 'data' => new OrderResource($order)], 201);
-    }
-
-    public function simulatePayment(Request $request, int $id, SimulatePaymentAction $action, NotificationService $notifications): JsonResponse
-    {
-        $order = $action->execute($id, (int) $request->user()->id);
-        if ($order->status === Order::STATUS_CANCELLED) {
-            $body = 'Đơn hàng #'.$order->id.' đã hết hạn chờ thanh toán.';
-            $notifications->send($order->buyer, null, 'order_expired', 'Đơn hàng đã hết hạn', $body, '/me/orders', ['order_id' => $order->id]);
-            $notifications->send($order->seller, null, 'order_expired', 'Đơn hàng đã hết hạn', $body, '/me/orders', ['order_id' => $order->id]);
-            return response()->json(['status' => 'error', 'message' => 'Thời gian giữ chỗ đã hết. Tạo đơn mới để tiếp tục.', 'data' => new OrderResource($order->load('statusHistory'))], 409);
-        }
-        $notifications->send($order->seller, $request->user(), 'order_paid', 'Đơn hàng đã thanh toán', 'Đơn hàng #'.$order->id.' đã được thanh toán mô phỏng.', '/me/orders', ['order_id' => $order->id]);
-
-        return response()->json(['status' => 'success', 'message' => 'Thanh toán mô phỏng thành công. Người bán có thể xử lý đơn hàng.', 'data' => new OrderResource($order)]);
     }
 
     public function cancel(Request $request, int $id, CancelOrderAction $action, NotificationService $notifications): JsonResponse

@@ -21,8 +21,8 @@ class CancelOrderAction
                 throw new ConflictHttpException('Chỉ có thể hủy đơn đang chờ thanh toán.');
             }
 
-            if ($order->payment_status !== 'pending') {
-                throw new ConflictHttpException('Trạng thái thanh toán không cho phép hủy đơn.');
+            if ($order->payment_status !== 'pending' || $order->payment_txn_ref !== null) {
+                throw new ConflictHttpException('Đơn đã bắt đầu thanh toán qua VNPay nên không thể hủy ngay.');
             }
             $order->update(['payment_status' => 'failed', 'payment_response_code' => 'CANCELLED', 'status' => Order::STATUS_CANCELLED, 'cancelled_at' => now()]);
             if ($product->status === Product::STATUS_RESERVED) {

@@ -6,7 +6,6 @@ use App\Modules\Offer\Models\Offer;
 use App\Modules\Order\Models\Order;
 use App\Modules\Product\Models\Product;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class CreateOrderAction
@@ -60,8 +59,7 @@ class CreateOrderAction
                 'status' => Order::STATUS_PENDING_PAYMENT,
                 'shipping_address_snapshot' => $address,
                 'expires_at' => now()->addMinutes(30),
-                'payment_txn_ref' => 'MOCK-'.Str::upper((string) Str::uuid()),
-                'payment_provider' => 'mock',
+                'payment_provider' => 'vnpay',
                 'payment_amount' => $offer->offer_price,
                 'payment_status' => 'pending',
             ]);

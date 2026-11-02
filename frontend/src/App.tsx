@@ -64,7 +64,7 @@ function App() {
   const editMatch = path.match(/^\/products\/(\d+)\/edit$/)
   const isProducts = path === '/products' || path === '/me/products' || path === '/me/favorites' || /^\/products\/\d+$/.test(path)
   const isOffers = path === '/me/offers'
-  const isOrders = path === '/me/orders'
+  const isOrders = path === '/me/orders' || path === '/payment-result'
   const isMessages = path === '/me/messages'
   const isProfile = path === '/me/profile'
   const isNotifications = path === '/me/notifications'

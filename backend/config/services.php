@@ -41,4 +41,14 @@ return [
         ],
     ],
 
+    'vnpay' => [
+        'tmn_code' => env('VNPAY_TMN_CODE'),
+        'hash_secret' => env('VNPAY_HASH_SECRET'),
+        'payment_url' => env('VNPAY_PAY_URL', env('VNPAY_PAYMENT_URL', 'https://pay.vnpay.vn/vpcpay.html')),
+        'return_url' => env('VNPAY_RETURN_URL'),
+        'ipn_url' => env('VNPAY_IPN_URL'),
+        'result_redirect_url' => env('VNPAY_RESULT_REDIRECT_URL', env('FRONTEND_URL', 'http://localhost:5173').'/me/orders'),
+        'sandbox_return_fallback' => (bool) env('VNPAY_SANDBOX_RETURN_FALLBACK', false),
+    ],
+
 ];

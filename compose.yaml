@@ -66,6 +66,14 @@ services:
       APP_ENV: local
       APP_DEBUG: "true"
       APP_URL: http://localhost:8001
+      VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}
+      VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-}
+      VNPAY_PAY_URL: ${VNPAY_PAY_URL:-https://pay.vnpay.vn/vpcpay.html}
+      VNPAY_PAYMENT_URL: ${VNPAY_PAYMENT_URL:-https://pay.vnpay.vn/vpcpay.html}
+      VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-}
+      VNPAY_IPN_URL: ${VNPAY_IPN_URL:-}
+      VNPAY_RESULT_REDIRECT_URL: ${VNPAY_RESULT_REDIRECT_URL:-}
+      VNPAY_SANDBOX_RETURN_FALLBACK: ${VNPAY_SANDBOX_RETURN_FALLBACK:-false}
       DB_CONNECTION: mysql
       DB_HOST: db
       DB_PORT: "3306"

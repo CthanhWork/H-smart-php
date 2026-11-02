@@ -7,7 +7,7 @@ Tài liệu này mô tả trạng thái mã nguồn đang có trong repository, 
 
 ## 1. Giới thiệu hệ thống
 
-H-Smart hỗ trợ sinh viên đăng tin, tìm và lưu sản phẩm, trả giá, đặt hàng, thanh toán mô phỏng, trao đổi tin nhắn và đánh giá sau khi giao dịch hoàn tất. Quản trị viên có thể kiểm duyệt tin, xử lý báo cáo, hỗ trợ tra cứu đơn hàng, quản lý tài khoản và danh mục.
+H-Smart hỗ trợ sinh viên đăng tin, tìm và lưu sản phẩm, trả giá, đặt hàng, thanh toán qua VNPay, trao đổi tin nhắn và đánh giá sau khi giao dịch hoàn tất. Quản trị viên có thể kiểm duyệt tin, xử lý báo cáo, hỗ trợ tra cứu đơn hàng, quản lý tài khoản và danh mục.
 
 Ứng dụng dùng **modular monolith** cho nghiệp vụ: frontend React gọi backend Laravel, các module nghiệp vụ dùng chung MySQL. Python AI Service là dịch vụ riêng chạy RAG hỏi đáp và Computer Vision; Laravel giữ quyền xác thực và kiểm soát dữ liệu vào/ra.
 
@@ -96,7 +96,7 @@ Navbar hiển thị các thao tác khác nhau theo trạng thái đăng nhập v
 - Người mua gửi giá đề nghị trong phạm vi giá cho phép; người bán xem, chấp nhận hoặc từ chối; người mua có thể hủy đề nghị còn hiệu lực.
 - Khi đề nghị được chấp nhận, người mua có thể tạo đơn và cung cấp địa chỉ nhận hàng.
 - Trang đơn hàng trình bày trạng thái và thông tin vận chuyển; thao tác hiển thị theo vai trò mua/bán và trạng thái đơn.
-- Thanh toán hiện dùng luồng mô phỏng để trình diễn nghiệp vụ.
+- Thanh toán chuyển người mua sang cổng VNPay; trạng thái đơn được xác nhận từ IPN đã kiểm tra chữ ký và số tiền.
 
 **Giao tiếp và đánh giá**
 
@@ -139,7 +139,7 @@ Mã nguồn nghiệp vụ nằm trong `backend/app/Modules`. Mỗi module gom co
 | `User` | Hồ sơ, trạng thái tài khoản, khóa và mở khóa tài khoản |
 | `Product` | Danh mục, tin đăng, ảnh, tìm kiếm/lọc, yêu thích và gửi báo cáo |
 | `Offer` | Tạo, xem, chấp nhận, từ chối, hủy đề nghị giá |
-| `Order` | Tạo đơn, giữ sản phẩm, thanh toán mô phỏng, giao hàng, hoàn tất và hủy |
+| `Order` | Tạo đơn, giữ sản phẩm, thanh toán VNPay, giao hàng, hoàn tất và hủy |
 | `Message` | Gửi và đọc tin nhắn văn bản giữa các bên |
 | `Notification` | Lưu, liệt kê và đánh dấu đã đọc thông báo theo từng tài khoản |
 | `Review` | Đánh giá gắn với đơn hàng đủ điều kiện |
@@ -157,7 +157,7 @@ API được nhóm dưới tiền tố `/api/v1`. Những tuyến yêu cầu đ�
 | Báo cáo | `POST /reports` | Thành viên gửi báo cáo sản phẩm hoặc tài khoản |
 | Trợ lý | `/assistant/chat`, `/assistant/conversations` | Thành viên hỏi đáp, xem và xóa lịch sử của mình |
 | Đề nghị | `/offers`, `/offers/{id}/accept`, `/reject`, `/cancel` | Thương lượng giữa người mua và người bán |
-| Đơn hàng | `/orders`, `/orders/{id}`, `/simulate-payment`, `/cancel`, `/confirm`, `/ship`, `/complete` | Thực hiện và theo dõi giao dịch |
+| Đơn hàng | `/orders`, `/orders/{id}`, `/orders/{id}/payment`, `/cancel`, `/confirm`, `/ship`, `/complete` | Thực hiện và theo dõi giao dịch VNPay |
 | Tin nhắn | `/messages`, `/messages/{productId}/{userId}`, `/products/{productId}/messages` | Trao đổi tin nhắn |
 | Thông báo | `/notifications`, `/notifications/unread-count`, `/notifications/{id}/read`, `/notifications/read-all` | Xem và đọc thông báo tài khoản |
 | Đánh giá | `/products/{productId}/reviews`, `/orders/{orderId}/review` | Đọc và gửi đánh giá |
@@ -180,13 +180,13 @@ API được nhóm dưới tiền tố `/api/v1`. Những tuyến yêu cầu đ�
 - Danh mục có tên và slug duy nhất; không xóa danh mục còn được sản phẩm sử dụng.
 - Truy vấn tìm kiếm hỗ trợ lọc danh mục, tình trạng, khoảng giá và sắp xếp.
 
-**Đề nghị, đơn hàng và thanh toán demo**
+**Đề nghị, đơn hàng và thanh toán VNPay**
 
 - Đề nghị liên kết sản phẩm, buyer và seller; buyer không thể tự trả giá cho sản phẩm của mình.
 - Seller là người chấp nhận/từ chối đề nghị; hệ thống kiểm tra trạng thái, hạn dùng và chỉ cho phép một đề nghị được chấp nhận cho sản phẩm.
 - Khi tạo đơn, backend kiểm tra bên mua, đề nghị đã chấp nhận, số tiền và địa chỉ; tạo đơn trong transaction và chuyển sản phẩm sang trạng thái giữ chỗ.
 - Một sản phẩm không được giữ bởi nhiều đơn hoạt động cùng lúc. Checkout chưa thanh toán hết hạn có thể bị hủy và giải phóng sản phẩm theo nghiệp vụ.
-- Thanh toán hiện được mô phỏng trong ứng dụng; chưa gọi cổng thanh toán bên ngoài.
+- Backend tạo URL VNPay đã ký HMAC-SHA512. Production xác nhận đơn qua IPN sau khi kiểm tra chữ ký, mã merchant, mã giao dịch và số tiền. Với demo localhost, `VNPAY_SANDBOX_RETURN_FALLBACK=true` cho phép xử lý Return đã ký chỉ khi payment URL là VNPay Sandbox; production không dùng fallback này.
 - Trạng thái đơn gồm `pending_payment`, `paid`, `processing`, `shipping`, `completed`, `cancelled`. Seller xác nhận và cập nhật đơn vận chuyển; mã hãng vận chuyển và tracking được lưu trên đơn; buyer hoàn tất đơn.
 
 **Tin nhắn và đánh giá**
@@ -244,7 +244,7 @@ AI Service được build từ `D:\H-smart\ai-service`, gồm `POST /v1/chat` ch
 
 ## 7. Phạm vi chưa triển khai hoặc còn giới hạn
 
-- Chưa tích hợp thanh toán VNPay hoặc nhà cung cấp thanh toán thật; hiện tại là thanh toán mô phỏng.
+- Thanh toán dùng VNPay. Cần khai báo merchant code, hash secret và callback HTTPS production trước khi nhận giao dịch thật.
 - Chưa tích hợp hãng vận chuyển; trạng thái giao hàng và mã tracking do seller nhập.
 - Chat hiện là tin nhắn văn bản cơ bản; chưa có gửi ảnh, thông báo realtime hoặc hạ tầng WebSocket.
 - Phiên frontend chưa được khôi phục tự động sau khi tải lại trang.
