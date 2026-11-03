@@ -39,6 +39,7 @@ reports/
 !WORKLOG_*.md
 !docs/
 docs/*
+!docs/HUONG_DAN_THANH_TOAN_VNPAY_SANDBOX.md
 !docs/assistant/
 docs/assistant/*
 !docs/assistant/approved/

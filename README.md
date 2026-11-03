@@ -19,6 +19,10 @@ Mở ứng dụng tại:
 - Hộp thư thử nghiệm: http://localhost:8026
 - Quản lý cơ sở dữ liệu: http://localhost:8082
 
+### Thanh toán VNPay Sandbox
+
+Xem [hướng dẫn cấu hình merchant Sandbox, Return/IPN và chạy thử thanh toán](docs/HUONG_DAN_THANH_TOAN_VNPAY_SANDBOX.md). Cần dùng thông tin Sandbox riêng; không commit thông tin merchant hoặc secret vào GitHub.
+
 ### Cấu hình AI
 
 AI service (YOLO, chatbot và tạo mô tả) được đóng gói trong thư mục `ai-service`; không cần clone thêm repo/thư mục bên cạnh. YOLO nhận diện ảnh bằng checkpoint đã có sẵn trong repo. Chatbot có thể trích đoạn từ tài liệu H-Smart đã duyệt; để bật câu trả lời Gemini và tạo mô tả sản phẩm, mỗi người cần tự thêm khóa Gemini của mình vào `AI_API_KEY` trong `.env` (không commit khóa lên Git).
