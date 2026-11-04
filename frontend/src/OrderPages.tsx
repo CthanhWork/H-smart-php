@@ -51,7 +51,9 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
 
   useEffect(() => {
     const paymentResult = new URLSearchParams(window.location.search).get('payment')
-    if (paymentResult === 'processing') setNotice('VNPay đã trả kết quả. Đang đồng bộ trạng thái giao dịch, vui lòng tải lại đơn hàng sau ít giây nếu trạng thái chưa đổi.')
+    if (paymentResult === 'mock_success') setNotice('Thanh toán mô phỏng thành công. Đơn hàng đã được cập nhật; không có tiền thật được chuyển.')
+    else if (paymentResult === 'mock_failed') setError('Thanh toán mô phỏng đã thất bại hoặc bị hủy. Bạn có thể thử lại từ đơn hàng.')
+    else if (paymentResult === 'processing') setNotice('VNPay đã trả kết quả. Đang đồng bộ trạng thái giao dịch, vui lòng tải lại đơn hàng sau ít giây nếu trạng thái chưa đổi.')
     else if (paymentResult === 'failed') setError('Thanh toán chưa thành công. Bạn có thể thử thanh toán lại từ đơn hàng.')
     else if (paymentResult === 'invalid') setError('Không xác minh được kết quả thanh toán. Vui lòng kiểm tra trạng thái đơn hàng hoặc liên hệ hỗ trợ.')
   }, [])
@@ -171,7 +173,7 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
         <div><dt className="text-black/50">Giá đã thỏa thuận</dt><dd className="mt-1 font-medium">{money(item.product_amount)}</dd></div>
         <div><dt className="text-black/50">Tổng thanh toán</dt><dd className="mt-1 font-bold">{money(item.total_amount)}</dd></div>
         <div className="sm:col-span-2"><dt className="text-black/50">Giao đến</dt><dd className="mt-1 font-medium">{item.shipping_address.recipient_name}, {item.shipping_address.phone}, {item.shipping_address.address}</dd></div>
-        <div><dt className="text-black/50">Thanh toán</dt><dd className="mt-1 font-medium">{item.payment ? `${item.payment.provider === 'vnpay' ? 'VNPay' : item.payment.provider} · ${item.payment.status === 'paid' ? 'Đã thanh toán' : item.payment.status === 'pending' ? 'Chưa thanh toán' : item.payment.status}` : 'Chưa có thông tin thanh toán'}</dd></div>
+        <div><dt className="text-black/50">Thanh toán</dt><dd className="mt-1 font-medium">{item.payment ? `${item.payment.provider === 'vnpay_mock' ? 'VNPay mô phỏng' : item.payment.provider === 'vnpay' ? 'VNPay' : item.payment.provider} · ${item.payment.status === 'paid' ? 'Đã thanh toán' : item.payment.status === 'pending' ? 'Chưa thanh toán' : item.payment.status === 'failed' ? 'Chưa thành công' : item.payment.status}` : 'Chưa có thông tin thanh toán'}</dd></div>
         {item.status === 'pending_payment' && <div><dt className="text-black/50">Giữ sản phẩm đến</dt><dd className="mt-1 font-medium">{new Date(item.expires_at).toLocaleString('vi-VN')}</dd></div>}
         {item.shipping_carrier && <div><dt className="text-black/50">Đơn vị vận chuyển</dt><dd className="mt-1 font-medium">{item.shipping_carrier}</dd></div>}
         {item.tracking_number && <div><dt className="text-black/50">Mã vận đơn</dt><dd className="mt-1 font-mono font-medium">{item.tracking_number}</dd></div>}

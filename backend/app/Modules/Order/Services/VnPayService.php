@@ -8,20 +8,30 @@ use App\Modules\Product\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\URL;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 
 class VnPayService
 {
+    public function mockEnabled(): bool
+    {
+        return config('services.vnpay.mode') === 'mock' && app()->environment('local', 'testing');
+    }
+
     public function createPaymentUrl(Order $order, Request $request): string
     {
+        $mock = $this->mockEnabled();
+        if (config('services.vnpay.mode') === 'mock' && ! $mock) {
+            throw new ServiceUnavailableHttpException(null, 'Thanh toán mô phỏng chỉ dùng trong môi trường local/testing.');
+        }
         $tmnCode = config('services.vnpay.tmn_code');
         $hashSecret = config('services.vnpay.hash_secret');
-        if (! $tmnCode || ! $hashSecret) {
+        if (! $mock && (! $tmnCode || ! $hashSecret)) {
             throw new ServiceUnavailableHttpException(null, 'Thanh toán VNPay chưa được cấu hình. Vui lòng liên hệ quản trị viên.');
         }
 
-        $order = DB::transaction(function () use ($order, $request): Order {
+        $order = DB::transaction(function () use ($order, $request, $mock): Order {
             $locked = Order::lockForUpdate()->findOrFail($order->id);
             abort_unless($locked->buyer_id === $request->user()->id, 404);
             if ($locked->status !== Order::STATUS_PENDING_PAYMENT || ! in_array($locked->payment_status, ['pending', 'failed'], true)) {
@@ -31,11 +41,12 @@ class VnPayService
                 throw new ConflictHttpException('Đơn hàng đã hết thời gian giữ chỗ.');
             }
 
-            if ($locked->payment_txn_ref === null || $locked->payment_status === 'failed') {
+            $provider = $mock ? 'vnpay_mock' : 'vnpay';
+            if ($locked->payment_txn_ref === null || $locked->payment_status === 'failed' || $locked->payment_provider !== $provider) {
                 $locked->payment_txn_ref = 'HS'.$locked->id.Str::upper(Str::random(20));
                 $locked->payment_transaction_no = null;
             }
-            $locked->payment_provider = 'vnpay';
+            $locked->payment_provider = $provider;
             $locked->payment_amount = $locked->total_amount;
             $locked->payment_status = 'pending';
             $locked->payment_response_code = null;
@@ -43,6 +54,12 @@ class VnPayService
 
             return $locked->refresh();
         });
+
+        if ($mock) {
+            $path = URL::temporarySignedRoute('payments.vnpay.mock', $order->expires_at, ['txnRef' => $order->payment_txn_ref], absolute: false);
+
+            return rtrim(config('app.url'), '/').$path;
+        }
 
         $createdAt = now()->timezone('Asia/Ho_Chi_Minh');
         $expiresAt = $order->expires_at->timezone('Asia/Ho_Chi_Minh');
@@ -100,9 +117,29 @@ class VnPayService
             return 'invalid';
         }
 
-        return DB::transaction(function () use ($query): string {
+        return $this->processVerifiedPayment($query, 'vnpay');
+    }
+
+    public function processMock(Order $order, string $outcome): string
+    {
+        abort_unless($this->mockEnabled(), 404);
+        abort_unless(in_array($outcome, ['success', 'failed', 'cancel'], true), 422);
+
+        return $this->processVerifiedPayment([
+            'vnp_TxnRef' => $order->payment_txn_ref,
+            'vnp_Amount' => $order->total_amount * 100,
+            'vnp_ResponseCode' => match ($outcome) { 'success' => '00', 'cancel' => '24', default => '99' },
+            'vnp_TransactionStatus' => $outcome === 'success' ? '00' : '02',
+            'vnp_TransactionNo' => 'MOCK-'.$order->payment_txn_ref,
+            'vnp_BankCode' => 'MOCK',
+        ], 'vnpay_mock');
+    }
+
+    private function processVerifiedPayment(array $query, string $provider): string
+    {
+        return DB::transaction(function () use ($query, $provider): string {
             $order = Order::where('payment_txn_ref', (string) ($query['vnp_TxnRef'] ?? ''))->lockForUpdate()->first();
-            if (! $order) {
+            if (! $order || $order->payment_provider !== $provider) {
                 return 'invalid';
             }
 
@@ -119,7 +156,7 @@ class VnPayService
             }
 
             if (! $successful) {
-                if ($order->status === Order::STATUS_PENDING_PAYMENT && $order->payment_status === 'pending') {
+                if ($order->status === Order::STATUS_PENDING_PAYMENT && $order->payment_status === 'pending' && $order->expires_at->isFuture()) {
                     $order->update([
                         'payment_status' => 'failed',
                         'payment_response_code' => (string) ($query['vnp_ResponseCode'] ?? '99'),

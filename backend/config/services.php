@@ -42,6 +42,7 @@ return [
     ],
 
     'vnpay' => [
+        'mode' => env('VNPAY_MODE', 'gateway'),
         'tmn_code' => env('VNPAY_TMN_CODE'),
         'hash_secret' => env('VNPAY_HASH_SECRET'),
         'payment_url' => env('VNPAY_PAY_URL', env('VNPAY_PAYMENT_URL', 'https://pay.vnpay.vn/vpcpay.html')),

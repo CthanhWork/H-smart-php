@@ -51,6 +51,7 @@ services:
       APP_ENV: production
       APP_DEBUG: "false"
       APP_URL: ${APP_URL:-http://localhost:8000}
+      VNPAY_MODE: gateway
       VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}
       VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-}
       VNPAY_PAY_URL: ${VNPAY_PAY_URL:-https://pay.vnpay.vn/vpcpay.html}

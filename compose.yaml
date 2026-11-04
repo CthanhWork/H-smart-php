@@ -66,6 +66,7 @@ services:
       APP_ENV: local
       APP_DEBUG: "true"
       APP_URL: http://localhost:8001
+      VNPAY_MODE: ${VNPAY_MODE:-mock}
       VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}
       VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-}
       VNPAY_PAY_URL: ${VNPAY_PAY_URL:-https://pay.vnpay.vn/vpcpay.html}

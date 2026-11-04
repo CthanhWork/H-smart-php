@@ -33,7 +33,7 @@ class ExpirePendingOrdersAction
                     return false;
                 }
 
-                if ($order->payment_status !== 'pending') {
+                if (! in_array($order->payment_status, ['pending', 'failed'], true)) {
                     return false;
                 }
 
