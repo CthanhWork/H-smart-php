@@ -25,6 +25,10 @@ Xem [hướng dẫn cấu hình merchant Sandbox, Return/IPN và chạy thử th
 
 ### Cấu hình AI
 
+Người mới pull code: xem [hướng dẫn lấy API key Gemini từ Google AI Studio và bật AI](docs/HUONG_DAN_LAY_API_KEY_GEMINI.md).
+
+Xem [tài liệu mô tả chức năng AI](docs/MO_TA_CHUC_NANG_AI.md) để biết cách dùng chatbot, nhận diện ảnh YOLO, tạo mô tả sản phẩm, luồng xử lý và các giới hạn hiện tại.
+
 AI service (YOLO, chatbot và tạo mô tả) được đóng gói trong thư mục `ai-service`; không cần clone thêm repo/thư mục bên cạnh. YOLO nhận diện ảnh bằng checkpoint đã có sẵn trong repo. Chatbot có thể trích đoạn từ tài liệu H-Smart đã duyệt; để bật câu trả lời Gemini và tạo mô tả sản phẩm, mỗi người cần tự thêm khóa Gemini của mình vào `AI_API_KEY` trong `.env` (không commit khóa lên Git).
 
 `docker-start.ps1` tạo `.env` từ `.env.example`. Sau khi thêm hoặc đổi khóa Gemini, áp dụng bằng lệnh:

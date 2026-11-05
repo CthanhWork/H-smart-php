@@ -40,6 +40,8 @@ reports/
 !docs/
 docs/*
 !docs/HUONG_DAN_THANH_TOAN_VNPAY_SANDBOX.md
+!docs/MO_TA_CHUC_NANG_AI.md
+!docs/HUONG_DAN_LAY_API_KEY_GEMINI.md
 !docs/assistant/
 docs/assistant/*
 !docs/assistant/approved/
