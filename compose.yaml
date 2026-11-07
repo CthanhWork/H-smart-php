@@ -64,13 +64,13 @@ services:
         condition: service_healthy
     environment:
       APP_ENV: local
-      APP_DEBUG: "true"
+      APP_DEBUG: ${APP_DEBUG:-true}
       APP_URL: http://localhost:8001
       VNPAY_MODE: ${VNPAY_MODE:-mock}
       VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}
       VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-}
-      VNPAY_PAY_URL: ${VNPAY_PAY_URL:-https://pay.vnpay.vn/vpcpay.html}
-      VNPAY_PAYMENT_URL: ${VNPAY_PAYMENT_URL:-https://pay.vnpay.vn/vpcpay.html}
+      VNPAY_PAY_URL: ${VNPAY_PAY_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+      VNPAY_PAYMENT_URL: ${VNPAY_PAYMENT_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
       VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-}
       VNPAY_IPN_URL: ${VNPAY_IPN_URL:-}
       VNPAY_RESULT_REDIRECT_URL: ${VNPAY_RESULT_REDIRECT_URL:-}
@@ -86,8 +86,8 @@ services:
       MAIL_PORT: "1025"
       MAIL_SCHEME: smtp
       MAIL_FROM_ADDRESS: noreply@hsmart.local
-      FRONTEND_URL: http://localhost:5174
-      CORS_ALLOWED_ORIGINS: http://localhost:5174
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5174}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5174}
       AI_SERVICE_URL: http://ai:8000
     volumes:
       - backend_config:/run/hsmart
@@ -124,7 +124,11 @@ services:
     restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      target: low-memory
+      args:
+        VITE_DEMO_MAILBOX_URL: ${VITE_DEMO_MAILBOX_URL:-http://localhost:8026}
     depends_on:
       backend:
         condition: service_healthy
@@ -134,14 +138,34 @@ services:
     ports:
       - "${FRONTEND_PORT:-127.0.0.1:5174}:5173"
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:5173/"]
       interval: 5s
       timeout: 5s
       retries: 20
       start_period: 15s
+
+  caddy:
+    image: caddy:2-alpine
+    profiles: [public-https]
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
 
 volumes:
   mysql_data:
   backend_config:
   backend_storage:
   mailpit_data:
+  caddy_data:
+  caddy_config:
