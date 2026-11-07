@@ -8,7 +8,7 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Artisan::command('make:admin {email} {password=Admin@123456}', function (string $email, string $password) {
+Artisan::command('make:admin {email} {password}', function (string $email, string $password) {
     $user = \App\Modules\User\Models\User::where('email', $email)->first();
     if ($user) {
         $user->role = 'admin';

@@ -1,4 +1,4 @@
-hsmart.thatcherdev.id.vn {
+{$APP_PUBLIC_DOMAIN} {
 	encode zstd gzip
 
 	handle /api/* {

@@ -64,8 +64,8 @@ services:
         condition: service_healthy
     environment:
       APP_ENV: local
-      APP_DEBUG: ${APP_DEBUG:-true}
-      APP_URL: http://localhost:8001
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost:8001}
       VNPAY_MODE: ${VNPAY_MODE:-mock}
       VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}
       VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-}
@@ -88,6 +88,8 @@ services:
       MAIL_FROM_ADDRESS: noreply@hsmart.local
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5174}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5174}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@hsmart.local}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
       AI_SERVICE_URL: http://ai:8000
     volumes:
       - backend_config:/run/hsmart
@@ -147,6 +149,8 @@ services:
   caddy:
     image: caddy:2-alpine
     profiles: [public-https]
+    environment:
+      APP_PUBLIC_DOMAIN: ${APP_PUBLIC_DOMAIN:-localhost}
     depends_on:
       backend:
         condition: service_healthy

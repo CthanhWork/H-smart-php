@@ -73,12 +73,7 @@ Kết quả kiểm tra ngày 31/10/2026 trên máy host 24 GB, máy ảo Docker 
 
 Phép đo API dùng `127.0.0.1` để tránh độ trễ chuyển IPv6/IPv4 của `localhost` trên máy đo. Đã kiểm tra trang chủ trong trình duyệt, reload đường dẫn SPA, API đăng nhập, upload ảnh nhận diện, gzip và cache asset. AI dùng model YOLO thật trên CPU (`demo_mode=false`). Các container không ghi nhận OOM hoặc tự khởi động lại trong lượt thử. Số RAM trên là snapshot, không phải mức đỉnh; chưa kiểm thử tải lớn hoặc trực tiếp trên phần cứng 8 GB.
 
-Tài khoản quản trị mặc định trên môi trường Docker mới:
-
-- Email: `admin@hsmart.local`
-- Mật khẩu: `Admin@123456`
-
-Đổi mật khẩu này khi dùng môi trường chia sẻ. Tài khoản người dùng mới cần xác thực email từ hộp thư thử nghiệm trước khi đăng nhập.
+Tài khoản quản trị được cấu hình bằng `INITIAL_ADMIN_EMAIL` và `INITIAL_ADMIN_PASSWORD` trong `.env`. Script tự tạo `.env` sẽ sinh mật khẩu riêng; không dùng chung file `.env` chứa mật khẩu admin giữa các môi trường. Tài khoản người dùng mới cần xác thực email từ hộp thư thử nghiệm trước khi đăng nhập.
 
 ## Dữ liệu và cơ sở dữ liệu
 
@@ -105,3 +100,5 @@ Trong phpMyAdmin, chọn máy chủ `db`, đăng nhập với tên người dùn
 ```
 
 Có thể chạy `docker compose up -d --build` để build và khởi động lại sau khi cập nhật mã nguồn.
+
+Thanh toán thử không cần đăng ký merchant: xem [hướng dẫn VNPay mô phỏng](docs/HUONG_DAN_THANH_TOAN_MO_PHONG.md).

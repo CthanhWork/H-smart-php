@@ -20,7 +20,10 @@ fi
 if [ ! -f .env ]; then
     echo "Tạo file cấu hình .env..."
     password=$(openssl rand -hex 32)
-    echo "DB_PASSWORD=$password" > .env
+    admin_password=$(openssl rand -hex 32)
+    sed -e "s/^DB_PASSWORD=.*/DB_PASSWORD=$password/" \
+        -e "s/^INITIAL_ADMIN_PASSWORD=.*/INITIAL_ADMIN_PASSWORD=$admin_password/" \
+        .env.example > .env
 fi
 
 # Kiểm tra DB_PASSWORD trong .env

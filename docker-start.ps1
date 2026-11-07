@@ -50,8 +50,17 @@ if (-not (Test-Path -LiteralPath '.env')) {
     } finally {
         $random.Dispose()
     }
+    $adminRandom = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try {
+        $adminBytes = New-Object byte[] 32
+        $adminRandom.GetBytes($adminBytes)
+        $adminPassword = -join ($adminBytes | ForEach-Object { $_.ToString('x2') })
+    } finally {
+        $adminRandom.Dispose()
+    }
     $environmentTemplate = Get-Content -LiteralPath (Join-Path $PSScriptRoot '.env.example') -Raw
     $environmentTemplate = $environmentTemplate -replace '(?m)^DB_PASSWORD=.*$', "DB_PASSWORD=$password"
+    $environmentTemplate = $environmentTemplate -replace '(?m)^INITIAL_ADMIN_PASSWORD=.*$', "INITIAL_ADMIN_PASSWORD=$adminPassword"
     [System.IO.File]::WriteAllText((Join-Path $PSScriptRoot '.env'), $environmentTemplate, [System.Text.Encoding]::UTF8)
     Write-Host "Da tao .env tu mau voi mat khau database ngau nhien." -ForegroundColor Green
 }
