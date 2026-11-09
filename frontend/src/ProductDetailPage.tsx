@@ -17,6 +17,7 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
   const [offerPrice, setOfferPrice] = useState('')
   const [offerError, setOfferError] = useState('')
   const [offerNotice, setOfferNotice] = useState('')
+  const [offerSent, setOfferSent] = useState(false)
   const [shareNotice, setShareNotice] = useState('')
   const [favoriteBusy, setFavoriteBusy] = useState(false)
   const [favoriteNotice, setFavoriteNotice] = useState('')
@@ -46,7 +47,13 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
     return () => { cancelled = true }
   }, [accessToken, productId])
 
-  useEffect(() => { setActiveImage(0) }, [product?.id])
+  useEffect(() => {
+    setActiveImage(0)
+    setOfferSent(false)
+    setOfferError('')
+    setOfferNotice('')
+    setOfferPrice('')
+  }, [product?.id])
 
   function requireAccount() {
     if (userId == null || !accessToken) {
@@ -87,6 +94,7 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
         body: JSON.stringify({ product_id: product.id, offer_price: Number(offerPrice) }),
       })
       setOfferNotice(result.message)
+      setOfferSent(true)
       setOfferPrice('')
     } catch (cause) {
       setOfferError((cause as Error).message)
@@ -195,8 +203,8 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
           {!isOwner && canOffer && <form id="offer-form" onSubmit={submitOffer} className="mt-4 border border-[#f1ddd5] bg-[#fffaf8] p-4 sm:p-5">
             <h2 className="text-sm font-bold text-[#333]">Gửi đề nghị giá cho người bán</h2><p className="mt-1 text-xs leading-5 text-[#777]">Người bán sẽ xem xét và phản hồi đề nghị của bạn.</p>
             {offerError && <p role="alert" className="mt-3 text-sm text-red-700">{offerError}</p>}{offerNotice && <p role="status" className="mt-3 text-sm text-emerald-700">{offerNotice}</p>}
-            <label className="mt-3 block text-xs font-medium text-[#555]">Giá bạn muốn đề nghị<input className="mt-1.5 h-11 w-full border border-[#ddd] bg-white px-3 text-sm outline-none focus:border-[#ee4d2d]" type="number" min={minPrice ?? 1} max={priceValue} step="1" required value={offerPrice} onChange={(event) => setOfferPrice(event.target.value)} placeholder="Nhập số tiền (₫)" /></label>
-            <Button className="mt-3 rounded-sm bg-[#ee4d2d] hover:bg-[#dc4326]" disabled={busy}>{busy ? 'Đang gửi…' : 'Gửi đề nghị mua'}</Button>
+            <label className="mt-3 block text-xs font-medium text-[#555]">Giá bạn muốn đề nghị<input className="mt-1.5 h-11 w-full border border-[#ddd] bg-white px-3 text-sm outline-none focus:border-[#ee4d2d] disabled:bg-[#f5f5f5]" type="number" min={minPrice ?? 1} max={priceValue} step="1" required value={offerPrice} onChange={(event) => setOfferPrice(event.target.value)} placeholder="Nhập số tiền (₫)" disabled={offerSent} /></label>
+            <Button className="mt-3 rounded-sm bg-[#ee4d2d] hover:bg-[#dc4326]" disabled={busy || offerSent}>{busy ? 'Đang gửi…' : offerSent ? 'Đã gửi đề nghị' : 'Gửi đề nghị mua'}</Button>
           </form>}
 
         </div>

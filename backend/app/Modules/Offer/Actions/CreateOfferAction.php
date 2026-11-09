@@ -16,11 +16,11 @@ class CreateOfferAction
 
             // Validate product is available for offers
             if ($product->status !== Product::STATUS_ACTIVE) {
-                throw new InvalidArgumentException('Product is not available for offers.');
+                throw new InvalidArgumentException('Sản phẩm hiện không nhận đề nghị mua.');
             }
 
             if (! $product->negotiable) {
-                throw new InvalidArgumentException('Product is not negotiable.');
+                throw new InvalidArgumentException('Sản phẩm này không hỗ trợ trả giá.');
             }
 
             if ($offerPrice > $product->price) {
@@ -33,7 +33,7 @@ class CreateOfferAction
 
             // Validate buyer is not the seller
             if ($product->seller_id === $buyerId) {
-                throw new InvalidArgumentException('You cannot make an offer on your own product.');
+                throw new InvalidArgumentException('Bạn không thể gửi đề nghị cho sản phẩm của mình.');
             }
 
             // Check for existing pending offer (will be caught by unique constraint anyway)
@@ -43,7 +43,7 @@ class CreateOfferAction
                 ->exists();
 
             if ($existingOffer) {
-                throw new InvalidArgumentException('You already have a pending offer on this product.');
+                throw new InvalidArgumentException('Bạn đã có một đề nghị đang chờ phản hồi cho sản phẩm này.');
             }
 
             // Create offer with 24h expiry
