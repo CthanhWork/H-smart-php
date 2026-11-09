@@ -30,6 +30,7 @@ const labels: Record<string, string> = {
 const statusVariant: Record<string, 'warning' | 'success' | 'default' | 'destructive' | 'outline'> = {
   pending_payment: 'warning', paid: 'success', processing: 'default', shipping: 'default', completed: 'success', cancelled: 'destructive',
 }
+const orderStages = ['pending_payment', 'paid', 'processing', 'shipping', 'completed']
 const fieldClass = 'mt-1.5 w-full rounded-2xl border border-black/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-black'
 
 export default function OrderPages({ accessToken, userId, navigate, mode }: Props) {
@@ -48,6 +49,9 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
   const [reviewComment, setReviewComment] = useState('')
   const [shipments, setShipments] = useState<Record<number, { carrier: string; tracking: string }>>({})
   const [version, setVersion] = useState(0)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalOrders, setTotalOrders] = useState(0)
 
   useEffect(() => {
     const paymentResult = new URLSearchParams(window.location.search).get('payment')
@@ -86,13 +90,14 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
         })
         .finally(() => { if (!cancelled) setLoading(false) })
     } else if (mode === 'list') {
-      productRequest<OrderPage>('orders?page=1', accessToken)
-        .then(({ data }) => { if (!cancelled) setOrders(data.content) })
+      setLoading(true)
+      productRequest<OrderPage>(`orders?page=${page}`, accessToken)
+        .then(({ data }) => { if (!cancelled) { setOrders(data.content); setTotalPages(data.totalPages); setTotalOrders(data.totalElements) } })
         .catch((cause: Error) => { if (!cancelled) setError(cause.message) })
         .finally(() => { if (!cancelled) setLoading(false) })
     }
     return () => { cancelled = true }
-  }, [accessToken, mode, offerId, version])
+  }, [accessToken, mode, offerId, version, page])
 
   async function createOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -161,7 +166,18 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
     return null
   }
 
+  function nextStep(item: Order) {
+    const buyer = item.buyer.id === userId
+    if (item.status === 'pending_payment') return buyer ? 'Thanh toán trước thời hạn giữ sản phẩm để tiếp tục đơn hàng.' : 'Đang chờ người mua thanh toán.'
+    if (item.status === 'paid') return buyer ? 'Đang chờ người bán xác nhận đơn.' : 'Xác nhận đơn để bắt đầu chuẩn bị hàng.'
+    if (item.status === 'processing') return buyer ? 'Người bán đang chuẩn bị hàng.' : 'Nhập thông tin vận chuyển để xác nhận gửi hàng.'
+    if (item.status === 'shipping') return buyer ? 'Khi nhận được hàng, hãy xác nhận để hoàn tất giao dịch.' : 'Đơn hàng đang được vận chuyển.'
+    if (item.status === 'completed') return buyer && !item.review ? 'Đơn đã hoàn tất. Bạn có thể để lại đánh giá cho sản phẩm.' : 'Giao dịch đã hoàn tất.'
+    return 'Đơn hàng đã được hủy.'
+  }
+
   function card(item: Order) {
+    const currentStageIndex = orderStages.indexOf(item.status)
     return <article className="rounded-[20px] border border-black/10 bg-white p-5 shadow-sm sm:p-7" key={item.id}>
       <div className="flex flex-col gap-3 border-b border-black/10 pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div><p className="text-xs font-medium uppercase tracking-[0.16em] text-black/50">Đơn hàng #{item.id}</p><h2 className="mt-2 text-xl font-bold sm:text-2xl">{item.product.title}</h2></div>
@@ -178,7 +194,10 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
         {item.shipping_carrier && <div><dt className="text-black/50">Đơn vị vận chuyển</dt><dd className="mt-1 font-medium">{item.shipping_carrier}</dd></div>}
         {item.tracking_number && <div><dt className="text-black/50">Mã vận đơn</dt><dd className="mt-1 font-mono font-medium">{item.tracking_number}</dd></div>}
       </dl>
-      <section className="mb-5 rounded-2xl bg-[#f8f8f8] p-4 sm:p-5"><h3 className="text-sm font-bold">Lịch sử và tiến trình đơn hàng</h3><ol className="mt-4 space-y-3">{(item.status_history ?? []).map((event, index) => <li key={`${event.to_status}-${event.changed_at}-${index}`} className="flex items-start gap-3 text-sm"><span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold ${event.to_status === 'cancelled' ? 'bg-red-600 text-white' : 'bg-[#2f7049] text-white'}`}>{event.to_status === 'cancelled' ? '!' : '✓'}</span><span><strong className={event.to_status === 'cancelled' ? 'text-red-700' : 'text-black'}>{index === 0 ? 'Đơn được tạo · ' : ''}{labels[event.to_status] ?? event.to_status}</strong><time className="mt-0.5 block text-xs text-black/50">{new Date(event.changed_at).toLocaleString('vi-VN')}</time></span></li>)}{(!item.status_history || item.status_history.length === 0) && <li className="text-sm text-black/55">{labels[item.status] ?? item.status} · {new Date(item.created_at).toLocaleString('vi-VN')}</li>}</ol></section>
+      <section className="mb-5 rounded-2xl bg-[#f8f8f8] p-4 sm:p-5"><h3 className="text-sm font-bold">Tiến trình đơn hàng</h3>{item.status === 'cancelled' ? <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-800">Đơn hàng đã bị hủy.</p> : <ol className="mt-4 space-y-3" aria-label="Các bước của đơn hàng">{orderStages.map((status, index) => { const event = item.status_history?.find((entry) => entry.to_status === status); const done = index < currentStageIndex; const current = index === currentStageIndex; return <li key={status} aria-current={current ? 'step' : undefined} className="flex items-start gap-3 text-sm"><span className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-bold ${done ? 'bg-[#2f7049] text-white' : current ? 'bg-[#e65332] text-white' : 'border border-black/20 bg-white text-black/45'}`}>{done ? '✓' : index + 1}</span><span className="min-w-0"><strong className={done ? 'text-[#2f7049]' : current ? 'text-[#b53a20]' : 'text-black/45'}>{labels[status]}</strong>{event && <time className="mt-0.5 block text-xs text-black/50">{new Date(event.changed_at).toLocaleString('vi-VN')}</time>}</span></li> })}</ol>}
+        <details className="mt-4 border-t border-black/10 pt-3"><summary className="cursor-pointer text-xs font-semibold text-black/60">Xem lịch sử cập nhật</summary><ol className="mt-3 space-y-3">{(item.status_history ?? []).map((event, index) => <li key={`${event.to_status}-${event.changed_at}-${index}`} className="flex items-start gap-3 text-sm"><span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold ${event.to_status === 'cancelled' ? 'bg-red-600 text-white' : 'bg-[#2f7049] text-white'}`}>{event.to_status === 'cancelled' ? '!' : '✓'}</span><span><strong className={event.to_status === 'cancelled' ? 'text-red-700' : 'text-black'}>{index === 0 ? 'Đơn được tạo · ' : ''}{labels[event.to_status] ?? event.to_status}</strong><time className="mt-0.5 block text-xs text-black/50">{new Date(event.changed_at).toLocaleString('vi-VN')}</time></span></li>)}</ol></details>
+      </section>
+      <div className={`mb-4 rounded-xl border px-4 py-3 ${item.status === 'cancelled' ? 'border-red-200 bg-red-50 text-red-800' : item.status === 'completed' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-[#f4c7b8] bg-[#fff7f3] text-[#85351f]'}`}><p className="text-[11px] font-bold uppercase tracking-wider opacity-70">Việc tiếp theo</p><p className="mt-1 text-sm font-medium">{nextStep(item)}</p></div>
       {item.review && <div className="rounded-2xl bg-[#F0F0F0] p-4 text-sm"><p className="font-medium">Đánh giá của bạn <span className="ml-2 text-amber-500">{'★'.repeat(item.review.rating)}{'☆'.repeat(5 - item.review.rating)}</span></p>{item.review.comment && <p className="mt-1 text-black/70">{item.review.comment}</p>}</div>}
       {item.status === 'completed' && item.buyer.id === userId && !item.review && <form className="mt-5 rounded-2xl bg-[#F0F0F0] p-4 sm:p-5" onSubmit={(event) => submitReview(event, item.id)}>
         <h3 className="flex items-center gap-2 font-bold"><Star size={17} /> Đánh giá món hàng</h3>
@@ -206,10 +225,11 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
       <label className="mb-4 block text-sm font-medium">Người nhận<input className={fieldClass} required minLength={2} maxLength={150} value={recipientName} onChange={(event) => setRecipientName(event.target.value)} /></label>
       <label className="mb-4 block text-sm font-medium">Số điện thoại<input className={fieldClass} type="tel" required minLength={8} maxLength={30} value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
       <label className="block text-sm font-medium">Địa chỉ nhận hàng<textarea className={fieldClass} required minLength={5} maxLength={500} rows={3} value={address} onChange={(event) => setAddress(event.target.value)} /></label>
-      <p className="my-5 rounded-xl bg-[#F0F0F0] p-4 text-sm text-black/60">Sau khi tạo đơn, sản phẩm sẽ được giữ trong 30 phút để bạn thanh toán. Hiện chưa tính phí giao hàng.</p>
+      <p className="my-5 rounded-xl bg-[#F0F0F0] p-4 text-sm leading-relaxed text-black/60">Sau khi tạo đơn, sản phẩm được giữ trong 30 phút để bạn thanh toán. H-Smart chưa tự tính phí giao hàng; hãy thống nhất khoản phí này với người bán trước khi thanh toán.</p>
       <Button className="w-full sm:w-auto" type="submit" disabled={busy}>{busy ? 'Đang tạo đơn…' : 'Tạo đơn và giữ sản phẩm'}</Button>
     </form>}
     {mode === 'create' && order && <div className="space-y-4">{card(order)}<div className="flex flex-wrap gap-2">{actions(order)}<Button variant="outline" onClick={() => navigate('/me/orders')}>Tất cả đơn hàng</Button></div></div>}
     {mode === 'list' && !loading && <div className="space-y-4">{orders.length ? orders.map(card) : <div className="rounded-[20px] border border-dashed border-black/20 bg-white p-10 text-center"><PackageCheck className="mx-auto mb-3 text-black/45" size={28} /><h2 className="font-semibold">Chưa có đơn hàng nào</h2><p className="mt-2 text-sm text-black/55">Đơn hàng sẽ xuất hiện tại đây sau khi người bán chấp nhận đề nghị của bạn.</p><Button className="mt-5" variant="outline" onClick={() => navigate('/products')}>Khám phá sản phẩm</Button></div>}</div>}
+    {mode === 'list' && !loading && totalPages > 1 && <div className="mt-7 flex items-center justify-center gap-3"><Button variant="outline" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>Trước</Button><span className="text-sm text-black/55">Trang {page} / {totalPages} · {totalOrders} đơn hàng</span><Button variant="outline" disabled={page >= totalPages} onClick={() => setPage((current) => current + 1)}>Sau</Button></div>}
   </main>
 }

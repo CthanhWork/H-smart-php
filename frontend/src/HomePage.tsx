@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, BookOpen, Camera, ChevronLeft, ChevronRight, GraduationCap, Menu, Shirt, ShoppingBag, Sofa, Smartphone } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ArrowRight, BookOpen, Camera, ChevronLeft, ChevronRight, GraduationCap, Shirt, ShoppingBag, Sofa, Smartphone } from 'lucide-react'
 import type { Category, Product, ProductPage } from './productApi'
 import { productRequest } from './productApi'
 import ProductCard from './components/ProductCard'
@@ -27,15 +27,11 @@ const categoryIcons: Record<string, typeof ShoppingBag> = {
   khac: Camera,
 }
 
-const pageSize = 10
-
 export default function HomePage({ isAuthenticated, accessToken, navigate }: HomePageProps) {
   const [categories, setCategories] = useState<Category[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [slide, setSlide] = useState(0)
-  const [categoryId, setCategoryId] = useState('')
-  const [sort, setSort] = useState('latest')
-  const [page, setPage] = useState(1)
+  const [totalProducts, setTotalProducts] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [favoriteBusyIds, setFavoriteBusyIds] = useState<Set<number>>(() => new Set())
@@ -50,11 +46,12 @@ export default function HomePage({ isAuthenticated, accessToken, navigate }: Hom
     let cancelled = false
     Promise.all([
       productRequest<Category[]>('categories', ''),
-      productRequest<ProductPage>('products?page[number]=0&page[size]=100', accessToken),
+      productRequest<ProductPage>('products?page[number]=0&page[size]=10&sort=newest', accessToken),
     ]).then(([categoryResult, productResult]) => {
       if (cancelled) return
       setCategories(categoryResult.data)
       setProducts(productResult.data.content)
+      setTotalProducts(productResult.data.totalElements)
     }).catch((cause: Error) => {
       if (!cancelled) setError(cause.message || 'Không tải được dữ liệu cửa hàng.')
     }).finally(() => { if (!cancelled) setLoading(false) })
@@ -73,18 +70,7 @@ export default function HomePage({ isAuthenticated, accessToken, navigate }: Hom
     finally { setFavoriteBusyIds((current) => { const next = new Set(current); next.delete(product.id); return next }) }
   }
 
-  const visibleProducts = useMemo(() => {
-    const filtered = categoryId ? products.filter((product) => String(product.category_id) === categoryId) : [...products]
-    if (sort === 'price-asc') filtered.sort((a, b) => a.price - b.price)
-    if (sort === 'price-desc') filtered.sort((a, b) => b.price - a.price)
-    return filtered
-  }, [products, categoryId, sort])
-
-  const totalPages = Math.max(1, Math.ceil(visibleProducts.length / pageSize))
-  const currentPage = Math.min(page, totalPages)
-  const pageProducts = visibleProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize)
   const moveSlide = (next: number) => setSlide((next + slides.length) % slides.length)
-  const selectCategory = (id: string) => { setCategoryId(id); setPage(1) }
   const openCategory = (id: number) => navigate(`/products?category=${id}`)
 
   return <main className="font-vietnamese min-h-screen bg-[#f5f5f5] pb-12 text-[#222]">
@@ -99,14 +85,14 @@ export default function HomePage({ isAuthenticated, accessToken, navigate }: Hom
           <div className="absolute bottom-3 right-4 z-[2] flex gap-1.5">{slides.map((item, index) => <button key={item.title} type="button" aria-label={`Chọn banner ${index + 1}`} onClick={() => moveSlide(index)} className={`h-2 rounded-full transition-all ${index === slide ? 'w-5 bg-white' : 'w-2 bg-white/60'}`} />)}</div>
         </div>
         <div className="grid grid-cols-2 gap-1 md:grid-cols-1 md:grid-rows-2">
-          {sideBanners.map((banner, index) => <button key={banner.label} type="button" onClick={() => { const category = index === 0 ? categories.find((item) => item.slug === 'sach-va-giao-trinh') : categories.find((item) => item.slug === 'do-dung-hoc-tap'); category ? openCategory(category.id) : navigate('/products') }} className="group relative min-h-[100px] overflow-hidden bg-[#d9d2ca] text-left sm:min-h-[130px] md:min-h-0">
+          {sideBanners.map((banner, index) => <button key={banner.label} type="button" onClick={() => { const category = index === 0 ? categories.find((item) => item.slug === 'sach-va-giao-trinh') : categories.find((item) => item.slug === 'do-dung-hoc-tap'); if (category) openCategory(category.id); else navigate('/products') }} className="group relative min-h-[100px] overflow-hidden bg-[#d9d2ca] text-left sm:min-h-[130px] md:min-h-0">
             <img src={banner.image} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
             <span className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" /><span className="absolute bottom-3 left-3 max-w-[80%] text-sm font-bold text-white sm:bottom-4 sm:left-4 sm:text-lg">{banner.label}</span>
           </button>)}
         </div>
       </section>
 
-      <section id="categories" className="mt-3 scroll-mt-32 bg-white px-2 py-3 shadow-[0_1px_2px_rgba(0,0,0,.06)] sm:px-4" aria-label="Danh mục nổi bật">
+      <section id="categories" className="mt-3 scroll-mt-40 bg-white px-2 py-3 shadow-[0_1px_2px_rgba(0,0,0,.06)] sm:px-4" aria-label="Danh mục nổi bật">
         <div className="grid grid-cols-4 gap-y-2 sm:grid-cols-6 lg:grid-cols-8">
           {categories.slice(0, 8).map((category) => {
             const Icon = categoryIcons[category.slug] ?? ShoppingBag
@@ -124,28 +110,14 @@ export default function HomePage({ isAuthenticated, accessToken, navigate }: Hom
         <button type="button" onClick={() => navigate(isAuthenticated ? '/sell' : '/register')} className="inline-flex items-center gap-2 bg-white px-4 py-2.5 text-sm font-bold text-[#df482c] transition hover:bg-[#fff3ed]">{isAuthenticated ? 'Đăng bán sản phẩm' : 'Tham gia ngay'}<ArrowRight size={16} /></button>
       </section>
 
-      <section className="mt-3 grid items-start gap-3 lg:grid-cols-[190px_minmax(0,1fr)]">
-        <aside className="overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,.06)] lg:sticky lg:top-[150px]">
-          <h2 className="flex items-center gap-2 border-b border-[#f0f0f0] px-4 py-3 text-sm font-bold"><Menu size={16} />Danh mục</h2>
-          <div className="flex gap-1 overflow-x-auto p-2 lg:block lg:max-h-[calc(100vh-180px)] lg:overflow-y-auto">
-            <button type="button" onClick={() => selectCategory('')} className={`shrink-0 px-3 py-2 text-left text-[13px] transition lg:block lg:w-full ${!categoryId ? 'bg-[#fff2ed] font-semibold text-[#ee4d2d] lg:border-l-2 lg:border-[#ee4d2d]' : 'text-[#555] hover:text-[#ee4d2d]'}`}>Tất cả sản phẩm</button>
-            {categories.map((category) => <button key={category.id} type="button" onClick={() => selectCategory(String(category.id))} className={`shrink-0 px-3 py-2 text-left text-[13px] transition lg:block lg:w-full ${String(categoryId) === String(category.id) ? 'bg-[#fff2ed] font-semibold text-[#ee4d2d] lg:border-l-2 lg:border-[#ee4d2d]' : 'text-[#555] hover:text-[#ee4d2d]'}`}>{category.name}</button>)}
-          </div>
-        </aside>
-
+      <section className="mt-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 bg-[#ededed] p-2.5 sm:gap-3 sm:px-4">
-            <span className="mr-1 text-xs text-[#666] sm:text-sm">Sắp xếp theo</span>
-            <button type="button" onClick={() => { setSort('latest'); setPage(1) }} className={`h-8 bg-white px-3 text-xs sm:px-4 sm:text-sm ${sort === 'latest' ? 'bg-[#ee4d2d] font-semibold text-white' : 'text-[#333] hover:text-[#ee4d2d]'}`}>Mới nhất</button>
-            <label className="relative"><span className="sr-only">Sắp xếp theo giá</span><select value={sort === 'latest' ? '' : sort} onChange={(event) => { setSort(event.target.value || 'latest'); setPage(1) }} className="h-8 min-w-[132px] appearance-none bg-white px-3 pr-8 text-xs text-[#333] outline-none sm:text-sm"><option value="">Giá</option><option value="price-asc">Giá: thấp đến cao</option><option value="price-desc">Giá: cao đến thấp</option></select><ChevronRight size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rotate-90 text-[#888]" /></label>
-            <div className="ml-auto flex items-center gap-2 text-xs text-[#555] sm:text-sm"><span><b className="text-[#ee4d2d]">{currentPage}</b> / {totalPages}</span><button type="button" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} aria-label="Trang trước" className="grid h-8 w-8 place-items-center border border-[#e5e5e5] bg-white disabled:text-[#ccc]"><ArrowLeft size={15} /></button><button type="button" disabled={currentPage >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))} aria-label="Trang sau" className="grid h-8 w-8 place-items-center border border-[#e5e5e5] bg-white disabled:text-[#ccc]"><ArrowRight size={15} /></button></div>
-          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 bg-[#ededed] px-4 py-3"><div><h2 className="text-sm font-bold sm:text-base">Mới đăng</h2><p className="mt-0.5 text-xs text-[#666]">{totalProducts} sản phẩm đang được rao bán</p></div><button type="button" onClick={() => navigate('/products')} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#d94322] hover:underline">Xem tất cả <ArrowRight size={16} /></button></div>
 
           {error && <div role="alert" className="mt-2 border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>}
           {loading ? <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">{Array.from({ length: 10 }, (_, index) => <div key={index} className="aspect-[.78] animate-pulse bg-white" />)}</div>
-            : pageProducts.length === 0 ? <div className="mt-2 grid min-h-[230px] place-content-center justify-items-center gap-3 bg-white px-5 text-center"><ShoppingBag size={34} className="text-[#ee4d2d]" /><p className="text-sm text-[#666]">Chưa có sản phẩm trong danh mục này.</p><button type="button" onClick={() => selectCategory('')} className="text-sm font-semibold text-[#ee4d2d]">Xem tất cả sản phẩm</button></div>
-              : <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">{pageProducts.map((product) => <ProductCard key={product.id} product={product} onClick={() => navigate(`/products/${product.id}`)} onToggleFavorite={isAuthenticated ? () => toggleFavorite(product) : undefined} favoriteBusy={favoriteBusyIds.has(product.id)} />)}</div>}
-          {totalPages > 1 && <div className="mt-5 flex items-center justify-center gap-2"><button type="button" disabled={currentPage <= 1} onClick={() => setPage((value) => value - 1)} className="h-9 border border-black/10 bg-white px-4 text-sm disabled:opacity-40">Trước</button><span className="px-2 text-sm text-[#666]">Trang {currentPage} / {totalPages}</span><button type="button" disabled={currentPage >= totalPages} onClick={() => setPage((value) => value + 1)} className="h-9 border border-black/10 bg-white px-4 text-sm disabled:opacity-40">Sau</button></div>}
+            : products.length === 0 ? <div className="mt-2 grid min-h-[230px] place-content-center justify-items-center gap-3 bg-white px-5 text-center"><ShoppingBag size={34} className="text-[#ee4d2d]" /><p className="text-sm text-[#666]">Chưa có sản phẩm đang bán.</p><button type="button" onClick={() => navigate('/products')} className="text-sm font-semibold text-[#ee4d2d]">Khám phá sản phẩm</button></div>
+              : <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">{products.map((product, index) => <ProductCard key={product.id} product={product} priority={index < 5} onClick={() => navigate(`/products/${product.id}`)} onToggleFavorite={isAuthenticated ? () => toggleFavorite(product) : undefined} favoriteBusy={favoriteBusyIds.has(product.id)} />)}</div>}
         </div>
       </section>
     </div>

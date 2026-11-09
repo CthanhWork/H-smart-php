@@ -4,6 +4,10 @@ export type Product = {
   condition: string; status: string; images: ProductImage[]; created_at: string; updated_at: string
   negotiable: boolean; min_price: number | null
   category_id: number | null; category: { id: number; name: string; slug: string } | null
+  seller?: { id: number; name: string } | null
+  seller_completed_sales_count?: number
+  seller_review_average?: number | null
+  seller_review_count?: number
   rating_average?: number | null; review_count?: number
   is_favorite?: boolean
 }

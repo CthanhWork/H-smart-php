@@ -44,6 +44,11 @@ class Product extends Model
         return $this->belongsTo(Category::class);
     }
 
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(\App\Modules\User\Models\User::class, 'seller_id');
+    }
+
     public function reviews(): HasMany
     {
         return $this->hasMany(\App\Modules\Order\Models\Order::class)->whereNotNull('review_rating');

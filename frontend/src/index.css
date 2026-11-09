@@ -21,6 +21,18 @@
   }
 }
 
+@keyframes hsmart-notification-ping {
+  75%, 100% { transform: scale(2); opacity: 0; }
+}
+
+.notification-ping {
+  animation: hsmart-notification-ping 1s cubic-bezier(0, 0, 0.2, 1) 3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notification-ping { animation: none; }
+}
+
 @font-face {
   font-family: 'IntegralCF';
   src: url('/fonts/integralcf-bold.woff2') format('woff2'),

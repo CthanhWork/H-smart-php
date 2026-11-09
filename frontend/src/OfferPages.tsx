@@ -12,6 +12,7 @@ type Offer = {
 }
 type OfferPage = { content: Offer[]; pageNo: number; pageSize: number; totalElements: number; totalPages: number; last: boolean }
 type Props = { accessToken: string; userId: number; navigate: (path: string) => void }
+type OfferFilter = 'all' | 'action' | 'accepted' | 'closed'
 const money = (amount: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
 const statuses: Record<string, string> = { pending: 'Đang chờ', accepted: 'Đã chấp nhận', rejected: 'Đã từ chối', cancelled: 'Đã hủy', expired: 'Hết hạn', ordered: 'Đã tạo đơn' }
 
@@ -22,15 +23,22 @@ export default function OfferPages({ accessToken, userId, navigate }: Props) {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [version, setVersion] = useState(0)
+  const [filter, setFilter] = useState<OfferFilter>('all')
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalElements, setTotalElements] = useState(0)
 
   useEffect(() => {
     let cancelled = false
-    productRequest<OfferPage>('offers?page=1', accessToken)
-      .then(({ data }) => { if (!cancelled) setOffers(data.content) })
+    const params = new URLSearchParams({ page: String(page) })
+    if (filter !== 'all') params.set('filter', filter)
+    setLoading(true); setError('')
+    productRequest<OfferPage>(`offers?${params}`, accessToken)
+      .then(({ data }) => { if (!cancelled) { setOffers(data.content); setTotalPages(data.totalPages); setTotalElements(data.totalElements) } })
       .catch((cause: Error) => { if (!cancelled) setError(cause.message) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [accessToken, version])
+  }, [accessToken, version, filter, page])
 
   async function act(offer: Offer, action: 'accept' | 'reject' | 'cancel') {
     setBusyId(offer.id); setLoading(true); setError(''); setNotice('')
@@ -43,20 +51,29 @@ export default function OfferPages({ accessToken, userId, navigate }: Props) {
   }
 
   const variant: Record<string, 'warning' | 'success' | 'destructive' | 'outline' | 'default'> = { pending: 'warning', accepted: 'success', rejected: 'destructive', cancelled: 'outline', expired: 'outline', ordered: 'default' }
+  const visibleOffers = offers
+  const filters: Array<{ id: OfferFilter; label: string }> = [
+    { id: 'all', label: 'Tất cả' }, { id: 'action', label: 'Cần xử lý' },
+    { id: 'accepted', label: 'Đã chấp nhận / đã tạo đơn' }, { id: 'closed', label: 'Đã kết thúc' },
+  ]
   return <main className="max-w-frame mx-auto min-h-[55vh] px-4 py-10 xl:px-0">
     <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs uppercase tracking-[0.16em] text-black/50">Thỏa thuận giá</p><h1 className="mt-2 font-satoshi font-bold tracking-tight text-2xl uppercase sm:text-4xl">Đề nghị mua bán</h1></div><div className="flex gap-2"><Button variant="outline" onClick={() => navigate('/products')}>Xem sản phẩm</Button><Button variant="outline" onClick={() => navigate('/me/orders')}>Đơn hàng</Button></div></div>
     {notice && <Alert variant="success" className="mb-4" role="status">{notice}</Alert>}{error && <Alert variant="error" className="mb-4">{error}</Alert>}{loading && <p className="py-8 text-sm text-black/55">Đang tải đề nghị…</p>}
-    {!loading && offers.length === 0 && <div className="rounded-[20px] border border-dashed border-black/20 p-10 text-center text-sm text-black/55"><Handshake className="mx-auto mb-3" size={30} />Chưa có đề nghị mua bán nào.</div>}
-    <div className="space-y-4">{offers.map((offer) => {
+    {!loading && offers.length === 0 && filter === 'all' && <div className="rounded-[20px] border border-dashed border-black/20 p-10 text-center text-sm text-black/55"><Handshake className="mx-auto mb-3" size={30} />Chưa có đề nghị mua bán nào.</div>}
+    {!loading && (offers.length > 0 || filter !== 'all') && <div className="mb-5 flex flex-wrap gap-2" aria-label="Lọc đề nghị">{filters.map((item) => <button key={item.id} type="button" aria-pressed={filter === item.id} onClick={() => { setFilter(item.id); setPage(1) }} className={`rounded-full px-3 py-2 text-xs font-medium transition sm:text-sm ${filter === item.id ? 'bg-[#242424] text-white' : 'border border-black/15 bg-white text-black/65 hover:border-black/35'}`}>{item.label}</button>)}</div>}
+    {!loading && offers.length === 0 && filter !== 'all' && <div className="rounded-[20px] border border-dashed border-black/20 p-8 text-center text-sm text-black/55">Không có đề nghị trong nhóm này.</div>}
+    <div className="space-y-4">{visibleOffers.map((offer) => {
       const buyer = offer.buyer.id === userId
       const pending = offer.status === 'pending'
       return <article className="grid gap-5 rounded-[20px] border border-black/10 bg-white p-5 shadow-sm sm:grid-cols-[1fr_auto] sm:p-6" key={offer.id}>
-        <div className="flex min-w-0 gap-4">{offer.product.images[0] ? <img className="h-24 w-24 shrink-0 rounded-2xl bg-tile object-cover sm:h-28 sm:w-28" src={offer.product.images[0].url} alt="" /> : <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl bg-tile text-xs text-black/40 sm:h-28 sm:w-28">Chưa có ảnh</div>}
+        <div className="flex min-w-0 gap-4">{offer.product.images[0] ? <img className="h-24 w-24 shrink-0 rounded-2xl bg-tile object-cover sm:h-28 sm:w-28" src={offer.product.images[0].url} alt="" width={112} height={112} loading="lazy" /> : <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl bg-tile text-xs text-black/40 sm:h-28 sm:w-28">Chưa có ảnh</div>}
           <div className="min-w-0"><button className="text-left text-lg font-bold hover:underline" onClick={() => navigate(`/products/${offer.product.id}`)}>{offer.product.title}</button><p className="mt-1 text-sm text-black/60">{buyer ? 'Người bán' : 'Người mua'}: {(buyer ? offer.seller.full_name : offer.buyer.full_name) || 'Thành viên H-Smart'}</p><p className="mt-2 text-xs leading-relaxed text-black/45">Gửi lúc {new Date(offer.created_at).toLocaleString('vi-VN')}{offer.expires_at ? ` · Hạn phản hồi ${new Date(offer.expires_at).toLocaleString('vi-VN')}` : ''}</p></div>
         </div>
+        {(pending || (buyer && offer.status === 'accepted')) && <p className="rounded-xl bg-[#fff7f3] px-4 py-3 text-sm font-medium text-[#85351f] sm:col-span-2">{pending ? buyer ? 'Bạn có thể hủy đề nghị trong khi chờ người bán phản hồi.' : 'Cần phản hồi: chấp nhận đề nghị để mở giao dịch hoặc từ chối.' : 'Đã được chấp nhận: tiếp tục tạo đơn hàng để thanh toán.'}</p>}
         <div className="flex flex-row flex-wrap items-center gap-3 sm:flex-col sm:items-end sm:justify-center"><strong className="text-xl">{money(offer.offer_price)}</strong><Badge variant={variant[offer.status] ?? 'outline'}>{statuses[offer.status] ?? offer.status}</Badge></div>
         {(pending || (buyer && offer.status === 'accepted') || (buyer && offer.status === 'ordered')) && <div className="flex flex-wrap items-center gap-2 border-t border-black/10 pt-4 sm:col-span-2">{pending ? buyer ? <Button variant="outline" disabled={busyId === offer.id} onClick={() => act(offer, 'cancel')}>Hủy đề nghị</Button> : <>{offer.product.status !== 'active' && <span className="mr-auto text-sm text-amber-800">Món này đang có người đặt mua.</span>}{offer.product.status === 'active' && <Button variant="accent-green" disabled={busyId === offer.id} onClick={() => act(offer, 'accept')}>Chấp nhận</Button>}<Button variant="outline" disabled={busyId === offer.id} onClick={() => act(offer, 'reject')}>Từ chối</Button></> : offer.status === 'accepted' ? <Button onClick={() => navigate(`/orders/create?offerId=${offer.id}`)}>Tạo đơn hàng <ArrowRight size={16} className="ml-2" /></Button> : <Button variant="outline" onClick={() => navigate('/me/orders')}>Xem đơn hàng</Button>}</div>}
       </article>
     })}</div>
+    {!loading && totalPages > 1 && <div className="mt-7 flex items-center justify-center gap-3"><Button variant="outline" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>Trước</Button><span className="text-sm text-black/55">Trang {page} / {totalPages} · {totalElements} đề nghị</span><Button variant="outline" disabled={page >= totalPages} onClick={() => setPage((current) => current + 1)}>Sau</Button></div>}
   </main>
 }

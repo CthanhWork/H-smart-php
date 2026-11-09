@@ -1,10 +1,16 @@
 import { ArrowRight } from "lucide-react"
+import type { MouseEvent } from "react"
 import { Button } from "../ui/button"
 
 type FooterProps = { isAuthenticated: boolean; isAdmin?: boolean; currentPath: string; onSignUp: () => void; onLogin: () => void; navigate: (path: string) => void }
 
 const Footer = ({ isAuthenticated, isAdmin = false, currentPath, onSignUp, onLogin, navigate }: FooterProps) => {
   const showCallToAction = currentPath === '/' && !isAdmin
+  const followLink = (event: MouseEvent<HTMLAnchorElement>, path: string) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    event.preventDefault()
+    navigate(path)
+  }
   return <footer className="mt-16 bg-[#F0F0F0]">
     <div className="mx-auto max-w-frame px-4 pt-8 xl:px-0">
       {showCallToAction && <section className="flex flex-col gap-5 rounded-[20px] bg-black p-6 text-white sm:flex-row sm:items-center sm:justify-between sm:p-8">
@@ -13,8 +19,8 @@ const Footer = ({ isAuthenticated, isAdmin = false, currentPath, onSignUp, onLog
       </section>}
       <div className="grid grid-cols-2 gap-8 py-10 md:grid-cols-3">
         <div className="col-span-2 md:col-span-1"><h2 className="mb-3 font-integralCF text-2xl uppercase">H-SMART</h2><p className="max-w-xs text-sm leading-relaxed text-black/60">{isAuthenticated ? 'Cộng đồng sinh viên chia sẻ và tìm mua những món đồ đã qua sử dụng.' : 'Chợ đồ cũ dành cho sinh viên. Tài khoản cần xác nhận email trước khi mua bán.'}</p></div>
-        <div><h3 className="mb-4 text-sm font-bold uppercase tracking-wider">Khám phá</h3><ul className="space-y-3 text-sm text-black/60"><li><button className="hover:text-black" onClick={() => navigate('/products')}>Sản phẩm đang bán</button></li><li><button className="hover:text-black" onClick={() => navigate(isAuthenticated ? '/sell' : '/register')}>Đăng bán sản phẩm</button></li>{isAuthenticated && <li><button className="hover:text-black" onClick={() => navigate(isAdmin ? '/admin/messages' : '/me/messages')}>{isAdmin ? 'Tin nhắn hỗ trợ' : 'Tin nhắn'}</button></li>}</ul></div>
-        <div><h3 className="mb-4 text-sm font-bold uppercase tracking-wider">{isAuthenticated ? 'Tài khoản của bạn' : 'Tài khoản'}</h3><ul className="space-y-3 text-sm text-black/60">{isAuthenticated ? <><li><button className="hover:text-black" onClick={() => navigate('/me/products')}>Sản phẩm của tôi</button></li><li><button className="hover:text-black" onClick={() => navigate('/me/orders')}>Đơn hàng</button></li><li><button className="hover:text-black" onClick={() => navigate('/me/profile')}>Hồ sơ và địa chỉ</button></li></> : <><li><button className="hover:text-black" onClick={onSignUp}>Đăng ký</button></li><li><button className="hover:text-black" onClick={onLogin}>Đăng nhập</button></li></>}</ul></div>
+        <div><h3 className="mb-4 text-sm font-bold uppercase tracking-wider">Khám phá</h3><ul className="space-y-3 text-sm text-black/60"><li><a href="/products" onClick={(event) => followLink(event, '/products')} className="hover:text-black">Sản phẩm đang bán</a></li><li><a href={isAuthenticated ? '/sell' : '/register'} onClick={(event) => followLink(event, isAuthenticated ? '/sell' : '/register')} className="hover:text-black">Đăng bán sản phẩm</a></li>{isAuthenticated && <li><a href={isAdmin ? '/admin/messages' : '/me/messages'} onClick={(event) => followLink(event, isAdmin ? '/admin/messages' : '/me/messages')} className="hover:text-black">{isAdmin ? 'Tin nhắn hỗ trợ' : 'Tin nhắn'}</a></li>}</ul></div>
+        <div><h3 className="mb-4 text-sm font-bold uppercase tracking-wider">{isAuthenticated ? 'Tài khoản của bạn' : 'Tài khoản'}</h3><ul className="space-y-3 text-sm text-black/60">{isAuthenticated ? <><li><a href="/me/products" onClick={(event) => followLink(event, '/me/products')} className="hover:text-black">Sản phẩm của tôi</a></li><li><a href="/me/orders" onClick={(event) => followLink(event, '/me/orders')} className="hover:text-black">Đơn hàng</a></li><li><a href="/me/profile" onClick={(event) => followLink(event, '/me/profile')} className="hover:text-black">Hồ sơ và địa chỉ</a></li></> : <><li><button className="hover:text-black" onClick={onSignUp}>Đăng ký</button></li><li><button className="hover:text-black" onClick={onLogin}>Đăng nhập</button></li></>}</ul></div>
       </div>
       <div className="flex flex-col items-center justify-between gap-2 border-t border-black/10 py-5 text-center text-xs text-black/50 sm:flex-row sm:text-left"><p>H-Smart © {new Date().getFullYear()} — Chợ đồ cũ sinh viên Việt Nam.</p></div>
     </div>

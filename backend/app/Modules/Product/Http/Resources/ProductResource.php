@@ -17,6 +17,13 @@ class ProductResource extends JsonResource
             'price' => $this->price,
             'category_id' => $this->category_id,
             'category' => $this->category ? ['id' => $this->category->id, 'name' => $this->category->name, 'slug' => $this->category->slug] : null,
+            'seller' => $this->whenLoaded('seller', fn () => [
+                'id' => $this->seller->id,
+                'name' => $this->seller->full_name ?: $this->seller->username,
+            ]),
+            'seller_completed_sales_count' => $this->when(isset($this->seller_completed_sales_count), (int) $this->seller_completed_sales_count),
+            'seller_review_average' => $this->when(isset($this->seller_review_average), $this->seller_review_average === null ? null : round((float) $this->seller_review_average, 1)),
+            'seller_review_count' => $this->when(isset($this->seller_review_count), (int) $this->seller_review_count),
             'rating_average' => $this->when(isset($this->reviews_avg_rating), $this->reviews_avg_rating === null ? null : round((float) $this->reviews_avg_rating, 1)),
             'review_count' => $this->when(isset($this->reviews_count), (int) $this->reviews_count),
             'condition' => $this->condition,

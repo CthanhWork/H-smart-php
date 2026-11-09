@@ -8,6 +8,7 @@ use App\Modules\Product\Http\Requests\ListProductsRequest;
 use App\Modules\Product\Http\Requests\UpdateProductRequest;
 use App\Modules\Product\Http\Resources\ProductResource;
 use App\Modules\Product\Models\Product;
+use App\Modules\Order\Models\Order;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -31,18 +32,40 @@ class ProductController
 
     private function page(ListProductsRequest $request, Builder $query): JsonResponse
     {
+        $query->with(['images', 'category', 'seller:id,username,full_name'])
+            ->addSelect([
+                'seller_completed_sales_count' => Order::query()->selectRaw('COUNT(*)')
+                    ->whereColumn('orders.seller_id', 'products.seller_id')
+                    ->where('orders.status', Order::STATUS_COMPLETED),
+                'seller_review_average' => Order::query()->selectRaw('AVG(review_rating)')
+                    ->whereColumn('orders.seller_id', 'products.seller_id')
+                    ->where('orders.status', Order::STATUS_COMPLETED)
+                    ->whereNotNull('review_rating'),
+                'seller_review_count' => Order::query()->selectRaw('COUNT(*)')
+                    ->whereColumn('orders.seller_id', 'products.seller_id')
+                    ->where('orders.status', Order::STATUS_COMPLETED)
+                    ->whereNotNull('review_rating'),
+            ]);
         if ($userId = $request->user()?->id) {
             $query->withExists(['favorites as is_favorite' => fn (Builder $favoriteQuery) => $favoriteQuery->where('user_id', $userId)]);
         }
         if ($term = trim((string) $request->input('q', ''))) {
             $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($term));
-            $query->whereRaw("LOWER(title) LIKE ? ESCAPE '!'", ['%'.$escaped.'%']);
+            $like = '%'.$escaped.'%';
+            $query->where(function (Builder $search) use ($like): void {
+                $search->whereRaw("LOWER(title) LIKE ? ESCAPE '!'", [$like])
+                    ->orWhereRaw("LOWER(description) LIKE ? ESCAPE '!'", [$like])
+                    ->orWhereHas('category', fn (Builder $category) => $category->whereRaw("LOWER(name) LIKE ? ESCAPE '!'", [$like]));
+            });
         }
         if ($condition = $request->input('filter.condition')) {
             $query->where('condition', $condition);
         }
         if ($categoryId = $request->input('filter.category_id')) {
             $query->where('category_id', $categoryId);
+        }
+        if ($sellerId = $request->input('filter.seller_id')) {
+            $query->where('seller_id', $sellerId);
         }
         if ($min = $request->input('filter.min_price')) {
             $query->where('price', '>=', $min);
@@ -52,7 +75,7 @@ class ProductController
         }
         $number = (int) $request->input('page.number', 0);
         $size = (int) $request->input('page.size', 12);
-        $results = $query->with(['images', 'category']);
+        $results = $query;
         match ($request->input('sort', 'newest')) {
             'price_asc' => $results->orderBy('price')->orderByDesc('id'),
             'price_desc' => $results->orderByDesc('price')->orderByDesc('id'),
@@ -76,7 +99,22 @@ class ProductController
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $productQuery = Product::with(['images', 'category'])->withAvg('reviews as reviews_avg_rating', 'review_rating')->withCount('reviews');
+        $productQuery = Product::with(['images', 'category', 'seller:id,username,full_name'])
+            ->withAvg('reviews as reviews_avg_rating', 'review_rating')
+            ->withCount('reviews')
+            ->addSelect([
+                'seller_completed_sales_count' => Order::query()->selectRaw('COUNT(*)')
+                    ->whereColumn('orders.seller_id', 'products.seller_id')
+                    ->where('orders.status', Order::STATUS_COMPLETED),
+                'seller_review_average' => Order::query()->selectRaw('AVG(review_rating)')
+                    ->whereColumn('orders.seller_id', 'products.seller_id')
+                    ->where('orders.status', Order::STATUS_COMPLETED)
+                    ->whereNotNull('review_rating'),
+                'seller_review_count' => Order::query()->selectRaw('COUNT(*)')
+                    ->whereColumn('orders.seller_id', 'products.seller_id')
+                    ->where('orders.status', Order::STATUS_COMPLETED)
+                    ->whereNotNull('review_rating'),
+            ]);
         if ($userId = $request->user()?->id) {
             $productQuery->withExists(['favorites as is_favorite' => fn (Builder $favoriteQuery) => $favoriteQuery->where('user_id', $userId)]);
         }

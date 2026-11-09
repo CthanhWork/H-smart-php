@@ -1,4 +1,5 @@
 import { Heart, Star } from 'lucide-react'
+import { useState, type MouseEvent } from 'react'
 import type { Product } from '../productApi'
 import { conditionLabel } from '../productApi'
 
@@ -8,18 +9,27 @@ type ProductCardProps = {
   onToggleFavorite?: () => void
   favoriteBusy?: boolean
   compact?: boolean
+  priority?: boolean
 }
 const money = (amount: number) => new Intl.NumberFormat('vi-VN').format(amount)
 
-export default function ProductCard({ product, onClick, onToggleFavorite, favoriteBusy = false, compact = false }: ProductCardProps) {
+export default function ProductCard({ product, onClick, onToggleFavorite, favoriteBusy = false, compact = false, priority = false }: ProductCardProps) {
   const image = product.images?.[0]?.url
+  const [failedImageUrl, setFailedImageUrl] = useState('')
+  const imageIsAvailable = Boolean(image && failedImageUrl !== image)
   const hasReviews = (product.review_count ?? 0) > 0 && product.rating_average != null
   const isFavorite = Boolean(product.is_favorite)
 
+  function openProduct(event: MouseEvent<HTMLAnchorElement>) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || !onClick) return
+    event.preventDefault()
+    onClick()
+  }
+
   return <article className={`group relative h-full min-w-0 overflow-hidden border border-[#ededed] bg-white text-[#333] transition duration-150 hover:-translate-y-0.5 hover:border-[#ee4d2d] hover:shadow-[0_8px_22px_-18px_rgba(238,77,45,.75)] ${compact ? 'text-xs' : ''}`}>
-    <button type="button" onClick={onClick} className="block h-full w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ee4d2d]">
+    <a href={`/products/${product.id}`} onClick={openProduct} className="block h-full w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ee4d2d]">
       <span className="relative block aspect-square overflow-hidden bg-[#f7f7f7]">
-        {image ? <img src={image} alt={product.title} loading="lazy" className="h-full w-full object-cover object-center transition duration-200 group-hover:scale-[1.035]" /> : <span className="flex h-full items-center justify-center text-sm text-black/35">Không có ảnh</span>}
+        {imageIsAvailable && image ? <img src={image} alt={product.title} width={640} height={640} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} onError={() => setFailedImageUrl(image)} className="h-full w-full object-cover object-center transition duration-200 group-hover:scale-[1.035]" /> : <span className="flex h-full items-center justify-center text-sm text-black/35">Không có ảnh</span>}
         {product.negotiable && <span className="absolute left-0 top-0 bg-[#ee4d2d] px-2 py-1 text-[10px] font-bold text-white">Có thể trả giá</span>}
       </span>
       <span className="grid content-start gap-1.5 p-2.5 sm:p-3">
@@ -31,7 +41,7 @@ export default function ProductCard({ product, onClick, onToggleFavorite, favori
           <span className="shrink-0 text-[10px] text-[#888]">{conditionLabel[product.condition] ?? 'Đã qua sử dụng'}</span>
         </span>
       </span>
-    </button>
+    </a>
     {onToggleFavorite && <button type="button" onClick={(event) => { event.stopPropagation(); onToggleFavorite() }} disabled={favoriteBusy} aria-label={isFavorite ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'} aria-pressed={isFavorite} className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full bg-white/95 text-[#555] shadow-sm transition hover:text-[#e65332] disabled:opacity-50">
       <Heart size={18} className={isFavorite ? 'fill-[#e65332] text-[#e65332]' : ''} />
     </button>}

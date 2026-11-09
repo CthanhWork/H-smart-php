@@ -82,20 +82,22 @@ class DemoProductSeeder extends Seeder
         ];
 
         foreach ($listings as [$title, $description, $price, $categorySlug, $condition, $negotiable, $photoId]) {
-            $product = Product::updateOrCreate(
-                ['seller_id' => $seller->id, 'title' => $title],
-                [
-                    'category_id' => $categories[$categorySlug],
-                    'description' => $description,
-                    'price' => $price,
-                    'condition' => $condition,
-                    'negotiable' => $negotiable,
-                    'min_price' => $negotiable ? (int) floor($price * 0.9) : null,
-                    'status' => Product::STATUS_ACTIVE,
-                    'province' => 'TP. Hồ Chí Minh',
-                    'district' => 'Quận 10',
-                ],
-            );
+            $product = Product::firstOrNew(['seller_id' => $seller->id, 'title' => $title]);
+            $isNewProduct = ! $product->exists;
+            $product->fill([
+                'category_id' => $categories[$categorySlug],
+                'description' => $description,
+                'price' => $price,
+                'condition' => $condition,
+                'negotiable' => $negotiable,
+                'min_price' => $negotiable ? (int) floor($price * 0.9) : null,
+                'province' => 'TP. Hồ Chí Minh',
+                'district' => 'Quận 10',
+            ]);
+            if ($isNewProduct) {
+                $product->status = Product::STATUS_ACTIVE;
+            }
+            $product->save();
 
             ProductImage::updateOrCreate(
                 ['product_id' => $product->id, 'sort_order' => 0],

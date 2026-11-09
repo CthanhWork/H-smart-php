@@ -10,15 +10,22 @@ export default function NotificationsPage({ accessToken, navigate }: Props) {
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<number | 'all' | null>(null)
   const [error, setError] = useState('')
+  const [page, setPage] = useState(1)
+  const [lastPage, setLastPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [unreadTotal, setUnreadTotal] = useState(0)
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const result = await notificationRequest<NotificationList>('/', accessToken)
+      const result = await notificationRequest<NotificationList>(`/?page=${page}&per_page=30`, accessToken)
       setItems(result.data.items)
+      setLastPage(result.data.last_page)
+      setTotal(result.data.total)
+      setUnreadTotal(result.data.unread_count)
     } catch (cause) { setError((cause as Error).message) }
     finally { setLoading(false) }
-  }, [accessToken])
+  }, [accessToken, page])
 
   useEffect(() => { void load() }, [load])
 
@@ -29,17 +36,19 @@ export default function NotificationsPage({ accessToken, navigate }: Props) {
     try {
       const result = await notificationRequest<{ id: number; read_at: string }>(`/${id}/read`, accessToken, { method: 'PATCH' })
       setItems((current) => current.map((entry) => entry.id === id ? { ...entry, read_at: result.data.read_at } : entry))
+      setUnreadTotal((current) => Math.max(0, current - 1))
     } catch (cause) { setError((cause as Error).message) }
     finally { setBusyId(null) }
   }
 
   async function markAllRead() {
-    if (!items.some((item) => !item.read_at)) return
+    if (unreadTotal === 0) return
     setBusyId('all'); setError('')
     try {
       await notificationRequest<null>('/read-all', accessToken, { method: 'PATCH' })
       const readAt = new Date().toISOString()
       setItems((current) => current.map((item) => item.read_at ? item : { ...item, read_at: readAt }))
+      setUnreadTotal(0)
     } catch (cause) { setError((cause as Error).message) }
     finally { setBusyId(null) }
   }
@@ -49,7 +58,7 @@ export default function NotificationsPage({ accessToken, navigate }: Props) {
     if (item.action_url.startsWith('/') && !item.action_url.startsWith('//')) navigate(item.action_url)
   }
 
-  const unreadCount = items.filter((item) => !item.read_at).length
+  const unreadCount = unreadTotal
   return <main className="mx-auto min-h-[60vh] max-w-3xl px-4 py-10 xl:px-0">
     <div className="mb-6 flex items-end justify-between gap-3">
       <div><p className="text-xs font-medium uppercase tracking-[0.16em] text-black/50">Cập nhật tài khoản</p><h1 className="mt-2 font-satoshi text-3xl font-bold">Thông báo</h1><p className="mt-2 text-sm text-black/55">Tin nhắn, đề nghị giá và thay đổi đơn hàng.</p></div>
@@ -65,5 +74,6 @@ export default function NotificationsPage({ accessToken, navigate }: Props) {
         </button>
       </li>)}</ul>}
     </section>
+    {!loading && lastPage > 1 && <div className="mt-5 flex items-center justify-center gap-3"><button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)} className="rounded-xl border border-black/10 px-4 py-2 text-sm disabled:opacity-40">Trước</button><span className="text-sm text-black/55">Trang {page} / {lastPage} · {total} thông báo</span><button type="button" disabled={page >= lastPage} onClick={() => setPage((current) => current + 1)} className="rounded-xl border border-black/10 px-4 py-2 text-sm disabled:opacity-40">Sau</button></div>}
   </main>
 }
