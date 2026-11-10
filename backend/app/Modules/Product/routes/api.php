@@ -4,12 +4,14 @@ use App\Modules\Product\Http\Controllers\CreateProductController;
 use App\Modules\Product\Http\Controllers\CategoryController;
 use App\Modules\Product\Http\Controllers\FavoriteController;
 use App\Modules\Product\Http\Controllers\ProductController;
+use App\Modules\Product\Http\Controllers\SellerController;
 use App\Modules\Product\Http\Controllers\UpdateProductStatusController;
 use App\Modules\Admin\Http\Controllers\ReportSubmissionController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('api')->prefix('api/v1')->group(function (): void {
     Route::get('products', [ProductController::class, 'index'])->middleware('auth.jwt.optional');
+    Route::get('sellers/{id}', [SellerController::class, 'show'])->whereNumber('id');
     Route::get('categories', [CategoryController::class, 'index']);
     Route::get('products/{id}', [ProductController::class, 'show'])->whereNumber('id')->middleware('auth.jwt.optional');
 

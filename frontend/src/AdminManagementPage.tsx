@@ -104,6 +104,12 @@ export default function AdminManagementPage({ accessToken, onBack }: Props) {
     }
   }, [tab, loadProducts, loadUsers, loadCategories])
 
+  useEffect(() => {
+    if (!success) return
+    const timeoutId = window.setTimeout(() => setSuccess(''), 5000)
+    return () => window.clearTimeout(timeoutId)
+  }, [success])
+
   async function handleCategorySubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setLoading(true); setError(''); setSuccess('')
@@ -208,7 +214,7 @@ export default function AdminManagementPage({ accessToken, onBack }: Props) {
       <div className="mb-7 flex items-end gap-3"><Shield size={28} /><div><p className="text-xs uppercase tracking-[0.16em] text-black/50">Bảng điều khiển</p><h1 className="mt-1 font-satoshi font-bold tracking-tight text-3xl uppercase">Quản trị viên</h1></div></div>
 
       <div className="mb-6 flex gap-2 overflow-x-auto rounded-full bg-[#F0F0F0] p-1.5" role="tablist" aria-label="Quản lý">
-        {tabs.map(({ id, label, Icon }) => <button key={id} role="tab" aria-selected={tab === id} className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm transition ${tab === id ? 'bg-black text-white shadow' : 'text-black/60 hover:text-black'}`} onClick={() => { setLoading(true); setError(''); setTab(id) }}><Icon size={16} />{label}</button>)}
+        {tabs.map(({ id, label, Icon }) => <button key={id} role="tab" aria-selected={tab === id} className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm transition ${tab === id ? 'bg-black text-white shadow' : 'text-black/60 hover:text-black'}`} onClick={() => { setLoading(true); setError(''); setSuccess(''); setTab(id) }}><Icon size={16} />{label}</button>)}
       </div>
 
       {error && <Alert variant="error" className="mb-4">{error}</Alert>}
