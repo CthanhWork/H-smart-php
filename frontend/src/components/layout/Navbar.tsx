@@ -189,6 +189,12 @@ const Navbar = ({ user, navigate, onLogout, onAuth, currentPath, accessToken }: 
           {accountOpen && <div className="ml-3 border-l border-black/10 pl-2">{accountLinks.map((link) => <a key={link.href} href={link.href} onClick={(event) => followLink(event, link.href)} className="block w-full rounded-xl px-3 py-2.5 text-left text-sm text-black/65 hover:bg-[#fff0eb]">{link.label}</a>)}{user.role === 'admin' && <a href="/admin" onClick={(event) => followLink(event, '/admin')} className="block w-full rounded-xl px-3 py-2.5 text-left text-sm text-black/65 hover:bg-[#fff0eb]">Quản trị</a>}<button type="button" onClick={() => { setMenuOpen(false); onLogout() }} className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-black/65"><LogOut size={16} />Đăng xuất</button></div>}
         </> : <div className="mt-2 grid grid-cols-2 gap-2 border-t border-black/10 pt-3"><button type="button" onClick={() => { setMenuOpen(false); onAuth('login') }} className="rounded-xl border border-black/10 px-3 py-2.5 text-sm font-semibold">Đăng nhập</button><button type="button" onClick={() => { setMenuOpen(false); onAuth('register') }} className="rounded-xl bg-[#e65332] px-3 py-2.5 text-sm font-semibold text-white">Tạo tài khoản</button></div>}
       </div></div>}
+      <div className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-black/10 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(0,0,0,.08)] backdrop-blur lg:hidden" aria-label="Điều hướng nhanh">
+        <a href="/products" onClick={(event) => followLink(event, '/products')} className="flex min-h-14 flex-col items-center justify-center gap-1 text-[10px] font-medium text-black/65"><Search size={18}/>Khám phá</a>
+        <a href={user ? '/sell' : '/register'} onClick={(event) => followLink(event, user ? '/sell' : '/register')} className="flex min-h-14 flex-col items-center justify-center gap-1 text-[10px] font-semibold text-[#d94322]"><Store size={18}/>Đăng bán</a>
+        <a href={user ? messagePath : '/login'} onClick={(event) => followLink(event, user ? messagePath : '/login')} className="flex min-h-14 flex-col items-center justify-center gap-1 text-[10px] font-medium text-black/65"><Menu size={18}/>Tin nhắn</a>
+        <a href={user ? '/me/profile' : '/login'} onClick={(event) => followLink(event, user ? '/me/profile' : '/login')} className="flex min-h-14 flex-col items-center justify-center gap-1 text-[10px] font-medium text-black/65"><UserRound size={18}/>Tài khoản</a>
+      </div>
     </nav>
   )
 }

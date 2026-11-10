@@ -76,7 +76,7 @@ export default function HomePage({ isAuthenticated, accessToken, navigate }: Hom
   return <main className="font-vietnamese min-h-screen bg-[#f5f5f5] pb-12 text-[#222]">
     <div className="mx-auto w-[min(calc(100%-24px),1200px)] pt-4 sm:w-[min(calc(100%-40px),1200px)] sm:pt-5">
       <section className="grid gap-1 md:grid-cols-[minmax(0,2fr)_minmax(220px,1fr)]" aria-label="Gợi ý mua sắm">
-        <div className="relative min-h-[210px] overflow-hidden bg-[#50433b] sm:min-h-[270px]">
+        <div className="relative min-h-[190px] overflow-hidden rounded-2xl bg-[#50433b] sm:min-h-[270px]">
           {slides.map((item, index) => <button key={item.title} type="button" aria-label={item.action} onClick={() => navigate(index === 2 ? isAuthenticated ? '/sell' : '/register' : '/products')} className={`absolute inset-0 h-full w-full text-left transition-opacity duration-500 motion-reduce:transition-none ${index === slide ? 'z-[1] opacity-100' : 'pointer-events-none opacity-0'}`} style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,.72) 0%, rgba(0,0,0,.32) 55%, rgba(0,0,0,.05) 100%), url("${item.image}")`, backgroundPosition: 'center', backgroundSize: 'cover' }}>
             <span className="absolute bottom-8 left-5 max-w-[470px] text-white sm:bottom-10 sm:left-9"><span className="inline-flex bg-[#ee4d2d] px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide">H-Smart · Chợ sinh viên</span><span className="mt-3 block text-2xl font-extrabold leading-tight sm:text-4xl">{item.title}</span><span className="mt-2 block max-w-md text-sm leading-6 text-white/90 sm:text-base">{item.subtitle}</span><span className="mt-4 inline-flex items-center gap-2 text-sm font-bold">{item.action}<ArrowRight size={16} /></span></span>
           </button>)}
@@ -84,7 +84,7 @@ export default function HomePage({ isAuthenticated, accessToken, navigate }: Hom
           <button type="button" aria-label="Banner tiếp theo" onClick={() => moveSlide(slide + 1)} className="absolute right-0 top-1/2 z-[2] grid h-10 w-8 -translate-y-1/2 place-items-center bg-white/80 text-[#444] hover:bg-white"><ChevronRight size={20} /></button>
           <div className="absolute bottom-3 right-4 z-[2] flex gap-1.5">{slides.map((item, index) => <button key={item.title} type="button" aria-label={`Chọn banner ${index + 1}`} onClick={() => moveSlide(index)} className={`h-2 rounded-full transition-all ${index === slide ? 'w-5 bg-white' : 'w-2 bg-white/60'}`} />)}</div>
         </div>
-        <div className="grid grid-cols-2 gap-1 md:grid-cols-1 md:grid-rows-2">
+        <div className="hidden grid-cols-2 gap-1 md:grid md:grid-cols-1 md:grid-rows-2">
           {sideBanners.map((banner, index) => <button key={banner.label} type="button" onClick={() => { const category = index === 0 ? categories.find((item) => item.slug === 'sach-va-giao-trinh') : categories.find((item) => item.slug === 'do-dung-hoc-tap'); if (category) openCategory(category.id); else navigate('/products') }} className="group relative min-h-[100px] overflow-hidden bg-[#d9d2ca] text-left sm:min-h-[130px] md:min-h-0">
             <img src={banner.image} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
             <span className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" /><span className="absolute bottom-3 left-3 max-w-[80%] text-sm font-bold text-white sm:bottom-4 sm:left-4 sm:text-lg">{banner.label}</span>
@@ -92,7 +92,7 @@ export default function HomePage({ isAuthenticated, accessToken, navigate }: Hom
         </div>
       </section>
 
-      <section id="categories" className="mt-3 scroll-mt-40 bg-white px-2 py-3 shadow-[0_1px_2px_rgba(0,0,0,.06)] sm:px-4" aria-label="Danh mục nổi bật">
+      <section id="categories" className="mt-3 scroll-mt-40 rounded-2xl bg-white px-2 py-3 shadow-sm sm:px-4" aria-label="Danh mục nổi bật">
         <div className="grid grid-cols-4 gap-y-2 sm:grid-cols-6 lg:grid-cols-8">
           {categories.slice(0, 8).map((category) => {
             const Icon = categoryIcons[category.slug] ?? ShoppingBag
@@ -105,14 +105,14 @@ export default function HomePage({ isAuthenticated, accessToken, navigate }: Hom
         </div>
       </section>
 
-      <section className="mt-3 flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-[#ff6a35] to-[#f23d29] px-5 py-4 text-white sm:px-8">
+      <section className="mt-3 hidden flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-[#ff6a35] to-[#f23d29] px-5 py-4 text-white sm:flex sm:px-8">
         <div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/75">H-Smart dành cho sinh viên</p><h2 className="mt-1 text-lg font-extrabold sm:text-2xl">Món đồ phù hợp, thêm một vòng đời mới</h2></div>
         <button type="button" onClick={() => navigate(isAuthenticated ? '/sell' : '/register')} className="inline-flex items-center gap-2 bg-white px-4 py-2.5 text-sm font-bold text-[#df482c] transition hover:bg-[#fff3ed]">{isAuthenticated ? 'Đăng bán sản phẩm' : 'Tham gia ngay'}<ArrowRight size={16} /></button>
       </section>
 
       <section className="mt-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center justify-between gap-2 bg-[#ededed] px-4 py-3"><div><h2 className="text-sm font-bold sm:text-base">Mới đăng</h2><p className="mt-0.5 text-xs text-[#666]">{totalProducts} sản phẩm đang được rao bán</p></div><button type="button" onClick={() => navigate('/products')} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#d94322] hover:underline">Xem tất cả <ArrowRight size={16} /></button></div>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-t-2xl bg-white px-4 py-3"><div><h2 className="text-sm font-bold sm:text-base">Mới đăng</h2><p className="mt-0.5 text-xs text-[#666]">{totalProducts} sản phẩm đang được rao bán</p></div><button type="button" onClick={() => navigate('/products')} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#d94322] hover:underline">Xem tất cả <ArrowRight size={16} /></button></div>
 
           {error && <div role="alert" className="mt-2 border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>}
           {loading ? <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">{Array.from({ length: 10 }, (_, index) => <div key={index} className="aspect-[.78] animate-pulse bg-white" />)}</div>

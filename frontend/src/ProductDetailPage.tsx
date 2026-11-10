@@ -13,6 +13,7 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
   const [recommendations, setRecommendations] = useState<Product[]>([])
   const [error, setError] = useState('')
   const [activeImage, setActiveImage] = useState(0)
+  const [failedImageUrl, setFailedImageUrl] = useState('')
   const [busy, setBusy] = useState(false)
   const [offerPrice, setOfferPrice] = useState('')
   const [offerError, setOfferError] = useState('')
@@ -49,6 +50,7 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
 
   useEffect(() => {
     setActiveImage(0)
+    setFailedImageUrl('')
     setOfferSent(false)
     setOfferError('')
     setOfferNotice('')
@@ -144,7 +146,7 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
   const priceValue = Number(product.price)
   const canOffer = product.negotiable && isActive && !isOwner
 
-  return <main className={`font-vietnamese min-h-screen bg-[#f5f5f5] text-[#222] ${!isOwner && isActive && !isAdmin ? 'pb-28 lg:pb-12' : 'pb-12'}`}>
+  return <main className={`font-vietnamese min-h-screen bg-[#f5f5f5] text-[#222] ${!isOwner && isActive && !isAdmin ? 'pb-40 lg:pb-12' : 'pb-12'}`}>
     <div className="mx-auto w-[min(calc(100%-24px),1200px)] sm:w-[min(calc(100%-40px),1200px)]">
       <nav aria-label="Đường dẫn sản phẩm" className="flex min-h-10 items-center gap-2 overflow-hidden whitespace-nowrap text-xs text-[#777]">
         <a href="/" onClick={(event) => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); navigate('/') }} className="shrink-0 font-medium text-[#ee4d2d]">H-Smart</a><ChevronRight size={13} className="shrink-0 text-[#aaa]" />
@@ -155,7 +157,7 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
       <section className="grid gap-5 border border-[#eee] bg-white p-3 sm:p-5 lg:grid-cols-[minmax(300px,440px)_minmax(0,1fr)] lg:gap-7">
         <div className="min-w-0">
           <div className="group relative aspect-square overflow-hidden border border-[#f0f0f0] bg-[#fafafa]">
-            {selectedImage ? <img src={selectedImage} alt={product.title} width={1000} height={1000} fetchPriority="high" className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center text-sm text-black/40"><ShoppingBag size={38} className="mr-2" />Chưa có hình ảnh</div>}
+            {selectedImage && failedImageUrl !== selectedImage ? <img src={selectedImage} alt={product.title} width={1000} height={1000} fetchPriority="high" onError={() => setFailedImageUrl(selectedImage)} className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center text-sm text-black/40"><ShoppingBag size={38} className="mr-2" />{selectedImage ? 'Không tải được ảnh' : 'Chưa có hình ảnh'}</div>}
             {images.length > 1 && <><button type="button" aria-label="Ảnh trước" onClick={() => setActiveImage((index) => (index - 1 + images.length) % images.length)} className="absolute left-0 top-1/2 grid h-10 w-8 -translate-y-1/2 place-items-center bg-white/85 text-[#444] opacity-100 transition hover:bg-white sm:opacity-0 sm:group-hover:opacity-100"><ChevronLeft size={20} /></button><button type="button" aria-label="Ảnh tiếp theo" onClick={() => setActiveImage((index) => (index + 1) % images.length)} className="absolute right-0 top-1/2 grid h-10 w-8 -translate-y-1/2 place-items-center bg-white/85 text-[#444] opacity-100 transition hover:bg-white sm:opacity-0 sm:group-hover:opacity-100"><ChevronRight size={20} /></button></>}
           </div>
           {images.length > 1 && <div className="mt-2 grid grid-cols-5 gap-2" aria-label="Ảnh sản phẩm">{images.slice(0, 10).map((image, index) => <button key={image.id} type="button" aria-label={`Xem ảnh ${index + 1}`} onClick={() => setActiveImage(index)} className={`aspect-square overflow-hidden border-2 ${index === activeImage ? 'border-[#ee4d2d]' : 'border-transparent hover:border-[#ee4d2d]/50'}`}><img src={image.url} alt={`${product.title} ${index + 1}`} width={120} height={120} loading="lazy" className="h-full w-full object-cover" /></button>)}</div>}
@@ -171,6 +173,17 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
           </div>
           <div className="mt-5 flex flex-wrap items-baseline gap-x-3 gap-y-2 bg-[#fafafa] px-4 py-4 sm:px-5"><strong className="text-3xl font-semibold tracking-tight text-[#ee4d2d] sm:text-[34px]">{formatPrice(priceValue)}</strong>{product.negotiable && <span className="inline-flex items-center gap-1 text-sm font-medium text-[#e65a36]"><Percent size={14} />Có thể thương lượng</span>}</div>
 
+          {favoriteNotice && <p role="status" className="mt-3 text-sm text-emerald-700">{favoriteNotice}</p>}
+          <div className="mt-4 flex flex-wrap gap-2.5">
+            <button type="button" onClick={toggleFavorite} disabled={favoriteBusy} aria-pressed={Boolean(product.is_favorite)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#ddd] px-4 text-sm font-semibold text-[#444] transition hover:border-[#ee4d2d] hover:text-[#ee4d2d] disabled:opacity-60"><Heart size={17} className={product.is_favorite ? 'fill-[#ee4d2d] text-[#ee4d2d]' : ''} />{product.is_favorite ? 'Đã yêu thích' : 'Yêu thích'}</button>
+            {!isOwner && isActive && !isAdmin && <>
+              {canOffer && <button type="button" onClick={() => document.getElementById('offer-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#ee4d2d] bg-[#fff5f1] px-4 text-sm font-semibold text-[#ee4d2d] transition hover:bg-[#ffebe3]"><Percent size={17} />Đề nghị giá</button>}
+              <button type="button" onClick={contactSeller} disabled={busy} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#ee4d2d] px-5 text-sm font-semibold text-white transition hover:bg-[#dc4326] disabled:opacity-60"><MessageCircle size={17} />{busy ? 'Đang mở tin nhắn…' : 'Nhắn tin người bán'}</button>
+            </>}
+            {isOwner && <button type="button" onClick={() => navigate(`/products/${product.id}/edit`)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#ee4d2d] px-4 text-sm font-semibold text-[#ee4d2d] hover:bg-[#fff5f1]">Chỉnh sửa tin đăng<ArrowRight size={16} /></button>}
+            {!isOwner && !isActive && <p className="self-center text-sm text-[#777]">Sản phẩm hiện không còn nhận đề nghị mua.</p>}
+          </div>
+
           <section className="mt-4 border border-[#eee] bg-white p-4 sm:p-5" aria-labelledby="seller-summary-title">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex min-w-0 items-center gap-3"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-[#ffd8ce] bg-[#fff5f1] text-[#ee4d2d]"><Store size={21} /></span><div className="min-w-0"><h2 id="seller-summary-title" className="truncate text-sm font-semibold"><a href={`/sellers/${product.seller_id}`} aria-label={`Xem hồ sơ người bán: ${product.seller?.name || `Tài khoản #${product.seller_id}`}`} onClick={(event) => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); navigate(`/sellers/${product.seller_id}`) }} className="hover:text-[#ee4d2d] hover:underline">{product.seller?.name || `Tài khoản #${product.seller_id}`}</a></h2><div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-black/60">{(product.seller_completed_sales_count ?? 0) > 0 && <span>{product.seller_completed_sales_count} giao dịch hoàn tất</span>}{(product.seller_review_count ?? 0) > 0 && product.seller_review_average != null && <span className="inline-flex items-center gap-1 text-[#8a4b00]"><Star size={12} className="fill-current" />{product.seller_review_average.toFixed(1)} · {product.seller_review_count} đánh giá</span>}{(product.seller_completed_sales_count ?? 0) === 0 && (product.seller_review_count ?? 0) === 0 && <span>Chưa có lịch sử giao dịch</span>}</div></div></div>
@@ -184,21 +197,10 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
             <div className="grid grid-cols-[100px_minmax(0,1fr)] gap-3"><dt className="text-[#777]">Đăng lúc</dt><dd className="m-0 text-[#333]">{new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(new Date(product.created_at))}</dd></div>
           </dl>
 
-          {favoriteNotice && <p role="status" className="mt-3 text-sm text-emerald-700">{favoriteNotice}</p>}
           {!isOwner && <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
             <section className="border border-[#eee] bg-white p-4"><h2 className="flex items-center gap-2 text-sm font-semibold"><Truck size={17} className="text-[#ee4d2d]" />Giao nhận</h2><ul className="mt-3 grid gap-2 text-xs leading-5 text-[#666]"><li>Thống nhất cách giao và phí vận chuyển với người bán trước khi tạo đơn. H-Smart chưa tự tính phí giao hàng.</li><li>Người bán cập nhật đơn vị vận chuyển và mã vận đơn sau khi gửi hàng.</li></ul></section>
             <section className="border border-[#eee] bg-white p-4"><h2 className="flex items-center gap-2 text-sm font-semibold"><ShieldCheck size={17} className="text-emerald-700" />Giao dịch an toàn</h2><ul className="mt-3 grid gap-2 text-xs leading-5 text-[#666]"><li>Kiểm tra ảnh và tình trạng; hỏi thêm về khuyết điểm trước khi thống nhất.</li><li>Giữ trao đổi trên H-Smart và chỉ thanh toán từ trang đơn hàng.</li><li>Không gửi mật khẩu, mã OTP hoặc thông tin thẻ cho người bán.</li></ul></section>
           </div>}
-
-          <div className="mt-6 flex flex-wrap gap-2.5 border-t border-[#eee] pt-5">
-            <button type="button" onClick={toggleFavorite} disabled={favoriteBusy} aria-pressed={Boolean(product.is_favorite)} className="inline-flex min-h-11 items-center justify-center gap-2 border border-[#ddd] px-4 text-sm font-semibold text-[#444] transition hover:border-[#ee4d2d] hover:text-[#ee4d2d] disabled:opacity-60"><Heart size={17} className={product.is_favorite ? 'fill-[#ee4d2d] text-[#ee4d2d]' : ''} />{product.is_favorite ? 'Đã yêu thích' : 'Yêu thích'}</button>
-          {!isOwner && isActive && !isAdmin && <>
-            {canOffer && <button type="button" onClick={() => document.getElementById('offer-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="inline-flex min-h-11 items-center justify-center gap-2 border border-[#ee4d2d] bg-[#fff5f1] px-4 text-sm font-semibold text-[#ee4d2d] transition hover:bg-[#ffebe3]"><Percent size={17} />Đề nghị giá</button>}
-            <button type="button" onClick={contactSeller} disabled={busy} className="inline-flex min-h-11 items-center justify-center gap-2 bg-[#ee4d2d] px-5 text-sm font-semibold text-white transition hover:bg-[#dc4326] disabled:opacity-60"><MessageCircle size={17} />{busy ? 'Đang mở tin nhắn…' : 'Nhắn tin người bán'}</button>
-          </>}
-          {isOwner && <button type="button" onClick={() => navigate(`/products/${product.id}/edit`)} className="inline-flex min-h-11 items-center gap-2 border border-[#ee4d2d] px-4 text-sm font-semibold text-[#ee4d2d] hover:bg-[#fff5f1]">Chỉnh sửa tin đăng<ArrowRight size={16} /></button>}
-          {!isOwner && !isActive && <p className="self-center text-sm text-[#777]">Sản phẩm hiện không còn nhận đề nghị mua.</p>}
-          </div>
 
           {!isOwner && !isAdmin && canOffer && <form id="offer-form" onSubmit={submitOffer} className="mt-4 border border-[#f1ddd5] bg-[#fffaf8] p-4 sm:p-5">
             <h2 className="text-sm font-bold text-[#333]">Gửi đề nghị giá cho người bán</h2><p className="mt-1 text-xs leading-5 text-[#777]">Người bán sẽ xem xét và phản hồi đề nghị của bạn.</p>
@@ -228,7 +230,7 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
         </aside>
       </div>
     </div>
-    {!isOwner && isActive && !isAdmin && <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t border-black/10 bg-white/95 px-3 pt-3 shadow-[0_-6px_24px_rgba(0,0,0,.08)] backdrop-blur lg:hidden" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }} aria-label="Hành động sản phẩm">
+    {!isOwner && isActive && !isAdmin && <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-2 border-t border-black/10 bg-white/95 px-3 pt-3 shadow-[0_-6px_24px_rgba(0,0,0,.08)] backdrop-blur lg:hidden" style={{ paddingBottom: '0.75rem' }} aria-label="Hành động sản phẩm">
       <div className="mr-auto min-w-0"><span className="block text-[10px] text-black/50">Giá bán</span><strong className="block truncate text-base text-[#d94322]">{formatPrice(priceValue)}</strong></div>
       {canOffer && <button type="button" onClick={() => document.getElementById('offer-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[#ee4d2d] bg-white px-3 text-xs font-semibold text-[#d94322]"><Percent size={15} />Trả giá</button>}
       <button type="button" onClick={contactSeller} disabled={busy} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-[#ee4d2d] px-3 text-xs font-semibold text-white disabled:opacity-60"><MessageCircle size={16} />{busy ? 'Đang mở…' : 'Nhắn người bán'}</button>

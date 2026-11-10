@@ -76,6 +76,7 @@ function App() {
   const [resetToken, setResetToken] = useState(() => isResetting ? new URLSearchParams(window.location.search).get('token') : null)
   const verificationAttempted = useRef(false)
   const sessionRestoreAttempted = useRef(false)
+  const restoreScrollOnPop = useRef(false)
   const sessionVersion = useRef(0)
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(() => window.location.pathname === '/register' ? 'register' : window.location.pathname === '/forgot-password' ? 'forgot' : 'login')
   const [email, setEmail] = useState('')
@@ -151,6 +152,7 @@ function App() {
   useEffect(() => {
     const onPopState = () => {
       const nextPath = window.location.pathname
+      restoreScrollOnPop.current = true
       setPath(nextPath)
       if (nextPath === '/login') setMode('login')
       if (nextPath === '/register') setMode('register')
@@ -162,10 +164,15 @@ function App() {
   }, [])
 
   useLayoutEffect(() => {
+    if (restoreScrollOnPop.current) {
+      restoreScrollOnPop.current = false
+      return
+    }
     window.scrollTo(0, 0)
   }, [navigationVersion])
 
   function navigate(nextPath: string) {
+    window.history.replaceState({ ...window.history.state, scrollY: window.scrollY }, '', window.location.href)
     window.history.pushState({}, '', nextPath)
     setPath(window.location.pathname)
     setNavigationVersion((version) => version + 1)
@@ -302,9 +309,9 @@ function App() {
                 : isOffers && tokens ? <OfferPages key={path} accessToken={tokens.accessToken} userId={tokens.user.id} navigate={navigate} />
                   : (isOrders || isOrderCreation) && tokens ? <OrderPages key={`${path}${window.location.search}${navigationVersion}`} accessToken={tokens.accessToken} userId={tokens.user.id} navigate={navigate} mode={isOrderCreation ? 'create' : 'list'} />
                     : isMessages && tokens ? <MessagePages key={`${path}${window.location.search}${navigationVersion}`} accessToken={tokens.accessToken} userId={tokens.user.id} navigate={navigate} /> : null
-  const authContent = <section className="font-vietnamese mx-auto grid max-w-frame items-center gap-10 px-4 py-12 md:grid-cols-[1fr_0.85fr] md:py-20 xl:px-0">
-      <div><span className="text-xs font-medium uppercase tracking-[0.18em] text-black/50">Chợ đồ cũ dành cho sinh viên</span><h1 className="mt-4 font-bold tracking-tight text-4xl uppercase leading-tight sm:text-5xl lg:text-6xl">Mua bán đồ cũ.<br /><span className="text-black/45">Dễ dàng, an tâm.</span></h1><p className="mt-5 max-w-lg text-base leading-relaxed text-black/60">Tìm sách, thiết bị học tập và đồ dùng đã qua sử dụng từ sinh viên khác. Đăng nhập bằng email đã xác nhận để mua bán.</p><div className="mt-8 grid max-w-lg grid-cols-3 gap-3 border-t border-black/10 pt-5 text-xs text-black/55 sm:text-sm"><span><strong className="block text-lg text-black">01</strong>Tạo tài khoản</span><span><strong className="block text-lg text-black">02</strong>Xác thực email</span><span><strong className="block text-lg text-black">03</strong>Khám phá</span></div></div>
-      <div className="rounded-[24px] border border-black/10 bg-white p-5 shadow-sm sm:p-8">
+  const authContent = <section className="font-vietnamese mx-auto grid max-w-frame items-center gap-5 px-4 py-6 md:grid-cols-[1fr_0.85fr] md:gap-10 md:py-20 xl:px-0">
+      <div className="order-2 md:order-1"><span className="text-xs font-medium uppercase tracking-[0.18em] text-black/50">Chợ đồ cũ dành cho sinh viên</span><h1 className="mt-3 font-bold tracking-tight text-3xl uppercase leading-tight sm:text-5xl lg:text-6xl">Mua bán đồ cũ.<br /><span className="text-black/45">Dễ dàng, an tâm.</span></h1><p className="mt-4 max-w-lg text-sm leading-relaxed text-black/60 sm:text-base">Tìm sách, thiết bị học tập và đồ dùng đã qua sử dụng từ sinh viên khác. Đăng nhập bằng email đã xác nhận để mua bán.</p><div className="mt-5 hidden max-w-lg grid-cols-3 gap-3 border-t border-black/10 pt-5 text-xs text-black/55 sm:grid sm:text-sm"><span><strong className="block text-lg text-black">01</strong>Tạo tài khoản</span><span><strong className="block text-lg text-black">02</strong>Xác thực email</span><span><strong className="block text-lg text-black">03</strong>Khám phá</span></div></div>
+      <div className="order-1 rounded-[24px] border border-black/10 bg-white p-5 shadow-sm sm:p-8 md:order-2">
         {tokens ? <div className="space-y-4">
           <div className="mb-5"><span className="text-xs font-medium uppercase tracking-wider text-[#2f7049]">Đăng nhập thành công</span><h2 className="mt-2 text-2xl font-bold">Xin chào, {tokens.user.full_name || tokens.user.email}!</h2><p className="mt-2 text-sm text-black/55">Email <strong className="text-black">{tokens.user.email}</strong> đã được xác nhận.</p></div>
           {error && <Alert variant="error">{error}</Alert>}
@@ -332,7 +339,7 @@ function App() {
 
   if (isAdmin) return <div className="font-vietnamese min-h-screen bg-slate-100 text-slate-900">{restoringSession ? <main className="grid min-h-screen place-items-center"><p role="status" className="text-sm text-slate-600">Đang xác thực phiên quản trị…</p></main> : pageContent}</div>
 
-  return <div className="font-vietnamese min-h-screen bg-white text-black"><a href="#main-content" className="fixed left-4 top-2 z-[100] -translate-y-20 rounded-lg bg-black px-4 py-3 text-sm font-semibold text-white shadow-lg focus:translate-y-0">Bỏ qua điều hướng</a><Navbar user={tokens?.user ?? null} navigate={navigate} onLogout={logout} onAuth={switchMode} currentPath={path} accessToken={tokens?.accessToken ?? null} /><div id="main-content" tabIndex={-1} className="scroll-mt-24 focus:outline-none">{content}</div><Footer isAuthenticated={Boolean(tokens)} isAdmin={tokens?.user.role === 'admin'} currentPath={path} onSignUp={() => switchMode('register')} onLogin={() => switchMode('login')} navigate={navigate} /></div>
+  return <div className="font-vietnamese min-h-screen bg-white text-black"><a href="#main-content" className="fixed left-4 top-2 z-[100] -translate-y-20 rounded-lg bg-black px-4 py-3 text-sm font-semibold text-white shadow-lg focus:translate-y-0">Bỏ qua điều hướng</a><Navbar user={tokens?.user ?? null} navigate={navigate} onLogout={logout} onAuth={switchMode} currentPath={path} accessToken={tokens?.accessToken ?? null} /><div id="main-content" tabIndex={-1} className="scroll-mt-24 pb-16 focus:outline-none lg:pb-0">{content}</div><Footer isAuthenticated={Boolean(tokens)} isAdmin={tokens?.user.role === 'admin'} currentPath={path} onSignUp={() => switchMode('register')} onLogin={() => switchMode('login')} navigate={navigate} /></div>
 }
 
 export default App
