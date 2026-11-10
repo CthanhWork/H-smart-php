@@ -133,7 +133,7 @@ const Navbar = ({ user, navigate, onLogout, onAuth, currentPath, accessToken }: 
       <div className="bg-[#e65332] text-white">
         <div className="mx-auto flex h-8 max-w-frame items-center justify-between px-4 text-[11px] sm:text-xs xl:px-0">
           <p className="hidden sm:block">Chợ đồ cũ dành riêng cho cộng đồng sinh viên</p>
-          <p className="sm:hidden">Mua bán đồ cũ sinh viên</p>
+
           <div className="flex items-center gap-2 sm:gap-3">
             {user && <span className="max-w-[150px] truncate">Xin chào, {user.full_name || user.email}</span>}
             <span className="hidden text-white/50 sm:inline">|</span>
@@ -150,7 +150,7 @@ const Navbar = ({ user, navigate, onLogout, onAuth, currentPath, accessToken }: 
 
         {!isProductListing && <form onSubmit={search} role="search" className="flex h-11 min-w-0 items-center rounded-xl border border-black/10 bg-[#f6f7f8] px-3 transition focus-within:border-[#e65332]/60 focus-within:bg-white focus-within:ring-4 focus-within:ring-[#e65332]/10 sm:h-12 sm:px-4">
           <Search className="mr-2 shrink-0 text-black/40" size={19} />
-          <input value={query} onChange={(event) => setSearchInput({ route: searchRoute, value: event.target.value })} maxLength={200} placeholder="Tìm theo tên, mô tả, danh mục…" aria-label="Tìm sản phẩm" className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-black/40" />
+          <input value={query} onChange={(event) => setSearchInput({ route: searchRoute, value: event.target.value })} maxLength={200} placeholder="Tìm sản phẩm…" aria-label="Tìm sản phẩm" className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-black/40" />
           <button type="submit" aria-label="Tìm kiếm" className="ml-2 flex h-8 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e65332] text-white transition hover:bg-[#cc4528] sm:w-11"><Search size={17} /></button>
         </form>}
 

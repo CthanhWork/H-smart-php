@@ -165,7 +165,7 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
         </div>
 
         <div className="min-w-0 py-1 sm:px-1">
-          <div className="flex flex-wrap items-center gap-2"><span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold ${isActive ? 'bg-[#fff3ed] text-[#d94322]' : 'bg-black/[0.06] text-[#555]'}`}>{isActive && <BadgeCheck size={14} />}{statusLabel[product.status] ?? product.status}</span><span className="inline-flex items-center gap-1 text-xs text-[#777]"><ShieldCheck size={14} className="text-emerald-700" />Tin đăng trên H-Smart</span></div>
+          <div className="flex flex-wrap items-center gap-2"><span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold ${isActive ? 'bg-[#fff3ed] text-[#d94322]' : 'bg-black/[0.06] text-[#555]'}`}>{isActive && <BadgeCheck size={14} />}{statusLabel[product.status] ?? product.status}</span><span className="inline-flex items-center gap-1 text-xs text-[#777]"></span></div>
           <h1 className="mt-3 text-xl font-semibold leading-snug text-[#222] sm:text-2xl">{product.title}</h1>
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#777] sm:text-sm">
             {reviewCount > 0 && rating != null ? <><span className="inline-flex items-center gap-1 border-b border-[#ee4d2d] pb-0.5 text-[#ee4d2d]"><strong>{rating.toFixed(1)}</strong><Star size={14} className="fill-[#ee4d2d]" /></span><span>{reviewCount} đánh giá</span></> : <span>Chưa có đánh giá</span>}

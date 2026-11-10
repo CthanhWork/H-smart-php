@@ -31,8 +31,7 @@ export default function HomePage({ isAuthenticated, accessToken, navigate }: Hom
   const [categories, setCategories] = useState<Category[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [slide, setSlide] = useState(0)
-  const [totalProducts, setTotalProducts] = useState(0)
-  const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [favoriteBusyIds, setFavoriteBusyIds] = useState<Set<number>>(() => new Set())
 
@@ -51,7 +50,6 @@ export default function HomePage({ isAuthenticated, accessToken, navigate }: Hom
       if (cancelled) return
       setCategories(categoryResult.data)
       setProducts(productResult.data.content)
-      setTotalProducts(productResult.data.totalElements)
     }).catch((cause: Error) => {
       if (!cancelled) setError(cause.message || 'Không tải được dữ liệu cửa hàng.')
     }).finally(() => { if (!cancelled) setLoading(false) })
@@ -106,13 +104,13 @@ export default function HomePage({ isAuthenticated, accessToken, navigate }: Hom
       </section>
 
       <section className="mt-3 hidden flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-[#ff6a35] to-[#f23d29] px-5 py-4 text-white sm:flex sm:px-8">
-        <div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/75">H-Smart dành cho sinh viên</p><h2 className="mt-1 text-lg font-extrabold sm:text-2xl">Món đồ phù hợp, thêm một vòng đời mới</h2></div>
+        <div><h2 className="mt-1 text-lg font-extrabold sm:text-2xl"></h2></div>
         <button type="button" onClick={() => navigate(isAuthenticated ? '/sell' : '/register')} className="inline-flex items-center gap-2 bg-white px-4 py-2.5 text-sm font-bold text-[#df482c] transition hover:bg-[#fff3ed]">{isAuthenticated ? 'Đăng bán sản phẩm' : 'Tham gia ngay'}<ArrowRight size={16} /></button>
       </section>
 
       <section className="mt-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-t-2xl bg-white px-4 py-3"><div><h2 className="text-sm font-bold sm:text-base">Mới đăng</h2><p className="mt-0.5 text-xs text-[#666]">{totalProducts} sản phẩm đang được rao bán</p></div><button type="button" onClick={() => navigate('/products')} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#d94322] hover:underline">Xem tất cả <ArrowRight size={16} /></button></div>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-t-2xl bg-white px-4 py-3"><div><h2 className="text-sm font-bold sm:text-base">Mới đăng</h2></div><button type="button" onClick={() => navigate('/products')} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#d94322] hover:underline">Xem tất cả <ArrowRight size={16} /></button></div>
 
           {error && <div role="alert" className="mt-2 border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>}
           {loading ? <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">{Array.from({ length: 10 }, (_, index) => <div key={index} className="aspect-[.78] animate-pulse bg-white" />)}</div>

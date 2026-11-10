@@ -303,7 +303,7 @@ export default function SellPage({ accessToken, userId, userEmail, onBack, editI
       <main className="max-w-frame mx-auto px-4 xl:px-0 py-16">
         <div className="max-w-lg mx-auto rounded-3xl border border-black/10 bg-white p-8 md:p-10 text-center shadow-sm">
           <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[#f1f0ed] text-2xl">＋</span>
-          <span className="mt-5 block text-xs uppercase tracking-wider text-black/55">{editId ? 'Chỉnh sửa sản phẩm' : 'Gian hàng H‑Smart'}</span>
+          <span className="mt-5 block text-xs uppercase tracking-wider text-black/55">{editId ? 'Chỉnh sửa sản phẩm' : 'Đăng bán'}</span>
           <h1 className="font-satoshi font-bold tracking-tight text-3xl md:text-4xl mt-2">Bắt đầu bán món đồ của bạn</h1>
           <button
             type="button"
@@ -322,7 +322,7 @@ export default function SellPage({ accessToken, userId, userEmail, onBack, editI
   const previewUrl = imagePreviews[0] ?? existingImages.find((image) => !removedIds.includes(image.id))?.url
   const totalImages = existingImages.filter((image) => !removedIds.includes(image.id)).length + images.length
   const previewCard = <div className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
-    <div className="border-b border-black/10 p-4"><p className="text-xs font-semibold uppercase tracking-wider text-black/50">Xem trước</p><h2 className="mt-1 text-base font-semibold">Tin đăng của bạn</h2></div>
+    <div className="border-b border-black/10 p-4"><p className="text-xs font-semibold uppercase tracking-wider text-black/50">Xem trước tin đăng</p></div>
     {previewUrl ? <img src={previewUrl} alt="Ảnh xem trước sản phẩm" width={640} height={480} className="aspect-[4/3] w-full bg-[#f1f0ed] object-cover" /> : <div className="grid aspect-[4/3] place-items-center bg-[#f1f0ed] text-center text-sm text-black/45">Chưa có ảnh</div>}
     <div className="p-4"><p className="min-h-6 text-lg font-semibold leading-snug">{title || 'Tên sản phẩm'}</p><p className="mt-2 text-2xl font-bold">{price ? `${new Intl.NumberFormat('vi-VN').format(Number(price))} ₫` : 'Giá bán'}</p><div className="mt-3 flex flex-wrap gap-2"><span className="rounded-full bg-[#f1f0ed] px-3 py-1 text-xs">{categoryName}</span><span className="rounded-full bg-[#f1f0ed] px-3 py-1 text-xs">{conditionName[condition] ?? 'Tình trạng'}</span>{negotiable && <span className="rounded-full bg-[#f1f0ed] px-3 py-1 text-xs">Có thể thương lượng</span>}</div>{description && <p className="mt-4 line-clamp-4 whitespace-pre-line text-sm leading-6 text-black/60">{description}</p>}</div>
   </div>
@@ -332,8 +332,8 @@ export default function SellPage({ accessToken, userId, userEmail, onBack, editI
       <button onClick={onBack} className="text-sm text-black/60 hover:text-black mb-5">← Quay lại</button>
 
       <div className="mb-8 md:mb-10">
-        <span className="text-xs uppercase tracking-wider text-black/55">{editId ? 'Chỉnh sửa sản phẩm' : 'Gian hàng H‑Smart'}</span>
-        <h1 className="font-satoshi font-bold tracking-tight text-3xl md:text-5xl mt-2">{editId ? 'Hoàn thiện tin đăng' : 'Đăng bán thật dễ'}</h1>
+        <span className="text-xs uppercase tracking-wider text-black/55">{editId ? 'Chỉnh sửa sản phẩm' : 'Đăng bán'}</span>
+        <h1 className="font-satoshi font-bold tracking-tight text-3xl md:text-5xl mt-2">{editId ? 'Hoàn thiện tin đăng' : 'Đăng bán'}</h1>
         <nav aria-label="Các bước đăng bán" className="mt-7 grid grid-cols-3 max-w-2xl">
           {[['01', 'Ảnh sản phẩm', 'sell-photos'], ['02', 'Thông tin', 'sell-details'], ['03', 'Giá bán', 'sell-price']].map(([number, label, href]) => (
             <a key={href} href={`#${href}`} className="flex items-center gap-2 border-t-2 border-black/15 pt-3 text-xs md:text-sm text-black/65 hover:text-black"><span className="font-semibold text-black">{number}</span>{label}</a>
@@ -463,7 +463,7 @@ export default function SellPage({ accessToken, userId, userEmail, onBack, editI
               <p className="text-xs font-semibold uppercase tracking-wider text-black/50">Bước 3</p><h2 className="mt-1 mb-5 text-xl font-semibold">Đặt giá bán</h2>
               <label htmlFor="sell-price-input" className="block text-sm font-medium mb-1.5">Giá bán (VND)</label>
               <input id="sell-price-input" name="price" type="text" inputMode="numeric" autoComplete="off" value={formatVnd(price)} onChange={(event) => updateVndInput(event, setPrice)} required aria-invalid={Boolean(errors.price)} aria-describedby={errors.price ? 'sell-price-error' : 'sell-price-hint'} className="w-full rounded-2xl border border-black/20 px-5 py-3 text-sm outline-none focus-visible:border-black focus-visible:ring-2 focus-visible:ring-black/20" />
-              <p id="sell-price-hint" className="mt-1 text-xs text-black/55">Số tiền được tự ngăn cách hàng nghìn, ví dụ: 250.000.</p>
+              <p id="sell-price-hint" className="mt-1 text-xs text-black/55"></p>
               {errors.price && <p id="sell-price-error" className="mt-1 text-xs text-[#b42318]">{errors.price[0]}</p>}
               <div className="mt-5 rounded-2xl bg-[#faf9f7] p-4">
                 <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={negotiable} onChange={(event) => setNegotiable(event.target.checked)} className="accent-black w-4 h-4" />Cho phép người mua trả giá</label>

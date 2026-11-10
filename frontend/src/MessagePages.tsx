@@ -186,7 +186,7 @@ export default function MessagePages({ accessToken, userId, navigate, isAdmin = 
         <aside className={`${hasConversation ? 'hidden lg:flex' : 'flex'} min-h-[65vh] flex-col border-r border-black/10 lg:min-h-0`} aria-label="Danh sách cuộc trò chuyện">
           <div className="border-b border-black/[0.07] px-5 pb-4 pt-5">
             <div className="flex items-center justify-between">
-              <div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#e65332]">Hộp thư</p><h1 className="mt-1 text-2xl font-bold tracking-tight">Tin nhắn</h1></div>
+              <div><h1 className="mt-1 text-2xl font-bold tracking-tight">Tin nhắn</h1></div>
               {!isAdmin && <button type="button" onClick={() => setNewMessageOpen(true)} className="inline-flex items-center gap-2 rounded-full bg-[#eaf3ff] px-3 py-2 text-xs font-semibold text-[#0866ff] transition hover:bg-[#dcecff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1684ff]" aria-label="Liên hệ quản trị viên"><SquarePen size={16} /><span className="hidden sm:inline">Liên hệ admin</span></button>}
             </div>
             <label className="mt-4 flex items-center gap-2 rounded-full bg-[#f1f2f4] px-3.5 py-2.5 focus-within:ring-2 focus-within:ring-[#1684ff]/30">
@@ -249,7 +249,7 @@ export default function MessagePages({ accessToken, userId, navigate, isAdmin = 
                 <span id="message-length" className="sr-only">Tối đa 2.000 ký tự</span>
                 <Button type="submit" aria-label={busy ? 'Đang gửi tin nhắn' : 'Gửi tin nhắn'} title="Gửi tin nhắn" disabled={busy || !body.trim()} className="mb-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#1684ff] p-0 text-white hover:bg-[#0866ff] disabled:bg-[#1684ff]/40"><Send size={19} /></Button>
               </div>
-              <p className="mt-2 px-1 text-[11px] text-black/40">Không chia sẻ mật khẩu hoặc mã xác thực trong tin nhắn.</p>
+
             </form>
           </> : <div className="m-auto max-w-md px-6 py-12 text-center"><span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#eaf3ff] text-[#1684ff]"><MessageCircle size={28} /></span><h2 className="mt-5 text-lg font-semibold">Chọn một cuộc trò chuyện</h2><p className="mt-2 text-sm leading-relaxed text-black/50">{isAdmin ? 'Chọn tin nhắn từ người dùng để phản hồi hỗ trợ.' : 'Liên hệ admin để được hỗ trợ, hoặc mở tin nhắn từ trang sản phẩm để hỏi người bán.'}</p></div>}
         </section>

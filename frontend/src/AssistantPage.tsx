@@ -76,7 +76,7 @@ export default function AssistantPage({ accessToken }: Props) {
 
   return <main className="mx-auto max-w-frame px-4 py-8 sm:py-12">
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#d94b2b]">H-Smart hỗ trợ</p><h1 className="mt-2 text-3xl font-bold tracking-tight">Trợ lý H-Smart</h1><p className="mt-2 max-w-2xl text-sm text-black/55">Hỏi về cách sử dụng và chính sách. Câu trả lời dựa trên hướng dẫn đã duyệt của H-Smart.</p></div>
+      <div><h1 className="mt-2 text-3xl font-bold tracking-tight">Trợ lý</h1><p className="mt-2 max-w-2xl text-sm text-black/55">Hỏi về cách sử dụng và chính sách. Câu trả lời dựa trên hướng dẫn đã duyệt của H-Smart.</p></div>
       <Button variant="outline" onClick={newConversation} disabled={loading}><Plus size={17} /> Cuộc trò chuyện mới</Button>
     </div>
     {error && <Alert variant="error" className="mb-4" role="alert">{error}</Alert>}

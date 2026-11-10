@@ -212,10 +212,10 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
   return <main className="max-w-frame mx-auto min-h-[55vh] px-4 py-10 xl:px-0">
     <button className="mb-6 inline-flex items-center gap-2 text-sm text-black/55 transition hover:text-black" onClick={() => navigate(mode === 'create' ? '/me/offers' : '/')}><ArrowLeft size={16} />{mode === 'create' ? 'Quay lại đề nghị mua' : 'Về tài khoản'}</button>
     <div className="mb-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div><p className="text-xs font-medium uppercase tracking-[0.16em] text-black/50">Giao dịch</p><h1 className="mt-2 font-satoshi font-bold tracking-tight text-2xl uppercase sm:text-4xl">{mode === 'create' ? 'Tạo đơn hàng' : 'Đơn hàng của tôi'}</h1></div>
+      <div><h1 className="mt-2 font-satoshi font-bold tracking-tight text-2xl uppercase sm:text-4xl">{mode === 'create' ? 'Tạo đơn hàng' : 'Đơn hàng của tôi'}</h1></div>
       {mode === 'create' && <Button variant="outline" onClick={() => navigate('/me/orders')}>Xem đơn hàng <ArrowRight className="ml-2" size={16} /></Button>}
     </div>
-    <p className="mb-6 text-sm text-black/55">{mode === 'create' ? 'Thanh toán an toàn qua cổng VNPay.' : 'Theo dõi trạng thái xử lý và thông tin giao hàng của từng đơn.'}</p>
+
     {notice && <Alert variant="success" className="mb-4" role="status">{notice}</Alert>}
     {error && <Alert variant="error" className="mb-4">{error}</Alert>}
     {mode === 'create' && !offerId && <Alert variant="error" className="mb-4">Thiếu mã đề nghị mua.</Alert>}

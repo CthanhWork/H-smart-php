@@ -70,7 +70,7 @@ export default function ProfilePage({ accessToken, navigate, onSaved }: Props) {
 
   return <main className="max-w-frame mx-auto min-h-[55vh] px-4 py-10 xl:px-0">
     <button className="mb-6 inline-flex items-center gap-2 text-sm text-black/55 transition hover:text-black" onClick={() => navigate('/')}><ArrowLeft size={16} />Về trang chủ</button>
-    <div className="mb-6"><p className="text-xs font-medium uppercase tracking-[0.16em] text-black/50">Tài khoản của tôi</p><h1 className="mt-2 font-satoshi text-2xl font-bold uppercase tracking-tight sm:text-4xl">Hồ sơ và địa chỉ</h1><p className="mt-2 text-sm text-black/55">Lưu thông tin liên hệ và địa chỉ để điền sẵn khi tạo đơn hàng.</p></div>
+    <div className="mb-6"><h1 className="mt-2 font-satoshi text-2xl font-bold uppercase tracking-tight sm:text-4xl">Hồ sơ và địa chỉ</h1><p className="mt-2 text-sm text-black/55">Lưu thông tin liên hệ và địa chỉ để điền sẵn khi tạo đơn hàng.</p></div>
     {notice && <Alert variant="success" className="mb-4" role="status">{notice}</Alert>}
     {error && <Alert variant="error" className="mb-4">{error}</Alert>}
     {loading ? <p className="py-8 text-sm text-black/55">Đang tải hồ sơ…</p> : profile && <form className="max-w-2xl space-y-6 rounded-[20px] border border-black/10 bg-white p-5 shadow-sm sm:p-8" onSubmit={save}>
