@@ -57,6 +57,7 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
     const paymentResult = new URLSearchParams(window.location.search).get('payment')
     if (paymentResult === 'mock_success') setNotice('Thanh toán mô phỏng thành công. Đơn hàng đã được cập nhật; không có tiền thật được chuyển.')
     else if (paymentResult === 'mock_failed') setError('Thanh toán mô phỏng đã thất bại hoặc bị hủy. Bạn có thể thử lại từ đơn hàng.')
+    else if (paymentResult === 'success') setNotice('Thanh toán VNPay Sandbox thành công. Đơn hàng đã được cập nhật.')
     else if (paymentResult === 'processing') setNotice('VNPay đã trả kết quả. Đang đồng bộ trạng thái giao dịch, vui lòng tải lại đơn hàng sau ít giây nếu trạng thái chưa đổi.')
     else if (paymentResult === 'failed') setError('Thanh toán chưa thành công. Bạn có thể thử thanh toán lại từ đơn hàng.')
     else if (paymentResult === 'invalid') setError('Không xác minh được kết quả thanh toán. Vui lòng kiểm tra trạng thái đơn hàng hoặc liên hệ hỗ trợ.')

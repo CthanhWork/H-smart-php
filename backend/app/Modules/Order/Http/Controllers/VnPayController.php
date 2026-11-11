@@ -68,7 +68,7 @@ class VnPayController
             : (! $gatewaySucceeded
                 ? ($processed === 'invalid' ? 'invalid' : 'failed')
                 : (config('services.vnpay.sandbox_return_fallback') && $isSandbox
-                    ? (in_array($processed, ['newly_paid', 'success'], true) ? 'processing' : 'invalid')
+                    ? (in_array($processed, ['newly_paid', 'success'], true) ? 'success' : 'invalid')
                     : 'processing'));
         $frontendUrl = (string) config('services.vnpay.result_redirect_url');
 

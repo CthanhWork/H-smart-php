@@ -148,6 +148,43 @@ class VnPayMockTest extends TestCase
         $this->assertNotSame($query['vnp_TxnRef'], $order->payment_txn_ref);
     }
 
+    public function test_sandbox_return_marks_payment_success_and_ipn_is_idempotent(): void
+    {
+        [$order, $product, $request] = $this->checkout();
+        config([
+            'services.vnpay.mode' => 'gateway',
+            'services.vnpay.tmn_code' => 'TEST',
+            'services.vnpay.hash_secret' => 'test-secret',
+            'services.vnpay.payment_url' => 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html',
+            'services.vnpay.return_url' => 'http://localhost:8001/api/v1/payments/vnpay/return',
+            'services.vnpay.sandbox_return_fallback' => true,
+        ]);
+
+        app(VnPayService::class)->createPaymentUrl($order, $request);
+        $order->refresh();
+        $callback = [
+            'vnp_Amount' => (string) ($order->total_amount * 100),
+            'vnp_BankCode' => 'NCB',
+            'vnp_ResponseCode' => '00',
+            'vnp_TmnCode' => 'TEST',
+            'vnp_TxnRef' => $order->payment_txn_ref,
+            'vnp_TransactionNo' => 'TEST-12345',
+            'vnp_TransactionStatus' => '00',
+        ];
+        ksort($callback);
+        $callback['vnp_SecureHash'] = hash_hmac('sha512', http_build_query($callback, '', '&', PHP_QUERY_RFC1738), 'test-secret');
+
+        $this->get('/api/v1/payments/vnpay/return?'.http_build_query($callback))
+            ->assertRedirect('http://localhost:5174/payment-result?payment=success');
+        $this->assertSame('paid', $order->refresh()->payment_status);
+        $this->assertSame('paid', $order->status);
+        $this->assertSame('sold', $product->refresh()->status);
+
+        $this->get('/api/v1/payments/vnpay/ipn?'.http_build_query($callback))
+            ->assertOk()
+            ->assertExactJson(['RspCode' => '00', 'Message' => 'Confirm Success']);
+    }
+
     public function test_failed_payment_releases_the_product_after_order_expires(): void
     {
         [$order, $product, , $url] = $this->checkout();
