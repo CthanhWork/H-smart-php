@@ -14,6 +14,7 @@ class VnPayController
     public function create(Request $request, int $id, VnPayService $vnpay): JsonResponse
     {
         $order = Order::where('buyer_id', $request->user()->id)->findOrFail($id);
+        abort_unless($order->payment_provider !== 'cod', 409, 'Đơn hàng đã chọn thanh toán COD.');
         $url = $vnpay->createPaymentUrl($order, $request);
 
         return response()->json([

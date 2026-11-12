@@ -9,12 +9,36 @@ use App\Modules\Order\Http\Requests\CreateOrderRequest;
 use App\Modules\Order\Http\Requests\ShipOrderRequest;
 use App\Modules\Order\Http\Resources\OrderResource;
 use App\Modules\Order\Models\Order;
+use App\Modules\Offer\Models\Offer;
+use App\Modules\Product\Models\Product;
 use App\Modules\Notification\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class OrderController
 {
+    public function quote(Request $request): JsonResponse
+    {
+        $data = $request->validate(['offer_id' => ['required', 'integer', 'exists:offers,id']]);
+        $offer = Offer::with('product:id,status')->findOrFail($data['offer_id']);
+        abort_unless($offer->buyer_id === (int) $request->user()->id, 404);
+        abort_unless($offer->status === Offer::STATUS_ACCEPTED && $offer->product->status === Product::STATUS_ACTIVE, 409);
+
+        $productAmount = (int) $offer->offer_price;
+        $shippingFee = max(0, (int) config('services.marketplace.shipping_fee', 0));
+        $commissionRate = min(100, max(0, (int) config('services.marketplace.commission_rate', 5)));
+        $platformFee = intdiv($productAmount * $commissionRate, 100);
+
+        return response()->json(['status' => 'success', 'message' => 'Tạm tính đơn hàng.', 'data' => [
+            'product_amount' => $productAmount,
+            'shipping_fee' => $shippingFee,
+            'total_amount' => $productAmount + $shippingFee,
+            'commission_rate' => $commissionRate,
+            'platform_fee' => $platformFee,
+            'seller_amount' => $productAmount - $platformFee,
+        ]]);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $userId = $request->user()->id;
@@ -54,7 +78,7 @@ class OrderController
             'recipient_name' => $data['recipient_name'],
             'phone' => $data['phone'],
             'address' => $data['address'],
-        ]);
+        ], $data['payment_method'] ?? 'vnpay');
         $notifications->send($order->seller, $order->buyer, 'order_created', 'Có đơn hàng mới', 'Bạn có đơn hàng #'.$order->id.' cho sản phẩm “'.$order->product->title.'”.', '/me/orders', ['order_id' => $order->id]);
 
         return response()->json(['status' => 'success', 'message' => 'Đơn hàng đã được tạo và sản phẩm đang được giữ trong 30 phút.', 'data' => new OrderResource($order)], 201);
@@ -91,5 +115,11 @@ class OrderController
         $notifications->send($order->seller, $request->user(), 'order_completed', 'Đơn hàng đã hoàn tất', 'Người mua đã xác nhận nhận hàng cho đơn #'.$order->id.'.', '/me/orders', ['order_id' => $order->id]);
 
         return response()->json(['status' => 'success', 'message' => 'Đã xác nhận nhận hàng. Đơn hàng hoàn tất.', 'data' => new OrderResource($order)]);
+    }
+
+    public function returnReceived(Request $request, int $id, AdvanceOrderAction $advance): JsonResponse
+    {
+        $order = $advance->execute($id, (int) $request->user()->id, 'return_received');
+        return response()->json(['status' => 'success', 'message' => 'Đã xác nhận nhận hàng hoàn. Sản phẩm được mở bán lại.', 'data' => new OrderResource($order)]);
     }
 }

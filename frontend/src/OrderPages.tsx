@@ -14,6 +14,10 @@ type Order = {
   shipping_address: { recipient_name: string; phone: string; address: string }
   expires_at: string; paid_at: string | null; confirmed_at: string | null; shipped_at: string | null; completed_at: string | null
   shipping_carrier: string | null; tracking_number: string | null
+  platform_fee: number; commission_rate: number; delivery_status: string | null
+  returned_at: string | null
+  delivery_failed_reason: string | null
+  cod_collected_at: string | null; carrier_settled_at: string | null; seller_paid_at: string | null
   created_at: string; cancelled_at: string | null; product: Product; buyer: { id: number; full_name: string | null }
   seller: { id: number; full_name: string | null }; offer_id: number
   payment: { id: number; txn_ref: string | null; provider: string; amount: number; status: string; paid_at: string | null } | null
@@ -21,6 +25,7 @@ type Order = {
   status_history: Array<{ from_status: string | null; to_status: string; changed_at: string }>
 }
 type OrderPage = { content: Order[]; pageNo: number; pageSize: number; totalElements: number; totalPages: number; last: boolean }
+type OrderQuote = { product_amount: number; shipping_fee: number; total_amount: number; commission_rate: number; platform_fee: number; seller_amount: number }
 type Props = { accessToken: string; userId: number; navigate: (path: string) => void; mode: 'list' | 'create' }
 const money = (amount: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
 const labels: Record<string, string> = {
@@ -38,9 +43,11 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
   const [orders, setOrders] = useState<Order[]>([])
   const [order, setOrder] = useState<Order | null>(null)
   const [offer, setOffer] = useState<Offer | null>(null)
+  const [quote, setQuote] = useState<OrderQuote | null>(null)
   const [recipientName, setRecipientName] = useState('')
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<'vnpay' | 'cod'>('vnpay')
   const [loading, setLoading] = useState(mode === 'list' || Boolean(offerId))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -84,6 +91,9 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
             else setError('Không tìm thấy đơn hàng đã tạo cho đề nghị này.')
           } else if (data.status !== 'accepted') {
             setError('Bạn chỉ có thể đặt hàng sau khi người bán chấp nhận đề nghị.')
+          } else {
+            const quoteResult = await productRequest<OrderQuote>(`orders/quote?offer_id=${data.id}`, accessToken)
+            if (!cancelled) setQuote(quoteResult.data)
           }
         })
         .catch((cause: Error & { status?: number }) => {
@@ -107,7 +117,7 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
     try {
       const result = await productRequest<Order>('orders', accessToken, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ offer_id: Number(offerId), recipient_name: recipientName.trim(), phone: phone.trim(), address: address.trim() }),
+        body: JSON.stringify({ offer_id: Number(offerId), recipient_name: recipientName.trim(), phone: phone.trim(), address: address.trim(), payment_method: paymentMethod }),
       })
       setOrder(result.data); setNotice(result.message)
     } catch (cause) { setError((cause as Error).message) }
@@ -151,10 +161,10 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
   function actions(item: Order) {
     const buyer = item.buyer.id === userId
     if (item.status === 'pending_payment' && buyer) return <>
-      <Button disabled={busy} onClick={() => void pay(item.id)}>Thanh toán qua VNPay</Button>
+      {item.payment?.provider !== 'cod' && <Button disabled={busy} onClick={() => void pay(item.id)}>Thanh toán qua VNPay</Button>}
       {!item.payment?.txn_ref && <Button variant="outline" disabled={busy} onClick={() => act(item.id, 'cancel')}>Hủy đơn</Button>}
     </>
-    if (item.status === 'paid' && !buyer) return <Button disabled={busy} onClick={() => act(item.id, 'confirm')}>Xác nhận đơn</Button>
+    if (!buyer && (item.status === 'paid' || (item.status === 'pending_payment' && item.payment?.provider === 'cod'))) return <Button disabled={busy} onClick={() => act(item.id, 'confirm')}>Xác nhận đơn</Button>
     if (item.status === 'processing' && !buyer) {
       const shipment = shipments[item.id] ?? { carrier: '', tracking: '' }
       return <form className="flex w-full flex-col gap-3 rounded-2xl bg-[#f6f7f8] p-4 sm:flex-row sm:items-end" onSubmit={(event) => { event.preventDefault(); void act(item.id, 'ship', { shipping_carrier: shipment.carrier.trim(), tracking_number: shipment.tracking.trim() }) }}>
@@ -164,11 +174,18 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
       </form>
     }
     if (item.status === 'shipping' && buyer) return <Button disabled={busy} onClick={() => act(item.id, 'complete')}>Đã nhận hàng</Button>
+    if (item.status === 'shipping' && !buyer && item.delivery_status === 'returned_to_seller') return <Button disabled={busy} onClick={async () => {
+      setBusy(true); setError(''); setNotice('')
+      try { const result = await productRequest<Order>(`orders/${item.id}/return-received`, accessToken, { method: 'POST' }); setNotice(result.message); setVersion((value) => value + 1) }
+      catch (cause) { setError((cause as Error).message) }
+      finally { setBusy(false) }
+    }}>Xác nhận đã nhận hàng hoàn</Button>
     return null
   }
 
   function nextStep(item: Order) {
     const buyer = item.buyer.id === userId
+    if (item.status === 'pending_payment' && item.payment?.provider === 'cod') return buyer ? 'Đơn COD đang chờ người bán xác nhận.' : 'Xác nhận đơn COD để chuẩn bị hàng.'
     if (item.status === 'pending_payment') return buyer ? 'Thanh toán trước thời hạn giữ sản phẩm để tiếp tục đơn hàng.' : 'Đang chờ người mua thanh toán.'
     if (item.status === 'paid') return buyer ? 'Đang chờ người bán xác nhận đơn.' : 'Xác nhận đơn để bắt đầu chuẩn bị hàng.'
     if (item.status === 'processing') return buyer ? 'Người bán đang chuẩn bị hàng.' : 'Nhập thông tin vận chuyển để xác nhận gửi hàng.'
@@ -182,15 +199,17 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
     return <article className="rounded-[20px] border border-black/10 bg-white p-5 shadow-sm sm:p-7" key={item.id}>
       <div className="flex flex-col gap-3 border-b border-black/10 pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div><p className="text-xs font-medium uppercase tracking-[0.16em] text-black/50">Đơn hàng #{item.id}</p><h2 className="mt-2 text-xl font-bold sm:text-2xl">{item.product.title}</h2></div>
-        <Badge variant={statusVariant[item.status] ?? 'outline'}>{labels[item.status] ?? item.status}</Badge>
+        <Badge variant={statusVariant[item.status] ?? 'outline'}>{item.status === 'pending_payment' && item.payment?.provider === 'cod' ? 'Chờ người bán xác nhận' : labels[item.status] ?? item.status}</Badge>
       </div>
       <dl className="grid gap-x-8 gap-y-4 py-5 text-sm sm:grid-cols-2">
         <div><dt className="text-black/50">Người mua</dt><dd className="mt-1 font-medium">{item.buyer.full_name || 'Thành viên'}</dd></div>
         <div><dt className="text-black/50">Người bán</dt><dd className="mt-1 font-medium">{item.seller.full_name || 'Thành viên'}</dd></div>
         <div><dt className="text-black/50">Giá đã thỏa thuận</dt><dd className="mt-1 font-medium">{money(item.product_amount)}</dd></div>
         <div><dt className="text-black/50">Tổng thanh toán</dt><dd className="mt-1 font-bold">{money(item.total_amount)}</dd></div>
+        <div><dt className="text-black/50">Phí sàn ({item.commission_rate}%)</dt><dd className="mt-1 font-medium">{money(item.platform_fee)}</dd></div>
         <div className="sm:col-span-2"><dt className="text-black/50">Giao đến</dt><dd className="mt-1 font-medium">{item.shipping_address.recipient_name}, {item.shipping_address.phone}, {item.shipping_address.address}</dd></div>
-        <div><dt className="text-black/50">Thanh toán</dt><dd className="mt-1 font-medium">{item.payment ? `${item.payment.provider === 'vnpay_mock' ? 'VNPay mô phỏng' : item.payment.provider === 'vnpay' ? 'VNPay' : item.payment.provider} · ${item.payment.status === 'paid' ? 'Đã thanh toán' : item.payment.status === 'pending' ? 'Chưa thanh toán' : item.payment.status === 'failed' ? 'Chưa thành công' : item.payment.status}` : 'Chưa có thông tin thanh toán'}</dd></div>
+        <div><dt className="text-black/50">Thanh toán</dt><dd className="mt-1 font-medium">{item.payment ? `${item.payment.provider === 'vnpay_mock' ? 'VNPay mô phỏng' : item.payment.provider === 'vnpay' ? 'VNPay' : 'COD'} · ${item.payment.status === 'paid' ? 'Đã thanh toán' : item.payment.status === 'pending' ? 'Chưa thanh toán' : item.payment.status === 'failed' ? 'Chưa thành công' : item.payment.status}` : 'Chưa có thông tin thanh toán'}</dd></div>
+        {item.payment?.provider === 'cod' && <div><dt className="text-black/50">Tình trạng COD</dt><dd className="mt-1 font-medium">{item.cod_collected_at ? 'Đã thu' : 'Chưa thu'} · {item.seller_paid_at ? 'Đã chi trả người bán' : item.carrier_settled_at ? 'Đã đối soát, chờ chi trả' : 'Chờ đơn vị vận chuyển đối soát'}{item.delivery_status === 'failed' ? ` · Giao thất bại: ${item.delivery_failed_reason || 'chưa rõ lý do'}` : item.delivery_status === 'returned_to_seller' ? ' · Đã hoàn về người bán' : ''}</dd></div>}
         {item.status === 'pending_payment' && <div><dt className="text-black/50">Giữ sản phẩm đến</dt><dd className="mt-1 font-medium">{new Date(item.expires_at).toLocaleString('vi-VN')}</dd></div>}
         {item.shipping_carrier && <div><dt className="text-black/50">Đơn vị vận chuyển</dt><dd className="mt-1 font-medium">{item.shipping_carrier}</dd></div>}
         {item.tracking_number && <div><dt className="text-black/50">Mã vận đơn</dt><dd className="mt-1 font-mono font-medium">{item.tracking_number}</dd></div>}
@@ -226,7 +245,9 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
       <label className="mb-4 block text-sm font-medium">Người nhận<input className={fieldClass} required minLength={2} maxLength={150} value={recipientName} onChange={(event) => setRecipientName(event.target.value)} /></label>
       <label className="mb-4 block text-sm font-medium">Số điện thoại<input className={fieldClass} type="tel" required minLength={8} maxLength={30} value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
       <label className="block text-sm font-medium">Địa chỉ nhận hàng<textarea className={fieldClass} required minLength={5} maxLength={500} rows={3} value={address} onChange={(event) => setAddress(event.target.value)} /></label>
-      <p className="my-5 rounded-xl bg-[#F0F0F0] p-4 text-sm leading-relaxed text-black/60">Sau khi tạo đơn, sản phẩm được giữ trong 30 phút để bạn thanh toán. H-Smart chưa tự tính phí giao hàng; hãy thống nhất khoản phí này với người bán trước khi thanh toán.</p>
+      <label className="mt-5 block text-sm font-medium">Phương thức thanh toán<select className={fieldClass} value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as 'vnpay' | 'cod')}><option value="vnpay">VNPay</option><option value="cod">Thanh toán khi nhận hàng (COD)</option></select></label>
+      {quote && <dl className="my-5 grid gap-3 rounded-xl bg-[#F0F0F0] p-4 text-sm sm:grid-cols-2"><div><dt className="text-black/55">Giá sản phẩm</dt><dd className="mt-1 font-medium">{money(quote.product_amount)}</dd></div><div><dt className="text-black/55">Phí giao hàng</dt><dd className="mt-1 font-medium">{money(quote.shipping_fee)}</dd></div><div><dt className="text-black/55">Hoa hồng sàn ({quote.commission_rate}%)</dt><dd className="mt-1 font-medium">{money(quote.platform_fee)}</dd></div><div><dt className="text-black/55">Người bán dự kiến nhận</dt><dd className="mt-1 font-medium">{money(quote.seller_amount)}</dd></div><div className="sm:col-span-2"><dt className="text-black/55">{paymentMethod === 'cod' ? 'Người mua trả khi nhận hàng' : 'Tổng thanh toán VNPay'}</dt><dd className="mt-1 text-lg font-bold">{money(quote.total_amount)}</dd></div></dl>}
+      <p className="my-5 rounded-xl bg-[#F0F0F0] p-4 text-sm leading-relaxed text-black/60">{paymentMethod === 'cod' ? 'Người mua thanh toán tổng tiền cho đơn vị giao hàng khi nhận kiện.' : 'Sản phẩm được giữ 30 phút để hoàn tất thanh toán VNPay.'}</p>
       <Button className="w-full sm:w-auto" type="submit" disabled={busy}>{busy ? 'Đang tạo đơn…' : 'Tạo đơn và giữ sản phẩm'}</Button>
     </form>}
     {mode === 'create' && order && <div className="space-y-4">{card(order)}<div className="flex flex-wrap gap-2">{actions(order)}<Button variant="outline" onClick={() => navigate('/me/orders')}>Tất cả đơn hàng</Button></div></div>}

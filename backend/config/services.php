@@ -52,4 +52,9 @@ return [
         'sandbox_return_fallback' => (bool) env('VNPAY_SANDBOX_RETURN_FALLBACK', false),
     ],
 
+    'marketplace' => [
+        'commission_rate' => (int) env('MARKETPLACE_COMMISSION_RATE', 5),
+        'shipping_fee' => (int) env('MARKETPLACE_SHIPPING_FEE', 25000),
+    ],
+
 ];

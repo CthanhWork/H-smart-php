@@ -20,7 +20,11 @@ Người mua có thể gửi đề nghị giá nếu tin cho phép thương lư�
 
 ## Thanh toán và vận chuyển
 
-Phiên bản hiện tại dùng thanh toán mô phỏng để trình diễn, chưa kết nối nhà cung cấp thanh toán thật. Người bán tự cập nhật thông tin hãng vận chuyển và mã theo dõi; hệ thống chưa tự kết nối hãng vận chuyển. Không gửi thông tin thẻ hoặc mật khẩu ngân hàng cho trợ lý.
+Đơn hàng có thể thanh toán qua VNPay hoặc chọn thanh toán khi nhận hàng (COD). Với COD, người mua trả tổng tiền đơn cho đơn vị vận chuyển khi nhận kiện. Hãng vận chuyển và mã theo dõi do người bán nhập; quản trị viên mô phỏng việc giao thành công, thu COD, đối soát và chi trả trong bản demo. Trợ lý có thể tra cứu trạng thái đơn khi người dùng là người mua hoặc người bán của đơn đó. Không gửi thông tin thẻ hoặc mật khẩu ngân hàng cho trợ lý.
+
+## Phí sàn
+
+Đăng tin không mất phí. Khi tạo đơn, hệ thống chụp mức hoa hồng đang cấu hình trên đơn; bản demo mặc định là 5% giá sản phẩm đã thỏa thuận. Người mua trả tổng giá sản phẩm và phí giao hàng. Phí sàn được khấu trừ vào phần tiền người bán nhận sau khi đơn COD được giao và tiền đã đối soát.
 
 ## Tin nhắn, thông báo và đánh giá
 
@@ -32,4 +36,4 @@ Tại trang chi tiết sản phẩm, người dùng có thể báo cáo sản ph
 
 ## Trợ giúp và dữ liệu riêng tư
 
-Trợ lý chỉ trả lời câu hỏi chung về cách sử dụng H-Smart dựa trên tài liệu đã duyệt. Trợ lý không tra cứu đơn hàng, thanh toán, thông tin tài khoản hoặc tin nhắn riêng. Không nhập mật khẩu, mã xác thực, địa chỉ nhà, thông tin thanh toán hoặc dữ liệu cá nhân vào câu hỏi. Nếu cần hỗ trợ giao dịch cụ thể, hãy liên hệ quản trị viên qua Tin nhắn hỗ trợ.
+Trợ lý trả lời câu hỏi chung về cách sử dụng H-Smart dựa trên tài liệu đã duyệt và có thể tra cứu trạng thái đơn hàng mà người hỏi tham gia. Khi tra cứu đơn, Laravel xác thực quyền truy cập và gửi thông tin giao dịch trực tiếp vào câu trả lời; dữ liệu đơn không gửi sang dịch vụ AI. Trợ lý không tra cứu thông tin tài khoản hoặc tin nhắn riêng. Không nhập mật khẩu, mã xác thực hay thông tin thanh toán vào câu hỏi. Nếu cần hỗ trợ giao dịch, hãy liên hệ quản trị viên qua Tin nhắn hỗ trợ.

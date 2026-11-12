@@ -5,9 +5,11 @@ namespace App\Modules\Assistant\Http\Controllers;
 use App\Modules\Assistant\Models\AssistantConversation;
 use App\Modules\Assistant\Models\AssistantMessage;
 use App\Modules\Assistant\Services\AiServiceClient;
+use App\Modules\Order\Models\Order;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 class AssistantController
@@ -90,8 +92,24 @@ class AssistantController
             ? $this->ownedConversation($request, (int) $data['conversation_id'])
             : AssistantConversation::create(['user_id' => $userId, 'title' => mb_substr($text, 0, 120)]);
 
-        // Persist the user's question before the network call, but never hold a DB transaction open during inference.
+        $orderId = $this->requestedOrderId($text, $conversation);
+        $orderResult = $orderId === null ? null : $this->answerOrderQuestion($orderId, $userId);
+        // Persist the user's question before the model call, but never hold a DB transaction open during inference.
         $userMessage = $conversation->messages()->create(['role' => 'user', 'content' => $text]);
+        if ($orderId !== null) {
+            $result = $orderResult;
+            $assistantMessage = $conversation->messages()->create([
+                'role' => 'assistant', 'content' => $result['answer'], 'citations' => $result['citations'],
+            ]);
+            $conversation->touch();
+
+            return response()->json(['status' => 'success', 'message' => 'Đã tra cứu đơn hàng.', 'data' => [
+                'conversation_id' => $conversation->id,
+                'user_message' => $this->messageResource($userMessage),
+                'assistant_message' => $this->messageResource($assistantMessage),
+            ]]);
+        }
+
         try {
             $result = $ai->answer($text);
         } catch (Throwable $exception) {
@@ -113,6 +131,59 @@ class AssistantController
             'user_message' => $this->messageResource($userMessage),
             'assistant_message' => $this->messageResource($assistantMessage),
         ]]);
+    }
+
+    private function requestedOrderId(string $question, AssistantConversation $conversation): ?int
+    {
+        $normalizedQuestion = Str::ascii(mb_strtolower($question));
+        if (preg_match('/don(?:\s*hang)?\s*#?\s*(\d+)/i', $normalizedQuestion, $matches)) {
+            return (int) $matches[1];
+        }
+
+        if (preg_match('/\b(don nay|don do|vay|con don|trang thai|thu cod|nhan tien)\b/i', $normalizedQuestion)) {
+            $lastAnswer = $conversation->messages()->where('role', 'assistant')->latest('id')->value('content');
+            if (is_string($lastAnswer) && preg_match('/Đơn hàng #(\d+)/u', $lastAnswer, $matches)) {
+                return (int) $matches[1];
+            }
+        }
+
+        return null;
+    }
+
+    private function answerOrderQuestion(int $orderId, int $userId): array
+    {
+        $order = Order::with('product:id,title')->findOrFail($orderId);
+        abort_unless(in_array($userId, [$order->buyer_id, $order->seller_id], true), 404);
+
+        $statusLabels = [
+            'pending_payment' => 'chờ thanh toán hoặc người bán xác nhận',
+            'paid' => 'đã thanh toán, chờ người bán xác nhận',
+            'processing' => 'người bán đang chuẩn bị hàng',
+            'shipping' => 'đang vận chuyển',
+            'completed' => 'đã hoàn tất',
+            'cancelled' => 'đã hủy',
+        ];
+        $answer = 'Đơn hàng #'.$order->id.' ('.$order->product->title.') hiện '.($statusLabels[$order->status] ?? $order->status).'.';
+        if ($order->shipping_carrier) $answer .= ' Đơn vị vận chuyển: '.$order->shipping_carrier.'.';
+        if ($order->tracking_number) $answer .= ' Mã vận đơn: '.$order->tracking_number.'.';
+        if ($order->payment_provider === 'cod') {
+            $answer .= $order->cod_collected_at ? ' Đơn vị giao hàng đã thu COD.' : ' Chưa ghi nhận thu COD.';
+            if ($order->seller_id === $userId) {
+                $answer .= ' Hoa hồng sàn: '.number_format($order->platform_fee, 0, ',', '.').'đ. Người bán dự kiến nhận: '.number_format($order->product_amount - $order->platform_fee, 0, ',', '.').'đ.';
+                $answer .= $order->carrier_settled_at ? ' Tiền COD đã được đối soát về sàn.' : ' Tiền COD chưa được đối soát về sàn.';
+                $answer .= $order->seller_paid_at ? ' Khoản tiền người bán đã được ghi nhận chi trả.' : ' Chưa ghi nhận chi trả cho người bán.';
+            } else {
+                $answer .= ' Tổng tiền đơn: '.number_format($order->total_amount, 0, ',', '.').'đ.';
+            }
+        } elseif ($order->payment_status === 'paid') {
+            $answer .= ' Thanh toán VNPay đã được xác nhận.';
+        }
+
+        return ['answer' => $answer, 'citations' => [[
+            'source_id' => 'order',
+            'title' => 'Mở danh sách đơn hàng',
+            'section' => '/me/orders',
+        ]]];
     }
 
     public function destroy(Request $request, int $conversationId): JsonResponse

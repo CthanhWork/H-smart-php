@@ -4,7 +4,7 @@ import { productRequest } from './productApi'
 import { Button } from './components/ui/button'
 import { Alert } from './components/ui/alert'
 
-type ChatMessage = { id: number; role: 'user' | 'assistant'; content: string; created_at: string }
+type ChatMessage = { id: number; role: 'user' | 'assistant'; content: string; created_at: string; citations?: Array<{ source_id: string; title: string; section: string }> }
 type Conversation = { id: number; title: string; updated_at: string; messages_count: number }
 type Props = { accessToken: string }
 const suggestions = ['Làm thế nào để đăng bán sản phẩm?', 'Thanh toán và vận chuyển hiện hoạt động thế nào?', 'Tôi liên hệ quản trị viên ở đâu?']
@@ -89,7 +89,7 @@ export default function AssistantPage({ accessToken }: Props) {
             <button type="button" onClick={() => void deleteConversation(conversation.id)} disabled={loading} aria-label={`Xóa ${conversation.title}`} className="mr-2 rounded-lg p-1.5 text-black/35 opacity-100 hover:bg-white hover:text-red-600 disabled:opacity-30 sm:opacity-0 sm:group-hover:opacity-100"><Trash2 size={15} /></button>
           </li>)}
         </ul>}
-        <div className="mt-6 rounded-xl bg-white p-3 text-xs leading-5 text-black/55 ring-1 ring-black/[0.06]">Không nhập mật khẩu, mã xác thực, địa chỉ nhà hoặc thông tin thanh toán. Trợ lý không tra cứu đơn hàng hay tài khoản cá nhân.</div>
+        <div className="mt-6 rounded-xl bg-white p-3 text-xs leading-5 text-black/55 ring-1 ring-black/[0.06]">Trợ lý tra cứu đơn bạn tham gia. Không nhập mật khẩu, mã xác thực hoặc thông tin thanh toán.</div>
       </aside>
       <section className="flex min-h-[560px] flex-col">
         <div className="flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
@@ -101,6 +101,7 @@ export default function AssistantPage({ accessToken }: Props) {
           {messages.map((message) => <article key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[90%] rounded-2xl px-4 py-3 sm:max-w-[80%] ${message.role === 'user' ? 'rounded-br-md bg-[#e65332] text-white' : 'rounded-bl-md bg-[#f5f5f4] text-black'}`}>
               <p className="whitespace-pre-wrap text-sm leading-6">{message.content}</p>
+              {message.role === 'assistant' && message.citations?.length ? <ul className="mt-3 border-t border-black/10 pt-2 text-xs text-black/55">{message.citations.map((citation, index) => <li key={`${citation.title}-${citation.section}-${index}`}>{citation.source_id === 'order' ? <a className="font-medium text-[#b53a20] underline" href={citation.section}>{citation.title}</a> : <>{citation.title} · {citation.section}</>}</li>)}</ul> : null}
             </div>
           </article>)}
           {loading && <div className="flex"><div className="rounded-2xl rounded-bl-md bg-[#f5f5f4] px-4 py-3 text-sm text-black/55" role="status">Đang tìm trong tài liệu H-Smart…</div></div>}

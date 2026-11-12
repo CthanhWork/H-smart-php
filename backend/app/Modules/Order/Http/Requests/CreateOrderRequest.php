@@ -18,6 +18,7 @@ class CreateOrderRequest extends FormRequest
             'recipient_name' => ['required', 'string', 'min:2', 'max:150'],
             'phone' => ['required', 'string', 'min:8', 'max:30'],
             'address' => ['required', 'string', 'min:5', 'max:500'],
+            'payment_method' => ['sometimes', 'string', 'in:vnpay,cod'],
             'buyer_id' => ['prohibited'],
             'seller_id' => ['prohibited'],
             'status' => ['prohibited'],

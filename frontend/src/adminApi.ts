@@ -48,7 +48,7 @@ export type ApiResult<T> = {
 export type Category = { id: number; name: string; slug: string; products_count: number }
 export type AdminStats = { users: number; products: number; orders: number; hidden_products: number; pending_reports: number }
 export type AdminReport = { id: number; target_type: 'product' | 'user'; target_id: number; reason: string; details: string | null; status: string; created_at: string; reporter: User; product: (Product & { seller_id: number }) | null; reported_user: User | null }
-export type AdminOrder = { id: number; status: string; total_amount: number; product_amount: number; shipping_fee: number; tracking_number: string | null; shipping_carrier: string | null; shipping_address_snapshot?: Record<string, unknown> | null; created_at: string; paid_at: string | null; confirmed_at: string | null; shipped_at: string | null; completed_at: string | null; cancelled_at: string | null; buyer: User; seller: User; product: Product & { id: number; title: string }; status_history?: Array<{from_status:string|null;to_status:string;changed_at:string}> }
+export type AdminOrder = { id: number; status: string; total_amount: number; product_amount: number; shipping_fee: number; platform_fee: number; commission_rate: number; payment_provider: string; delivery_status: string | null; cod_collected_at: string | null; carrier_settled_at: string | null; seller_paid_at: string | null; tracking_number: string | null; shipping_carrier: string | null; shipping_address_snapshot?: Record<string, unknown> | null; created_at: string; paid_at: string | null; confirmed_at: string | null; shipped_at: string | null; completed_at: string | null; cancelled_at: string | null; buyer: User; seller: User; product: Product & { id: number; title: string }; status_history?: Array<{from_status:string|null;to_status:string;changed_at:string}> }
 export type AdminAuditLog = { id: number; action: string; subject_type: string; subject_id: number | null; summary: string; details: Record<string, unknown> | null; created_at: string; admin: User | null }
 export type AdminPageResult<T> = { data: T[]; current_page: number; last_page: number; total: number }
 
@@ -143,6 +143,9 @@ export async function resolveReport(token: string, id: number, action: 'hide_pro
 export async function getAdminOrders(token: string, q = '', status = ''): Promise<AdminPageResult<AdminOrder>> {
   const params = new URLSearchParams(); if (q) params.set('q', q); if (status) params.set('status', status)
   return (await adminRequest<AdminPageResult<AdminOrder>>(`orders?${params}`, token)).data
+}
+export async function updateCodOrder(token: string, id: number, action: 'delivered' | 'carrier_settled' | 'seller_paid' | 'delivery_failed' | 'retry_delivery' | 'returned', reason?: string): Promise<AdminOrder> {
+  return (await adminRequest<AdminOrder>(`orders/${id}/cod`, token, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...(reason ? { reason } : {}) }) })).data
 }
 export async function getAdminAuditLogs(token: string): Promise<AdminPageResult<AdminAuditLog>> {
   return (await adminRequest<AdminPageResult<AdminAuditLog>>('audit-logs', token)).data

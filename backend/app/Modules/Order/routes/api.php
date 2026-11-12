@@ -15,6 +15,7 @@ Route::middleware(['web', 'signed:relative'])->group(function (): void {
 });
 
 Route::middleware(['api', AuthenticateJwt::class])->prefix('api/v1/orders')->group(function (): void {
+    Route::get('/quote', [OrderController::class, 'quote']);
     Route::get('/', [OrderController::class, 'index']);
     Route::post('/', [OrderController::class, 'store']);
     Route::get('/{id}', [OrderController::class, 'show'])->whereNumber('id');
@@ -23,4 +24,5 @@ Route::middleware(['api', AuthenticateJwt::class])->prefix('api/v1/orders')->gro
     Route::post('/{id}/confirm', [OrderController::class, 'confirm'])->whereNumber('id');
     Route::post('/{id}/ship', [OrderController::class, 'ship'])->whereNumber('id');
     Route::post('/{id}/complete', [OrderController::class, 'complete'])->whereNumber('id');
+    Route::post('/{id}/return-received', [OrderController::class, 'returnReceived'])->whereNumber('id');
 });

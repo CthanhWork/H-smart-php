@@ -9,6 +9,7 @@ use App\Modules\Admin\Http\Controllers\AdminUserSuspendController;
 use App\Modules\Admin\Http\Controllers\AdminCategoryController;
 use App\Modules\Admin\Http\Controllers\AdminDashboardController;
 use App\Modules\Admin\Http\Controllers\AdminOrderController;
+use App\Modules\Admin\Http\Controllers\AdminCodController;
 use App\Modules\Admin\Http\Controllers\AdminReportController;
 use App\Modules\Admin\Http\Controllers\AdminAuditLogController;
 use App\Modules\Admin\Http\Middleware\EnsureAdmin;
@@ -20,6 +21,7 @@ Route::prefix('v1/admin')
     ->group(function (): void {
         Route::get('stats', AdminDashboardController::class);
         Route::get('orders', AdminOrderController::class);
+        Route::post('orders/{id}/cod', [AdminCodController::class, 'update'])->whereNumber('id');
         Route::get('reports', [AdminReportController::class, 'index']);
         Route::post('reports/{id}/resolve', [AdminReportController::class, 'resolve'])->whereNumber('id');
         Route::get('audit-logs', AdminAuditLogController::class);
