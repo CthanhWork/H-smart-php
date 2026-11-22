@@ -19,8 +19,9 @@ class Product extends Model
     public const STATUS_HIDDEN = 'hidden';
 
     public const STATUS_DRAFT = 'draft';
+    public const STATUS_PENDING_LISTING_PAYMENT = 'pending_listing_payment';
 
-    public const STATUSES = ['draft', 'pending_review', 'active', 'reserved', 'sold', 'hidden'];
+    public const STATUSES = ['draft', 'pending_review', 'pending_listing_payment', 'active', 'reserved', 'sold', 'hidden'];
 
     public const CONDITIONS = ['new', 'like_new', 'good', 'fair'];
 
@@ -57,5 +58,22 @@ class Product extends Model
     public function favorites(): HasMany
     {
         return $this->hasMany(Favorite::class);
+    }
+
+    public function publication(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(ProductPublication::class);
+    }
+
+    public function currentPromotion(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(ProductPromotion::class)->where('status', 'active')
+            ->where('starts_at', '<=', now())->where('expires_at', '>', now())
+            ->orderByRaw("CASE WHEN package_type = 'vip' THEN 2 ELSE 1 END DESC")->orderByDesc('expires_at');
+    }
+
+    public function nextPromotion(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(ProductPromotion::class)->where('status', 'active')->orderByDesc('expires_at');
     }
 }

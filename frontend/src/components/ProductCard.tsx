@@ -31,6 +31,7 @@ export default function ProductCard({ product, onClick, onToggleFavorite, favori
       <span className="relative block aspect-square overflow-hidden bg-[#f7f7f7]">
         {imageIsAvailable && image ? <img src={image} alt={product.title} width={640} height={640} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} onError={() => setFailedImageUrl(image)} className="h-full w-full object-cover object-center transition duration-200 group-hover:scale-[1.035]" /> : <span className="flex h-full items-center justify-center text-sm text-black/35">Không có ảnh</span>}
         {product.negotiable && <span className="absolute left-0 top-0 bg-[#ee4d2d] px-2 py-1 text-[10px] font-bold text-white">Có thể trả giá</span>}
+        {product.promotion && <span className={`absolute bottom-2 left-2 rounded-full px-2 py-1 text-[10px] font-bold text-white shadow ${product.promotion.package_type === 'vip' ? 'bg-amber-500' : 'bg-sky-600'}`}>{product.promotion.package_type === 'vip' ? 'VIP · ưu tiên' : 'Đang đẩy tin'}</span>}
       </span>
       <span className="grid content-start gap-1.5 p-2.5 sm:p-3">
         <span className="truncate text-[11px] font-semibold leading-tight text-[#888]">{product.category?.name || 'Chưa phân loại'}</span>

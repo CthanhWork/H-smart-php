@@ -49,5 +49,8 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->call(DemoProductSeeder::class);
+        if (filter_var(env('SEED_COMMERCE_DEMO', false), FILTER_VALIDATE_BOOL)) {
+            $this->call(DemoCommerceSeeder::class);
+        }
     }
 }

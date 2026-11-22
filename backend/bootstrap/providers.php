@@ -8,6 +8,7 @@ use App\Modules\Review\Providers\ReviewServiceProvider;
 use App\Modules\Message\Providers\MessageServiceProvider;
 use App\Modules\Notification\Providers\NotificationServiceProvider;
 use App\Modules\Product\Providers\ProductServiceProvider;
+use App\Modules\Wallet\Providers\WalletServiceProvider;
 use App\Providers\AppServiceProvider;
 
 return [
@@ -20,4 +21,5 @@ return [
     ReviewServiceProvider::class,
     MessageServiceProvider::class,
     NotificationServiceProvider::class,
+    WalletServiceProvider::class,
 ];

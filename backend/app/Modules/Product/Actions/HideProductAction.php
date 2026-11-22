@@ -9,8 +9,8 @@ class HideProductAction
 {
     public function execute(Product $product, string $reason): Product
     {
-        // Can only hide pending_review or active products
-        if (!in_array($product->status, [Product::STATUS_PENDING_REVIEW, Product::STATUS_ACTIVE])) {
+        // Approved listings awaiting their explicitly confirmed fee can also be hidden.
+        if (!in_array($product->status, [Product::STATUS_PENDING_REVIEW, Product::STATUS_PENDING_LISTING_PAYMENT, Product::STATUS_ACTIVE])) {
             throw new \DomainException('Product cannot be hidden in current status');
         }
 

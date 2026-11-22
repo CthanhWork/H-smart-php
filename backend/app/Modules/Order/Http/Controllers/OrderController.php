@@ -2,16 +2,18 @@
 
 namespace App\Modules\Order\Http\Controllers;
 
+use App\Modules\Admin\Services\MarketplaceSettings;
+use App\Modules\Notification\Services\NotificationService;
+use App\Modules\Offer\Models\Offer;
 use App\Modules\Order\Actions\AdvanceOrderAction;
 use App\Modules\Order\Actions\CancelOrderAction;
+use App\Modules\Order\Actions\CreateListedOrderAction;
 use App\Modules\Order\Actions\CreateOrderAction;
 use App\Modules\Order\Http\Requests\CreateOrderRequest;
 use App\Modules\Order\Http\Requests\ShipOrderRequest;
 use App\Modules\Order\Http\Resources\OrderResource;
 use App\Modules\Order\Models\Order;
-use App\Modules\Offer\Models\Offer;
 use App\Modules\Product\Models\Product;
-use App\Modules\Notification\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -19,30 +21,45 @@ class OrderController
 {
     public function quote(Request $request): JsonResponse
     {
-        $data = $request->validate(['offer_id' => ['required', 'integer', 'exists:offers,id']]);
-        $offer = Offer::with('product:id,status')->findOrFail($data['offer_id']);
-        abort_unless($offer->buyer_id === (int) $request->user()->id, 404);
-        abort_unless($offer->status === Offer::STATUS_ACCEPTED && $offer->product->status === Product::STATUS_ACTIVE, 409);
-
-        $productAmount = (int) $offer->offer_price;
-        $shippingFee = max(0, (int) config('services.marketplace.shipping_fee', 0));
-        $commissionRate = min(100, max(0, (int) config('services.marketplace.commission_rate', 5)));
-        $platformFee = intdiv($productAmount * $commissionRate, 100);
+        $data = $request->validate([
+            'offer_id' => ['required_without:product_id', 'prohibits:product_id', 'integer', 'exists:offers,id'],
+            'product_id' => ['required_without:offer_id', 'prohibits:offer_id', 'integer', 'exists:products,id'],
+        ]);
+        if (isset($data['product_id'])) {
+            $product = Product::findOrFail($data['product_id']);
+            abort_unless($product->status === Product::STATUS_ACTIVE && $product->seller_id !== (int) $request->user()->id, 409);
+            $productAmount = (int) $product->price;
+        } else {
+            $offer = Offer::with('product:id,status')->findOrFail($data['offer_id']);
+            abort_unless($offer->buyer_id === (int) $request->user()->id, 404);
+            abort_unless($offer->status === Offer::STATUS_ACCEPTED && $offer->product->status === Product::STATUS_ACTIVE, 409);
+            $productAmount = (int) $offer->offer_price;
+        }
+        $settings = app(MarketplaceSettings::class);
+        $shippingFee = max(0, $settings->get('shipping_fee'));
+        $commissionRate = min(100, max(0, $settings->get('commission_rate')));
+        $feeBase = $productAmount + $shippingFee;
+        $platformFee = intdiv($feeBase * $commissionRate, 100);
+        abort_if($platformFee > $productAmount, 409, 'Giá sản phẩm thấp hơn mức cần thiết để trừ phí sàn; không thể tạo đơn này.');
 
         return response()->json(['status' => 'success', 'message' => 'Tạm tính đơn hàng.', 'data' => [
             'product_amount' => $productAmount,
             'shipping_fee' => $shippingFee,
             'total_amount' => $productAmount + $shippingFee,
+            'fee_base' => $feeBase,
             'commission_rate' => $commissionRate,
             'platform_fee' => $platformFee,
             'seller_amount' => $productAmount - $platformFee,
+            'cod_deposit_percent' => $settings->get('cod_deposit_percent'),
+            'cod_deposit_amount' => (int) ceil($productAmount * $settings->get('cod_deposit_percent') / 100),
+            'cod_remaining_amount' => $productAmount - (int) ceil($productAmount * $settings->get('cod_deposit_percent') / 100),
         ]]);
     }
 
     public function index(Request $request): JsonResponse
     {
         $userId = $request->user()->id;
-        $query = Order::with(['product.images', 'buyer', 'seller', 'offer', 'statusHistory'])
+        $query = Order::with(['product.images', 'buyer', 'seller', 'offer', 'statusHistory', 'disputes.events'])
             ->where(fn ($query) => $query->where('buyer_id', $userId)->orWhere('seller_id', $userId));
         if ($request->filled('offer_id')) {
             $query->where('offer_id', (int) $request->query('offer_id'));
@@ -65,20 +82,27 @@ class OrderController
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $order = Order::with(['product.images', 'buyer', 'seller', 'offer', 'statusHistory'])->findOrFail($id);
+        $order = Order::with(['product.images', 'buyer', 'seller', 'offer', 'statusHistory', 'disputes.events'])->findOrFail($id);
         abort_unless(in_array($request->user()->id, [$order->buyer_id, $order->seller_id], true), 404);
 
         return response()->json(['status' => 'success', 'message' => 'Chi tiết đơn hàng.', 'data' => new OrderResource($order)]);
     }
 
-    public function store(CreateOrderRequest $request, CreateOrderAction $action, NotificationService $notifications): JsonResponse
+    public function store(CreateOrderRequest $request, CreateOrderAction $action, CreateListedOrderAction $listedAction, NotificationService $notifications, MarketplaceSettings $settings): JsonResponse
     {
         $data = $request->validated();
-        $order = $action->execute((int) $request->user()->id, (int) $data['offer_id'], [
+        $address = [
             'recipient_name' => $data['recipient_name'],
             'phone' => $data['phone'],
             'address' => $data['address'],
-        ], $data['payment_method'] ?? 'vnpay');
+        ];
+        $order = isset($data['product_id'])
+            ? $listedAction->execute((int) $request->user()->id, (int) $data['product_id'], (int) $data['expected_price'], (string) $data['idempotency_key'], $address, $data['payment_method'] ?? 'vnpay', $settings, [
+                'shipping_fee' => (int) $data['expected_shipping_fee'], 'commission_rate' => (int) $data['expected_commission_rate'], 'cod_deposit_percent' => (int) $data['expected_cod_deposit_percent'],
+            ])
+            : $action->execute((int) $request->user()->id, (int) $data['offer_id'], $address, $data['payment_method'] ?? 'vnpay', $settings, [
+                'shipping_fee' => (int) $data['expected_shipping_fee'], 'commission_rate' => (int) $data['expected_commission_rate'], 'cod_deposit_percent' => (int) $data['expected_cod_deposit_percent'],
+            ]);
         $notifications->send($order->seller, $order->buyer, 'order_created', 'Có đơn hàng mới', 'Bạn có đơn hàng #'.$order->id.' cho sản phẩm “'.$order->product->title.'”.', '/me/orders', ['order_id' => $order->id]);
 
         return response()->json(['status' => 'success', 'message' => 'Đơn hàng đã được tạo và sản phẩm đang được giữ trong 30 phút.', 'data' => new OrderResource($order)], 201);
@@ -120,6 +144,7 @@ class OrderController
     public function returnReceived(Request $request, int $id, AdvanceOrderAction $advance): JsonResponse
     {
         $order = $advance->execute($id, (int) $request->user()->id, 'return_received');
+
         return response()->json(['status' => 'success', 'message' => 'Đã xác nhận nhận hàng hoàn. Sản phẩm được mở bán lại.', 'data' => new OrderResource($order)]);
     }
 }

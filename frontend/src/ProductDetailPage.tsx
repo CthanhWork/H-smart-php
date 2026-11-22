@@ -18,6 +18,7 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
   const [offerPrice, setOfferPrice] = useState('')
   const [offerError, setOfferError] = useState('')
   const [offerNotice, setOfferNotice] = useState('')
+  const [cartNotice, setCartNotice] = useState('')
   const [offerSent, setOfferSent] = useState(false)
   const [shareNotice, setShareNotice] = useState('')
   const [favoriteBusy, setFavoriteBusy] = useState(false)
@@ -105,6 +106,17 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
     }
   }
 
+  async function addToCart(andOpen: boolean) {
+    if (!product || !requireAccount()) return
+    setBusy(true); setCartNotice('')
+    try {
+      const result = await productRequest<{ id: number }>('me/cart', accessToken, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product_id: product.id }) })
+      setCartNotice(result.message)
+      if (andOpen) navigate('/me/cart')
+    } catch (cause) { setCartNotice((cause as Error).message) }
+    finally { setBusy(false) }
+  }
+
   async function submitReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!product || !requireAccount()) return
@@ -167,6 +179,7 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
         <div className="min-w-0 py-1 sm:px-1">
           <div className="flex flex-wrap items-center gap-2"><span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold ${isActive ? 'bg-[#fff3ed] text-[#d94322]' : 'bg-black/[0.06] text-[#555]'}`}>{isActive && <BadgeCheck size={14} />}{statusLabel[product.status] ?? product.status}</span><span className="inline-flex items-center gap-1 text-xs text-[#777]"></span></div>
           <h1 className="mt-3 text-xl font-semibold leading-snug text-[#222] sm:text-2xl">{product.title}</h1>
+          {product.promotion && <p className={`mt-3 inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${product.promotion.package_type === 'vip' ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-900'}`}>{product.promotion.package_type === 'vip' ? 'Tin VIP · ưu tiên luân phiên trên trang chủ và danh mục' : 'Đang đẩy · ưu tiên luân phiên trong danh mục'} · đến {new Date(product.promotion.expires_at).toLocaleDateString('vi-VN')}</p>}
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#777] sm:text-sm">
             {reviewCount > 0 && rating != null ? <><span className="inline-flex items-center gap-1 border-b border-[#ee4d2d] pb-0.5 text-[#ee4d2d]"><strong>{rating.toFixed(1)}</strong><Star size={14} className="fill-[#ee4d2d]" /></span><span>{reviewCount} đánh giá</span></> : <span>Chưa có đánh giá</span>}
             <span>{product.category?.name ?? 'Chưa phân loại'}</span>
@@ -174,9 +187,12 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
           <div className="mt-5 flex flex-wrap items-baseline gap-x-3 gap-y-2 bg-[#fafafa] px-4 py-4 sm:px-5"><strong className="text-3xl font-semibold tracking-tight text-[#ee4d2d] sm:text-[34px]">{formatPrice(priceValue)}</strong>{product.negotiable && <span className="inline-flex items-center gap-1 text-sm font-medium text-[#e65a36]"><Percent size={14} />Có thể thương lượng</span>}</div>
 
           {favoriteNotice && <p role="status" className="mt-3 text-sm text-emerald-700">{favoriteNotice}</p>}
+          {cartNotice && <p role="status" className="mt-3 text-sm text-emerald-700">{cartNotice} <button className="underline" onClick={() => navigate('/me/cart')}>Xem giỏ hàng</button></p>}
           <div className="mt-4 flex flex-wrap gap-2.5">
             <button type="button" onClick={toggleFavorite} disabled={favoriteBusy} aria-pressed={Boolean(product.is_favorite)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#ddd] px-4 text-sm font-semibold text-[#444] transition hover:border-[#ee4d2d] hover:text-[#ee4d2d] disabled:opacity-60"><Heart size={17} className={product.is_favorite ? 'fill-[#ee4d2d] text-[#ee4d2d]' : ''} />{product.is_favorite ? 'Đã yêu thích' : 'Yêu thích'}</button>
             {!isOwner && isActive && !isAdmin && <>
+              <button type="button" onClick={() => void addToCart(false)} disabled={busy} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#ddd] px-4 text-sm font-semibold text-[#444] disabled:opacity-60"><ShoppingBag size={17}/>Thêm vào giỏ</button>
+              <button type="button" onClick={() => void addToCart(true)} disabled={busy} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#ee4d2d] px-4 text-sm font-semibold text-white disabled:opacity-60">Mua theo giá niêm yết</button>
               {canOffer && <button type="button" onClick={() => document.getElementById('offer-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#ee4d2d] bg-[#fff5f1] px-4 text-sm font-semibold text-[#ee4d2d] transition hover:bg-[#ffebe3]"><Percent size={17} />Đề nghị giá</button>}
               <button type="button" onClick={contactSeller} disabled={busy} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#ee4d2d] px-5 text-sm font-semibold text-white transition hover:bg-[#dc4326] disabled:opacity-60"><MessageCircle size={17} />{busy ? 'Đang mở tin nhắn…' : 'Nhắn tin người bán'}</button>
             </>}
@@ -232,6 +248,7 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
     </div>
     {!isOwner && isActive && !isAdmin && <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-2 border-t border-black/10 bg-white/95 px-3 pt-3 shadow-[0_-6px_24px_rgba(0,0,0,.08)] backdrop-blur lg:hidden" style={{ paddingBottom: '0.75rem' }} aria-label="Hành động sản phẩm">
       <div className="mr-auto min-w-0"><span className="block text-[10px] text-black/50">Giá bán</span><strong className="block truncate text-base text-[#d94322]">{formatPrice(priceValue)}</strong></div>
+      <button type="button" onClick={() => void addToCart(true)} disabled={busy} aria-label="Mua theo giá niêm yết" className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-[#ee4d2d] bg-white px-2.5 text-[11px] font-semibold text-[#d94322] disabled:opacity-60"><ShoppingBag size={15}/>Mua ngay</button>
       {canOffer && <button type="button" onClick={() => document.getElementById('offer-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[#ee4d2d] bg-white px-3 text-xs font-semibold text-[#d94322]"><Percent size={15} />Trả giá</button>}
       <button type="button" onClick={contactSeller} disabled={busy} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-[#ee4d2d] px-3 text-xs font-semibold text-white disabled:opacity-60"><MessageCircle size={16} />{busy ? 'Đang mở…' : 'Nhắn người bán'}</button>
     </div>}

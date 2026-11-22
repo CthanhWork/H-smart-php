@@ -32,6 +32,7 @@ type NavbarProps = {
 const guestLinks = [
   { label: 'Khám phá sản phẩm', href: '/products' },
   { label: 'Danh mục sản phẩm', href: '/#categories' },
+  { label: 'Trợ lý tìm sản phẩm', href: '/assistant' },
 ]
 
 const memberLinks = [
@@ -40,6 +41,8 @@ const memberLinks = [
   { label: 'Đăng bán', href: '/sell' },
 ]
 const accountLinks = [
+  { label: 'Giỏ hàng', href: '/me/cart' },
+  { label: 'Số dư H-Smart (mô phỏng)', href: '/me/wallet' },
   { label: 'Sản phẩm của tôi', href: '/me/products' },
   { label: 'Đề nghị mua bán', href: '/me/offers' },
   { label: 'Đơn mua', href: '/me/orders' },

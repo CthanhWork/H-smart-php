@@ -9,6 +9,19 @@ use RuntimeException;
 
 class AiServiceClient
 {
+    /** @return array<string, mixed> */
+    public function parseProductSearch(string $message, array $contextFilters = []): array
+    {
+        $response = Http::acceptJson()->asJson()
+            ->timeout((int) config('services.ai.intent_timeout', 8))
+            ->post(rtrim((string) config('services.ai.url'), '/').'/v1/product-search-intent', [
+                'message' => $message,
+                'context_filters' => $contextFilters,
+            ]);
+        if (! $response->successful() || ! is_array($response->json())) throw new RuntimeException('AI intent parser unavailable');
+        return $response->json();
+    }
+
     /** @return array{answer: string, citations: array<int, array{source_id: string, title: string, section: string}>} */
     public function answer(string $question): array
     {

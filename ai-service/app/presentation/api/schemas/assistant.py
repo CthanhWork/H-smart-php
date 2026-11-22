@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -18,3 +20,18 @@ class ChatResponse(BaseModel):
     request_id: str
     answer: str
     citations: list[CitationResponse]
+
+
+class ProductSearchIntentRequest(BaseModel):
+    message: str = Field(min_length=2, max_length=1200)
+    context_filters: dict = Field(default_factory=dict)
+
+
+class ProductSearchIntentResponse(BaseModel):
+    intent: str
+    keyword: str = ""
+    min_price: Optional[int] = None
+    max_price: Optional[int] = None
+    condition: Optional[str] = None
+    sort: str = "newest"
+    reference_index: Optional[int] = None

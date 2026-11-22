@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Modules\Admin\Http\Controllers\AdminCodController;
+use App\Modules\Admin\Services\AdminAuditLogger;
+use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Order\Actions\AdvanceOrderAction;
 use App\Modules\Order\Actions\CreateOrderAction;
 use App\Modules\Order\Models\Order;
@@ -49,25 +51,39 @@ class CodSettlementTest extends TestCase
             'product_amount' => 200000, 'shipping_fee' => 25000, 'platform_fee' => 10000,
             'commission_rate' => 5, 'total_amount' => 225000, 'status' => Order::STATUS_SHIPPING,
             'shipping_address_snapshot' => [], 'expires_at' => now()->addMinutes(15),
-            'payment_status' => 'pending', 'payment_amount' => 225000, 'payment_provider' => 'cod',
+            'payment_status' => 'paid', 'payment_amount' => 50000, 'payment_provider' => 'vnpay_mock', 'payment_method' => 'cod',
+            'cod_deposit_percent' => 25, 'cod_deposit_amount' => 50000, 'cod_remaining_amount' => 150000,
             'delivery_status' => 'in_transit',
         ]);
+        app(\App\Modules\Wallet\Services\WalletLedger::class)->bookCodDeposit($order, 'vnpay_mock');
 
         return [$order, $product, $seller];
     }
 
     private function adminAction(int $orderId, string $action, ?string $reason = null): void
     {
+        $admin = User::firstOrCreate(['email' => 'cod-admin@example.test'], [
+            'username' => 'cod-admin', 'password_hash' => 'unused', 'role' => 'admin',
+        ]);
         $request = Request::create('/api/v1/admin/orders/'.$orderId.'/cod', 'POST', array_filter([
             'action' => $action,
             'reason' => $reason,
+            'evidence' => in_array($action, ['delivered', 'carrier_settled'], true) ? 'Bằng chứng kiểm thử đã đối soát' : null,
+            'collection_type' => $action === 'delivered' ? 'carrier' : null,
         ], fn ($value) => $value !== null));
-        app(AdminCodController::class)->update($request, $orderId);
+        $request->setUserResolver(fn () => $admin);
+        app(AdminCodController::class)->update(
+            $request,
+            $orderId,
+            app(\App\Modules\Wallet\Services\WalletLedger::class),
+            app(AdminAuditLogger::class),
+            app(NotificationService::class),
+        );
     }
 
     public function test_cod_collection_settlement_and_seller_payout_are_single_use(): void
     {
-        [$order] = $this->codOrder();
+        [$order, , $seller] = $this->codOrder();
         $product = Product::findOrFail($order->product_id);
         $this->adminAction($order->id, 'delivered');
         $this->assertSame(Order::STATUS_COMPLETED, $order->fresh()->status);
@@ -81,14 +97,17 @@ class CodSettlementTest extends TestCase
         }
 
         $this->adminAction($order->id, 'carrier_settled');
+        \Illuminate\Support\Carbon::setTestNow(now()->addHours(48));
         $this->adminAction($order->id, 'seller_paid');
         $this->assertNotNull($order->fresh()->carrier_settled_at);
         $this->assertNotNull($order->fresh()->seller_paid_at);
+        $this->assertSame(40000, app(\App\Modules\Wallet\Services\WalletLedger::class)->balance((int) $seller->id)['available'], 'Only the net deposit enters the wallet; the direct COD remainder is not credited.');
         try {
             $this->adminAction($order->id, 'seller_paid');
             $this->fail('Seller payout should be rejected after it has been recorded.');
         } catch (ConflictHttpException) {
         }
+        \Illuminate\Support\Carbon::setTestNow();
     }
 
     public function test_order_creation_snapshots_commission_and_shipping_for_cod(): void
@@ -106,12 +125,15 @@ class CodSettlementTest extends TestCase
             'recipient_name' => 'COD Buyer', 'phone' => '0900000000', 'address' => 'Test address',
         ], 'cod');
 
-        $this->assertSame(10000, $order->platform_fee);
+        $this->assertSame(11250, $order->platform_fee);
         $this->assertSame(5, $order->commission_rate);
         $this->assertSame(25000, $order->shipping_fee);
         $this->assertSame(225000, $order->total_amount);
         $this->assertSame('cod', $order->payment_provider);
+        $this->assertSame(50000, $order->cod_deposit_amount);
+        $this->assertSame(150000, $order->cod_remaining_amount);
         $this->assertSame('awaiting_shipment', $order->delivery_status);
+        $order->update(['status' => Order::STATUS_PAID, 'payment_status' => 'paid']); // simulate a verified deposit callback
         $confirmed = app(AdvanceOrderAction::class)->execute($order->id, $seller->id, 'confirm');
         $this->assertSame(Order::STATUS_PROCESSING, $confirmed->status);
         $shipped = app(AdvanceOrderAction::class)->execute($order->id, $seller->id, 'ship', [
