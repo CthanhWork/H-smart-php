@@ -10,13 +10,16 @@ export type Product = {
   seller_review_count?: number
   rating_average?: number | null; review_count?: number
   is_favorite?: boolean
+  publication?: { status: string; month_key: string; fee_amount: number; published_at: string | null } | null
+  promotion?: { package_type: 'boost' | 'vip'; fee_amount: number; starts_at: string; expires_at: string } | null
+  scheduled_promotion?: { package_type: 'boost' | 'vip'; starts_at: string; expires_at: string } | null
 }
 export type Category = { id: number; name: string; slug: string }
 export type ProductPage = { content: Product[]; pageNo: number; pageSize: number; totalElements: number; totalPages: number; last: boolean }
 export type ProductResult<T> = { status: string; message: string; data: T; errors?: Record<string, string[]> }
 
 export const statusLabel: Record<string, string> = {
-  draft: 'Bản nháp', pending_review: 'Chờ duyệt', active: 'Đang bán',
+  draft: 'Bản nháp', pending_review: 'Chờ duyệt', pending_listing_payment: 'Chờ phí đăng tin', active: 'Đang bán',
   reserved: 'Đã giữ chỗ', sold: 'Đã bán', hidden: 'Đã ẩn',
 }
 export const conditionLabel: Record<string, string> = {

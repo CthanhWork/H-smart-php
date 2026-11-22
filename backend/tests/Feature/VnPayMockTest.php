@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Modules\Notification\Services\NotificationService;
+use App\Modules\Order\Actions\ExpirePendingOrdersAction;
 use App\Modules\Order\Models\Order;
+use App\Modules\Order\Services\VietQrPaymentAdapter;
 use App\Modules\Order\Services\VnPayService;
 use App\Modules\Product\Models\Product;
 use App\Modules\User\Models\User;
@@ -11,6 +14,7 @@ use Illuminate\Foundation\Testing\TestCase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class VnPayMockTest extends TestCase
@@ -43,7 +47,7 @@ class VnPayMockTest extends TestCase
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
     }
 
-    private function checkout(): array
+    private function checkout(bool $createAttempt = true): array
     {
         $buyer = User::create(['username' => 'buyer', 'email' => 'buyer@example.test', 'password_hash' => 'unused']);
         $seller = User::create(['username' => 'seller', 'email' => 'seller@example.test', 'password_hash' => 'unused']);
@@ -56,7 +60,7 @@ class VnPayMockTest extends TestCase
         ]);
         $request = Request::create('http://localhost:5174/api/v1/orders/1/payment');
         $request->setUserResolver(fn () => $buyer);
-        $url = app(VnPayService::class)->createPaymentUrl($order, $request);
+        $url = $createAttempt ? app(VnPayService::class)->createPaymentUrl($order, $request) : '';
 
         return [$order->refresh(), $product, $request, $url];
     }
@@ -94,6 +98,32 @@ class VnPayMockTest extends TestCase
         $retry = app(VnPayService::class)->createPaymentUrl($order, $request);
         $this->post($retry, ['outcome' => 'success'])->assertRedirect();
         $this->assertSame('paid', $order->refresh()->status);
+    }
+
+    public function test_pending_payment_attempt_cannot_be_replaced_by_a_different_provider(): void
+    {
+        [$order, , $request] = $this->checkout();
+        config([
+            'services.vietqr.bank_id' => '970436',
+            'services.vietqr.account_number' => '1234567890',
+            'services.vietqr.account_name' => 'H SMART DEMO',
+        ]);
+
+        try {
+            app(VietQrPaymentAdapter::class)->instruction($order);
+            $this->fail('A pending VNPay request was replaced by VietQR.');
+        } catch (ConflictHttpException) {
+            $this->assertSame('vnpay_mock', $order->fresh()->payment_provider);
+        }
+
+        $order->update(['payment_provider' => 'vietqr', 'payment_txn_ref' => 'QR-PENDING-REFERENCE', 'payment_status' => 'pending']);
+        try {
+            app(VnPayService::class)->createPaymentUrl($order, $request);
+            $this->fail('A pending VietQR request was replaced by VNPay.');
+        } catch (ConflictHttpException) {
+            $this->assertSame('QR-PENDING-REFERENCE', $order->fresh()->payment_txn_ref);
+            $this->assertSame('vietqr', $order->fresh()->payment_provider);
+        }
     }
 
     public function test_signed_url_tampering_expiry_and_production_are_rejected(): void
@@ -140,6 +170,7 @@ class VnPayMockTest extends TestCase
         ksort($query);
         $query['vnp_SecureHash'] = hash_hmac('sha512', http_build_query($query), 'test-secret');
         $this->assertSame('invalid', app(VnPayService::class)->processIpn($query));
+        app(VnPayService::class)->processMock($order, 'failed');
         config(['services.vnpay.mode' => 'gateway']);
         $url = app(VnPayService::class)->createPaymentUrl($order, $request);
         parse_str(parse_url($url, PHP_URL_QUERY), $params);
@@ -150,7 +181,7 @@ class VnPayMockTest extends TestCase
 
     public function test_sandbox_return_marks_payment_success_and_ipn_is_idempotent(): void
     {
-        [$order, $product, $request] = $this->checkout();
+        [$order, $product, $request] = $this->checkout(createAttempt: false);
         config([
             'services.vnpay.mode' => 'gateway',
             'services.vnpay.tmn_code' => 'TEST',
@@ -190,8 +221,8 @@ class VnPayMockTest extends TestCase
         [$order, $product, , $url] = $this->checkout();
         $this->post($url, ['outcome' => 'failed'])->assertRedirect();
         $this->travel(16)->minutes();
-        $count = app(\App\Modules\Order\Actions\ExpirePendingOrdersAction::class)
-            ->execute(app(\App\Modules\Notification\Services\NotificationService::class));
+        $count = app(ExpirePendingOrdersAction::class)
+            ->execute(app(NotificationService::class));
         $this->assertSame(1, $count);
         $this->assertSame('cancelled', $order->refresh()->status);
         $this->assertSame('active', $product->refresh()->status);

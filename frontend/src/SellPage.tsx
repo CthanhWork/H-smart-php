@@ -4,6 +4,7 @@ import { productRequest, type Product, type ProductImage } from './productApi'
 type FieldErrors = Record<string, string[]>
 type VisionDetection = { label: string; translated_label: string; class_id: number; score: number; bbox: number[] }
 type VisionResult = { label: string; translated_label: string; confidence: number; num_detections: number; detections: VisionDetection[] }
+type ListingQuote = { month_key: string; free_quota: number; used: number; remaining: number; fee: number }
 type CreateResponse = {
   status: 'success' | 'error'
   message: string
@@ -116,6 +117,7 @@ export default function SellPage({ accessToken, userId, userEmail, onBack, editI
   const [draftReady, setDraftReady] = useState(Boolean(editId || userId === null))
   const [draftCompleted, setDraftCompleted] = useState(false)
   const [draftSaveState, setDraftSaveState] = useState<'saving' | 'saved' | 'error'>('saving')
+  const [listingQuote, setListingQuote] = useState<ListingQuote | null>(null)
   const draftKey = userId === null ? '' : `sell:v2:${userId}:${encodeURIComponent(userEmail?.trim().toLowerCase() || `id:${userId}`)}`
 
   useEffect(() => {
@@ -167,6 +169,15 @@ export default function SellPage({ accessToken, userId, userEmail, onBack, editI
     productRequest<Array<{ id: number; name: string }>>('categories', accessToken)
       .then(({ data }) => { setCategories(data); if (!editId && data[0]) setCategoryId((current) => current || String(data[0].id)) })
       .catch((cause: Error) => setError(cause.message))
+  }, [accessToken, editId])
+
+  useEffect(() => {
+    if (!accessToken || editId) return
+    let cancelled = false
+    productRequest<ListingQuote>('me/listing-quota', accessToken)
+      .then(({ data }) => { if (!cancelled) setListingQuote(data) })
+      .catch(() => { if (!cancelled) setListingQuote(null) })
+    return () => { cancelled = true }
   }, [accessToken, editId])
 
   useEffect(() => {
@@ -469,6 +480,7 @@ export default function SellPage({ accessToken, userId, userEmail, onBack, editI
                 <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={negotiable} onChange={(event) => setNegotiable(event.target.checked)} className="accent-black w-4 h-4" />Cho phép người mua trả giá</label>
                 {negotiable && <div className="mt-4"><label htmlFor="sell-min-price" className="block text-sm font-medium mb-1.5">Mức giá thấp nhất bạn có thể nhận (VND)</label><input id="sell-min-price" name="min_price" type="text" inputMode="numeric" autoComplete="off" value={formatVnd(minPrice)} onChange={(event) => updateVndInput(event, setMinPrice)} required aria-invalid={Boolean(errors.min_price)} aria-describedby={errors.min_price ? 'sell-min-price-error' : undefined} className="w-full rounded-2xl border border-black/20 px-5 py-3 text-sm outline-none focus-visible:border-black focus-visible:ring-2 focus-visible:ring-black/20 bg-white" />{price && <p className="text-xs text-black/60 mt-1">Không vượt quá giá bán ({formatVnd(price)} VND).</p>}{errors.min_price && <p id="sell-min-price-error" className="mt-1 text-xs text-[#b42318]">{errors.min_price[0]}</p>}</div>}
               </div>
+              {!editId && <div className="mt-5 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-950"><p className="font-semibold">Phí và hạn mức tin đăng</p>{listingQuote ? <p className="mt-1">Tháng {listingQuote.month_key}: đã dùng {listingQuote.used}/{listingQuote.free_quota} lượt miễn phí, còn {listingQuote.remaining}. Phí dự kiến của tin này sau khi được duyệt: <strong>{new Intl.NumberFormat('vi-VN').format(listingQuote.fee)}đ</strong>.</p> : <p className="mt-1">Hạn mức mặc định là 5 tin miễn phí mỗi tháng; từ tin thứ 6 là 5.000đ/tin. Mức phí được xác nhận lại trước khi thu sau khi tin được duyệt.</p>}<a href="/policies/fees" className="mt-1 inline-block font-medium underline">Xem biểu phí</a></div>}
               <button type="submit" disabled={loading} className="mt-6 w-full rounded-full bg-black text-white px-7 py-3.5 text-sm font-medium hover:bg-black/80 transition-colors disabled:opacity-50">{loading ? 'Đang gửi…' : editId ? 'Lưu và gửi duyệt lại' : 'Gửi sản phẩm để duyệt'}</button>
             </section>
 

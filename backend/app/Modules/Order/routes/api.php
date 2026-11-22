@@ -2,8 +2,10 @@
 
 use App\Modules\Auth\Http\Middleware\AuthenticateJwt;
 use App\Modules\Order\Http\Controllers\OrderController;
+use App\Modules\Order\Http\Controllers\OrderDisputeController;
 use App\Modules\Order\Http\Controllers\VnPayController;
 use App\Modules\Order\Http\Controllers\MockVnPayController;
+use App\Modules\Order\Http\Controllers\VietQrController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('api')->get('/api/v1/payments/vnpay/ipn', [VnPayController::class, 'ipn'])->name('payments.vnpay.ipn');
@@ -20,9 +22,13 @@ Route::middleware(['api', AuthenticateJwt::class])->prefix('api/v1/orders')->gro
     Route::post('/', [OrderController::class, 'store']);
     Route::get('/{id}', [OrderController::class, 'show'])->whereNumber('id');
     Route::post('/{id}/payment', [VnPayController::class, 'create'])->whereNumber('id');
+    Route::post('/{id}/vietqr', [VietQrController::class, 'create'])->whereNumber('id');
+    Route::post('/{id}/cod-deposit-refund-consent', [OrderDisputeController::class, 'acceptCodDepositWalletRefund'])->whereNumber('id');
     Route::post('/{id}/cancel', [OrderController::class, 'cancel'])->whereNumber('id');
     Route::post('/{id}/confirm', [OrderController::class, 'confirm'])->whereNumber('id');
     Route::post('/{id}/ship', [OrderController::class, 'ship'])->whereNumber('id');
     Route::post('/{id}/complete', [OrderController::class, 'complete'])->whereNumber('id');
     Route::post('/{id}/return-received', [OrderController::class, 'returnReceived'])->whereNumber('id');
+    Route::post('/{id}/disputes', [OrderDisputeController::class, 'store'])->whereNumber('id');
+    Route::post('/{id}/disputes/refund-consent', [OrderDisputeController::class, 'acceptWalletRefund'])->whereNumber('id');
 });

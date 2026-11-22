@@ -53,8 +53,27 @@ return [
     ],
 
     'marketplace' => [
-        'commission_rate' => (int) env('MARKETPLACE_COMMISSION_RATE', 5),
+        'commission_rate' => (int) env('MARKETPLACE_COMMISSION_RATE', 2),
         'shipping_fee' => (int) env('MARKETPLACE_SHIPPING_FEE', 25000),
+        'listing_free_monthly' => (int) env('MARKETPLACE_LISTING_FREE_MONTHLY', 5),
+        'listing_fee' => (int) env('MARKETPLACE_LISTING_FEE', 5000),
+        'boost_price' => (int) env('MARKETPLACE_BOOST_PRICE', 10000),
+        'boost_days' => (int) env('MARKETPLACE_BOOST_DAYS', 3),
+        'vip_price' => (int) env('MARKETPLACE_VIP_PRICE', 15000),
+        'vip_days' => (int) env('MARKETPLACE_VIP_DAYS', 7),
+        'promotion_slots' => (int) env('MARKETPLACE_PROMOTION_SLOTS', 3),
+        'cod_deposit_percent' => (int) env('MARKETPLACE_COD_DEPOSIT_PERCENT', 25),
+        'policy_version' => env('MARKETPLACE_POLICY_VERSION', 'commerce-v1'),
+    ],
+    'wallet' => [
+        'simulation_enabled' => filter_var(env('WALLET_SIMULATION_ENABLED', false), FILTER_VALIDATE_BOOL),
+        'minimum_withdrawal' => (int) env('WALLET_MINIMUM_WITHDRAWAL', 50000),
+        'maximum_withdrawal' => (int) env('WALLET_MAXIMUM_WITHDRAWAL', 10000000),
+    ],
+    'vietqr' => [
+        'bank_id' => env('VIETQR_BANK_ID', ''),
+        'account_number' => env('VIETQR_ACCOUNT_NUMBER', ''),
+        'account_name' => env('VIETQR_ACCOUNT_NAME', ''),
     ],
 
 ];

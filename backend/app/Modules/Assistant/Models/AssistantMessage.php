@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AssistantMessage extends Model
 {
-    protected $fillable = ['conversation_id', 'role', 'content', 'citations'];
+    protected $fillable = ['conversation_id', 'role', 'content', 'citations', 'structured_data'];
 
     protected function casts(): array
     {
-        return ['citations' => 'array'];
+        return ['citations' => 'array', 'structured_data' => 'array'];
     }
 
     public function conversation(): BelongsTo

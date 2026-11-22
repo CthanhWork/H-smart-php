@@ -6,6 +6,7 @@ import { statusLabel } from './productApi'
 import ProductCard from './components/ProductCard'
 
 type Props = { accessToken: string; navigate: (path: string) => void; mine?: boolean; favorites?: boolean }
+type PromotionPackages = Record<'boost' | 'vip', { fee: number; days: number; scope: string }>
 const conditions = [
   { id: '', label: 'Mọi tình trạng' },
   { id: 'new', label: 'Mới' },
@@ -15,7 +16,7 @@ const conditions = [
 ]
 const controlClass = 'h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none focus-visible:border-[#e65332] focus-visible:ring-2 focus-visible:ring-[#e65332]/20'
 const myListingStatusLabel: Record<string, string> = {
-  draft: 'Đã ẩn', pending_review: statusLabel.pending_review, active: statusLabel.active,
+  draft: 'Đã ẩn', pending_review: statusLabel.pending_review, pending_listing_payment: statusLabel.pending_listing_payment, active: statusLabel.active,
   reserved: statusLabel.reserved, sold: statusLabel.sold,
 }
 
@@ -38,6 +39,7 @@ export function ProductListPage({ accessToken, navigate, mine = false, favorites
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [promotionPackages, setPromotionPackages] = useState<PromotionPackages | null>(null)
   const [page, setPage] = useState(Number.isInteger(initialPageParam) && initialPageParam > 1 ? initialPageParam - 1 : 0)
   const [totalElements, setTotalElements] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
@@ -104,6 +106,15 @@ export function ProductListPage({ accessToken, navigate, mine = false, favorites
   }, [accessToken, favorites, mine])
 
   useEffect(() => {
+    if (!mine) return
+    let cancelled = false
+    productRequest<PromotionPackages>('me/promotion-packages', accessToken)
+      .then(({ data }) => { if (!cancelled) setPromotionPackages(data) })
+      .catch(() => { if (!cancelled) setPromotionPackages(null) })
+    return () => { cancelled = true }
+  }, [accessToken, mine])
+
+  useEffect(() => {
     let cancelled = false
     const p = new URLSearchParams({ 'page[number]': String(page), 'page[size]': '12' })
     if (q.trim()) p.set('q', q.trim())
@@ -146,6 +157,36 @@ export function ProductListPage({ accessToken, navigate, mine = false, favorites
       })
       setProducts((current) => current.map((item) => item.id === product.id ? result.data : item))
       setNotice(result.message)
+    } catch (cause) { setError((cause as Error).message) }
+    finally { setStatusBusyIds((current) => { const next = new Set(current); next.delete(product.id); return next }) }
+  }
+
+  async function payListingFee(product: Product) {
+    setStatusBusyIds((current) => new Set(current).add(product.id)); setError(''); setNotice('')
+    try {
+      const quote = (await productRequest<{ month_key: string; free_quota: number; used: number; remaining: number; fee: number }>(`me/products/${product.id}/publication-quote`, accessToken)).data
+      const amount = new Intl.NumberFormat('vi-VN').format(quote.fee)
+      const description = quote.fee === 0
+        ? `Hạn mức ${quote.month_key}: còn ${quote.remaining} lượt miễn phí. Xuất bản tin này?`
+        : `Hạn mức tháng ${quote.month_key} đã hết. Phí đăng tin là ${amount}đ, trừ từ số dư mô phỏng. Xác nhận thanh toán?`
+      if (!window.confirm(description)) return
+      const result = await productRequest<Product>(`me/products/${product.id}/publication-payment`, accessToken, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expected_fee: quote.fee }) })
+      setProducts((current) => current.map((item) => item.id === product.id ? result.data : item)); setNotice(result.message)
+    } catch (cause) { setError((cause as Error).message) }
+    finally { setStatusBusyIds((current) => { const next = new Set(current); next.delete(product.id); return next }) }
+  }
+
+  async function buyPromotion(product: Product, packageType: 'boost' | 'vip') {
+    setStatusBusyIds((current) => new Set(current).add(product.id)); setError(''); setNotice('')
+    try {
+      const packages = (await productRequest<PromotionPackages>('me/promotion-packages', accessToken)).data
+      const plan = packages[packageType]
+      const price = new Intl.NumberFormat('vi-VN').format(plan.fee)
+      const confirmed = window.confirm(`${packageType === 'vip' ? 'Gói VIP' : 'Gói đẩy tin'} · ${price}đ / ${plan.days} ngày. Ưu tiên hiển thị trong phạm vi ${plan.scope.toLowerCase()}, theo lượt luân phiên; không đảm bảo luôn đứng đầu. Trừ từ số dư mô phỏng?`)
+      if (!confirmed) return
+      const result = await productRequest<{ product: Product; purchase: { starts_at: string; expires_at: string } }>(`me/products/${product.id}/promotions`, accessToken, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ package_type: packageType, expected_fee: plan.fee, idempotency_key: crypto.randomUUID() }) })
+      setProducts((current) => current.map((item) => item.id === product.id ? result.data.product : item))
+      setNotice(`${result.message} Gói kết thúc lúc ${new Date(result.data.purchase.expires_at).toLocaleString('vi-VN')}.`)
     } catch (cause) { setError((cause as Error).message) }
     finally { setStatusBusyIds((current) => { const next = new Set(current); next.delete(product.id); return next }) }
   }
@@ -226,7 +267,7 @@ export function ProductListPage({ accessToken, navigate, mine = false, favorites
       <div className="min-w-0">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-black/55" aria-live="polite">{loading ? 'Đang tìm sản phẩm…' : !priceRangeInvalid ? `Tìm thấy ${totalElements} sản phẩm` : 'Kiểm tra khoảng giá'}</p><label className="hidden items-center gap-2 text-xs text-black/60 lg:flex">Sắp xếp<select className="h-10 rounded-xl border border-black/10 bg-white px-3 text-sm text-black" value={sort} onChange={(event) => { setSort(event.target.value); setPage(0) }}><option value="newest">Mới nhất</option><option value="price_asc">Giá thấp đến cao</option><option value="price_desc">Giá cao đến thấp</option></select></label></div>
       {activeFilters.length > 0 && <div className="mb-4 flex flex-wrap items-center gap-2" aria-label="Bộ lọc đang áp dụng">{activeFilters.map((filter) => <button key={filter.label} type="button" onClick={filter.clear} className="inline-flex items-center gap-1.5 rounded-full bg-[#fff0eb] px-3 py-1.5 text-xs font-medium text-[#b83b21] hover:bg-[#ffe2d7]">{filter.label}<span aria-hidden="true">×</span><span className="sr-only">Bỏ bộ lọc {filter.label}</span></button>)}<button type="button" onClick={clearFilters} className="px-2 py-1.5 text-xs font-medium text-black/55 underline">Xóa tất cả</button></div>}
-      {loading ? <p className="text-sm text-black/60" role="status"></p> : priceRangeInvalid && !favorites ? null : products.length === 0 ? <div className="rounded-2xl border border-dashed border-black/20 p-10 text-center">{favorites ? <><Heart className="mx-auto mb-3 text-black/40" size={26} /><h2 className="font-semibold">Bạn chưa lưu sản phẩm nào</h2><p className="mt-2 text-sm text-black/55">Chọn biểu tượng trái tim trên sản phẩm để lưu lại và xem sau.</p><Button variant="outline" className="mt-5" onClick={() => navigate('/products')}>Tìm sản phẩm</Button></> : mine ? <><h2 className="font-semibold">Bạn chưa đăng sản phẩm nào</h2><p className="mt-2 text-sm text-black/55">Đăng món đồ bạn không còn dùng để bắt đầu bán.</p><Button className="mt-5" onClick={() => navigate('/sell')}>Đăng bán sản phẩm</Button></> : <p className="text-sm text-black/60">Không tìm thấy sản phẩm phù hợp.</p>}</div> : <div className={`grid grid-cols-2 gap-4 sm:grid-cols-3 ${!mine && !favorites ? 'lg:grid-cols-3 xl:grid-cols-4' : 'lg:grid-cols-4 xl:grid-cols-5'}`}>{products.map((product, index) => <div key={product.id}><ProductCard product={product} priority={index < 5} onClick={() => navigate(`/products/${product.id}`)} onToggleFavorite={!mine && accessToken ? () => toggleFavorite(product) : undefined} favoriteBusy={favoriteBusyIds.has(product.id)} />{mine && <div className="mt-2 space-y-2"><p className="text-xs text-black/55">Trạng thái: <strong className="text-black">{myListingStatusLabel[product.status] ?? product.status}</strong></p>{['active', 'draft'].includes(product.status) && <button type="button" onClick={() => void updateListingStatus(product)} disabled={statusBusyIds.has(product.id)} className="w-full rounded-xl border border-black/15 px-3 py-2 text-xs font-medium hover:border-[#e65332] hover:text-[#e65332] disabled:opacity-50">{statusBusyIds.has(product.id) ? 'Đang cập nhật…' : product.status === 'active' ? 'Tạm ẩn tin' : 'Gửi duyệt lại'}</button>}</div>}</div>)}</div>}
+      {loading ? <p className="text-sm text-black/60" role="status"></p> : priceRangeInvalid && !favorites ? null : products.length === 0 ? <div className="rounded-2xl border border-dashed border-black/20 p-10 text-center">{favorites ? <><Heart className="mx-auto mb-3 text-black/40" size={26} /><h2 className="font-semibold">Bạn chưa lưu sản phẩm nào</h2><p className="mt-2 text-sm text-black/55">Chọn biểu tượng trái tim trên sản phẩm để lưu lại và xem sau.</p><Button variant="outline" className="mt-5" onClick={() => navigate('/products')}>Tìm sản phẩm</Button></> : mine ? <><h2 className="font-semibold">Bạn chưa đăng sản phẩm nào</h2><p className="mt-2 text-sm text-black/55">Đăng món đồ bạn không còn dùng để bắt đầu bán.</p><Button className="mt-5" onClick={() => navigate('/sell')}>Đăng bán sản phẩm</Button></> : <p className="text-sm text-black/60">Không tìm thấy sản phẩm phù hợp.</p>}</div> : <div className={`grid grid-cols-2 gap-4 sm:grid-cols-3 ${!mine && !favorites ? 'lg:grid-cols-3 xl:grid-cols-4' : 'lg:grid-cols-4 xl:grid-cols-5'}`}>{products.map((product, index) => <div key={product.id}><ProductCard product={product} priority={index < 5} onClick={() => navigate(`/products/${product.id}`)} onToggleFavorite={!mine && accessToken ? () => toggleFavorite(product) : undefined} favoriteBusy={favoriteBusyIds.has(product.id)} />{mine && <div className="mt-2 space-y-2"><p className="text-xs text-black/55">Trạng thái: <strong className="text-black">{myListingStatusLabel[product.status] ?? product.status}</strong></p>{product.status === 'pending_listing_payment' && <><p className="text-xs text-black/55">Đã duyệt. Phí xuất bản hiện tại: {new Intl.NumberFormat('vi-VN').format(product.publication?.fee_amount ?? 0)}đ. Số dư mô phỏng cần đủ.</p><button type="button" onClick={() => void payListingFee(product)} disabled={statusBusyIds.has(product.id)} className="w-full rounded-xl bg-[#e65332] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{statusBusyIds.has(product.id) ? 'Đang xác nhận…' : 'Xem phí và xuất bản'}</button></>}{product.status === 'active' && <><p className="text-xs text-black/55">{product.scheduled_promotion ? `${product.scheduled_promotion.package_type === 'vip' ? 'VIP' : 'Đẩy tin'} đã mua · hiệu lực đến ${new Date(product.scheduled_promotion.expires_at).toLocaleString('vi-VN')}` : product.promotion ? `${product.promotion.package_type === 'vip' ? 'VIP' : 'Đẩy tin'} đến ${new Date(product.promotion.expires_at).toLocaleString('vi-VN')}` : 'Chưa có gói ưu tiên'}</p><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => void buyPromotion(product, 'boost')} disabled={statusBusyIds.has(product.id)} className="rounded-xl border border-sky-200 px-2 py-2 text-[11px] font-medium text-sky-800 disabled:opacity-50">Đẩy · {promotionPackages ? `${new Intl.NumberFormat('vi-VN').format(promotionPackages.boost.fee)}đ / ${promotionPackages.boost.days} ngày` : '10.000đ / 3 ngày'}</button><button type="button" onClick={() => void buyPromotion(product, 'vip')} disabled={statusBusyIds.has(product.id)} className="rounded-xl border border-amber-200 px-2 py-2 text-[11px] font-medium text-amber-900 disabled:opacity-50">VIP · {promotionPackages ? `${new Intl.NumberFormat('vi-VN').format(promotionPackages.vip.fee)}đ / ${promotionPackages.vip.days} ngày` : '15.000đ / 7 ngày'}</button></div></>}{['active', 'draft'].includes(product.status) && <button type="button" onClick={() => void updateListingStatus(product)} disabled={statusBusyIds.has(product.id)} className="w-full rounded-xl border border-black/15 px-3 py-2 text-xs font-medium hover:border-[#e65332] hover:text-[#e65332] disabled:opacity-50">{statusBusyIds.has(product.id) ? 'Đang cập nhật…' : product.status === 'active' ? 'Tạm ẩn tin' : 'Gửi duyệt lại'}</button>}</div>}</div>)}</div>}
       {totalPages > 1 && <div className="mt-8 flex items-center justify-center gap-2"><button type="button" onClick={() => setPage((current) => Math.max(0, current - 1))} disabled={page === 0 || loading} className="rounded-full border border-black/20 px-4 py-2 text-sm disabled:opacity-40">Trước</button><span className="text-sm text-black/60">Trang {page + 1} / {totalPages}</span><button type="button" onClick={() => setPage((current) => Math.min(totalPages - 1, current + 1))} disabled={page >= totalPages - 1 || loading} className="rounded-full border border-black/20 px-4 py-2 text-sm disabled:opacity-40">Sau</button></div>}
       </div>
     </div>

@@ -43,3 +43,17 @@ Artisan::command('orders:expire-pending', function (\App\Modules\Order\Actions\E
 })->purpose('Giải phóng sản phẩm đã hết thời gian chờ thanh toán');
 
 Schedule::command('orders:expire-pending')->everyMinute()->withoutOverlapping();
+
+Artisan::command('orders:release-eligible', function (\App\Modules\Order\Actions\ReleaseEligibleOrderFundsAction $release, \App\Modules\Wallet\Services\WalletLedger $ledger, \App\Modules\Notification\Services\NotificationService $notifications) {
+    $count = $release->execute($ledger, $notifications);
+    $this->info("Đã ghi có số dư cho {$count} đơn đủ điều kiện.");
+})->purpose('Ghi có tiền thuần vào số dư người bán sau xác nhận giao và hết hạn khiếu nại');
+
+Schedule::command('orders:release-eligible')->everyMinute()->withoutOverlapping();
+
+Artisan::command('products:expire-promotions', function (\App\Modules\Product\Services\ProductPromotionService $promotions) {
+    $count = $promotions->expire();
+    $this->info("Đã hết hạn {$count} gói ưu tiên.");
+})->purpose('Tự hết hạn gói đẩy và VIP');
+
+Schedule::command('products:expire-promotions')->everyMinute()->withoutOverlapping();

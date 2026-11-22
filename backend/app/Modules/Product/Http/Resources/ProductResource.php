@@ -30,6 +30,23 @@ class ProductResource extends JsonResource
             'negotiable' => (bool) $this->negotiable,
             'min_price' => $this->min_price,
             'status' => $this->status,
+            'publication' => $this->whenLoaded('publication', fn () => $this->publication ? [
+                'status' => $this->publication->status,
+                'month_key' => $this->publication->month_key,
+                'fee_amount' => $this->publication->fee_amount,
+                'published_at' => $this->publication->published_at?->toIso8601String(),
+            ] : null),
+            'promotion' => $this->whenLoaded('currentPromotion', fn () => $this->status === \App\Modules\Product\Models\Product::STATUS_ACTIVE && $this->currentPromotion ? [
+                'package_type' => $this->currentPromotion->package_type,
+                'fee_amount' => $this->currentPromotion->fee_amount,
+                'starts_at' => $this->currentPromotion->starts_at?->toIso8601String(),
+                'expires_at' => $this->currentPromotion->expires_at?->toIso8601String(),
+            ] : null),
+            'scheduled_promotion' => $this->whenLoaded('nextPromotion', fn () => $this->status === \App\Modules\Product\Models\Product::STATUS_ACTIVE && $this->nextPromotion ? [
+                'package_type' => $this->nextPromotion->package_type,
+                'expires_at' => $this->nextPromotion->expires_at?->toIso8601String(),
+                'starts_at' => $this->nextPromotion->starts_at?->toIso8601String(),
+            ] : null),
             'is_favorite' => $this->when(isset($this->is_favorite), (bool) $this->is_favorite),
             'images' => $this->images->map(fn ($image) => [
                 'id' => $image->id,

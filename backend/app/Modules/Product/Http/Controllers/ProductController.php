@@ -9,6 +9,7 @@ use App\Modules\Product\Http\Requests\UpdateProductRequest;
 use App\Modules\Product\Http\Resources\ProductResource;
 use App\Modules\Product\Models\Product;
 use App\Modules\Order\Models\Order;
+use App\Modules\Product\Services\ProductSearch;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,12 +18,17 @@ class ProductController
 {
     public function index(ListProductsRequest $request): JsonResponse
     {
-        return $this->page($request, Product::query()->where('status', Product::STATUS_ACTIVE));
+        $filters = (array) $request->input('filter', []);
+        $filters['sort'] = $request->input('sort', $filters['sort'] ?? 'newest');
+        return $this->page($request, app(ProductSearch::class)->query(
+            $filters,
+            $request->input('q'),
+        ));
     }
 
     public function mine(ListProductsRequest $request): JsonResponse
     {
-        $query = Product::query()->where('seller_id', $request->user()->id);
+        $query = Product::query()->with('publication')->where('seller_id', $request->user()->id);
         if ($status = $request->input('filter.status')) {
             $query->where('status', $status);
         }
@@ -32,7 +38,7 @@ class ProductController
 
     private function page(ListProductsRequest $request, Builder $query): JsonResponse
     {
-        $query->with(['images', 'category', 'seller:id,username,full_name'])
+        $query->with(['images', 'category', 'seller:id,username,full_name', 'currentPromotion', 'nextPromotion'])
             ->addSelect([
                 'seller_completed_sales_count' => Order::query()->selectRaw('COUNT(*)')
                     ->whereColumn('orders.seller_id', 'products.seller_id')
@@ -49,34 +55,11 @@ class ProductController
         if ($userId = $request->user()?->id) {
             $query->withExists(['favorites as is_favorite' => fn (Builder $favoriteQuery) => $favoriteQuery->where('user_id', $userId)]);
         }
-        if ($term = trim((string) $request->input('q', ''))) {
-            $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($term));
-            $like = '%'.$escaped.'%';
-            $query->where(function (Builder $search) use ($like): void {
-                $search->whereRaw("LOWER(title) LIKE ? ESCAPE '!'", [$like])
-                    ->orWhereRaw("LOWER(description) LIKE ? ESCAPE '!'", [$like])
-                    ->orWhereHas('category', fn (Builder $category) => $category->whereRaw("LOWER(name) LIKE ? ESCAPE '!'", [$like]));
-            });
-        }
-        if ($condition = $request->input('filter.condition')) {
-            $query->where('condition', $condition);
-        }
-        if ($categoryId = $request->input('filter.category_id')) {
-            $query->where('category_id', $categoryId);
-        }
-        if ($sellerId = $request->input('filter.seller_id')) {
-            $query->where('seller_id', $sellerId);
-        }
-        if ($min = $request->input('filter.min_price')) {
-            $query->where('price', '>=', $min);
-        }
-        if ($max = $request->input('filter.max_price')) {
-            $query->where('price', '<=', $max);
-        }
+        if ($sellerId = $request->input('filter.seller_id')) $query->where('seller_id', $sellerId);
         $number = (int) $request->input('page.number', 0);
         $size = (int) $request->input('page.size', 12);
         $results = $query;
-        match ($request->input('sort', 'newest')) {
+        match ($request->input('sort', $request->input('filter.sort', 'newest'))) {
             'price_asc' => $results->orderBy('price')->orderByDesc('id'),
             'price_desc' => $results->orderByDesc('price')->orderByDesc('id'),
             default => $results->orderByDesc('created_at')->orderByDesc('id'),
@@ -99,7 +82,7 @@ class ProductController
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $productQuery = Product::with(['images', 'category', 'seller:id,username,full_name'])
+        $productQuery = Product::with(['images', 'category', 'seller:id,username,full_name', 'publication', 'currentPromotion', 'nextPromotion'])
             ->withAvg('reviews as reviews_avg_rating', 'review_rating')
             ->withCount('reviews')
             ->addSelect([

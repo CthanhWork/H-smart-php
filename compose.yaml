@@ -93,7 +93,10 @@ services:
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5174}
       INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@hsmart.local}
       INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
+      SEED_COMMERCE_DEMO: ${SEED_COMMERCE_DEMO:-false}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-}
       AI_SERVICE_URL: http://ai:8000
+      WALLET_SIMULATION_ENABLED: ${WALLET_SIMULATION_ENABLED:-true}
     volumes:
       - backend_config:/run/hsmart
       - backend_storage:/var/www/html/storage

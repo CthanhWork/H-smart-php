@@ -14,6 +14,9 @@ import HomePage from './HomePage'
 import ProfilePage from './ProfilePage'
 import NotificationsPage from './NotificationsPage'
 import AssistantPage from './AssistantPage'
+import CartPage from './CartPage'
+import PolicyPage from './PolicyPage'
+import WalletPage from './WalletPage'
 import SellerProfilePage from './SellerProfilePage'
 
 
@@ -69,6 +72,9 @@ function App() {
   const isProfile = path === '/me/profile'
   const isNotifications = path === '/me/notifications'
   const isAssistant = path === '/assistant'
+  const isCart = path === '/me/cart'
+  const isWallet = path === '/me/wallet'
+  const isPolicy = path.startsWith('/policies/')
   const isOrderCreation = path === '/orders/create'
   const sellerProfileMatch = path.match(/^\/sellers\/(\d+)$/)
   const verificationToken = isVerifying ? new URLSearchParams(window.location.search).get('token') : null
@@ -297,9 +303,12 @@ function App() {
       : <main className="grid min-h-screen place-items-center bg-slate-100 px-4 py-12 text-slate-900"><section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8"><div className="mb-6 flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl bg-orange-500 text-white"><ShieldCheck size={21} /></span><div><p className="font-bold">H-Smart</p><p className="text-xs text-slate-500">Cổng quản trị</p></div></div><h1 className="text-2xl font-bold">Đăng nhập quản trị</h1><p className="mt-2 text-sm text-slate-600">Dùng tài khoản quản trị viên để tiếp tục.</p>{error && <Alert variant="error" className="mt-4">{error}</Alert>}<form className="mt-6 space-y-4" onSubmit={submitAdminLogin}><label className="block text-sm font-medium">Email<input className="mt-1.5 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100" type="email" autoComplete="username" required value={email} onChange={(event) => setEmail(event.target.value)} /></label><label className="block text-sm font-medium">Mật khẩu<input className="mt-1.5 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100" type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} /></label><Button className="w-full rounded-xl" type="submit" disabled={loading}>{loading ? 'Đang xác thực…' : 'Đăng nhập vào quản trị'}</Button></form></section></main>
     : null
   const pageContent = isAdmin ? adminContent
-    : sellerProfileMatch ? <SellerProfilePage key={path} sellerId={Number(sellerProfileMatch[1])} accessToken={tokens?.accessToken ?? ''} navigate={navigate} />
+    : isPolicy ? <PolicyPage path={path} navigate={navigate} />
+      : sellerProfileMatch ? <SellerProfilePage key={path} sellerId={Number(sellerProfileMatch[1])} accessToken={tokens?.accessToken ?? ''} navigate={navigate} />
       : isSelling || editMatch ? <SellPage key={path} accessToken={tokens?.accessToken ?? null} userId={tokens?.user.id ?? null} userEmail={tokens?.user.email ?? null} editId={editMatch ? Number(editMatch[1]) : undefined} onSaved={(id) => navigate(`/products/${id}`)} onBack={() => navigate(editMatch ? `/products/${editMatch[1]}` : '/')} />
-        : isAssistant && tokens ? <AssistantPage key={path} accessToken={tokens.accessToken} />
+        : isAssistant ? <AssistantPage key={path} accessToken={tokens?.accessToken ?? ''} navigate={navigate} />
+          : isCart && tokens ? <CartPage key={path} accessToken={tokens.accessToken} navigate={navigate} />
+            : isWallet && tokens ? <WalletPage key={path} accessToken={tokens.accessToken} navigate={navigate} />
           : isProfile && tokens ? <ProfilePage accessToken={tokens.accessToken} navigate={navigate} onSaved={(fullName) => setTokens((current) => current ? { ...current, user: { ...current.user, full_name: fullName } } : current)} />
             : isNotifications && tokens ? <NotificationsPage accessToken={tokens.accessToken} navigate={navigate} />
               : isProducts && (!isPrivateProductList || tokens) ? path === '/products' || isPrivateProductList

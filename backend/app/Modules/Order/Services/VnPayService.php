@@ -5,10 +5,11 @@ namespace App\Modules\Order\Services;
 use App\Modules\Offer\Models\Offer;
 use App\Modules\Order\Models\Order;
 use App\Modules\Product\Models\Product;
+use App\Modules\Wallet\Services\WalletLedger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 
@@ -42,12 +43,15 @@ class VnPayService
             }
 
             $provider = $mock ? 'vnpay_mock' : 'vnpay';
+            if ($locked->payment_txn_ref !== null && $locked->payment_status === 'pending' && $locked->payment_provider !== $provider) {
+                throw new ConflictHttpException('Đơn đã có yêu cầu thanh toán đang chờ xác minh qua nhà cung cấp khác. Hãy chờ kết quả hoặc để yêu cầu hết hạn trước khi thử lại.');
+            }
             if ($locked->payment_txn_ref === null || $locked->payment_status === 'failed' || $locked->payment_provider !== $provider) {
                 $locked->payment_txn_ref = 'HS'.$locked->id.Str::upper(Str::random(20));
                 $locked->payment_transaction_no = null;
             }
             $locked->payment_provider = $provider;
-            $locked->payment_amount = $locked->total_amount;
+            $locked->payment_amount = $locked->payment_method === 'cod' ? (int) $locked->cod_deposit_amount : (int) $locked->total_amount;
             $locked->payment_status = 'pending';
             $locked->payment_response_code = null;
             $locked->save();
@@ -73,7 +77,7 @@ class VnPayService
             'vnp_Version' => '2.1.0',
             'vnp_Command' => 'pay',
             'vnp_TmnCode' => $tmnCode,
-            'vnp_Amount' => (string) ($order->total_amount * 100),
+            'vnp_Amount' => (string) ($order->payment_amount * 100),
             'vnp_CurrCode' => 'VND',
             'vnp_TxnRef' => $order->payment_txn_ref,
             'vnp_OrderInfo' => 'Thanh toan don hang '.$order->id,
@@ -88,7 +92,7 @@ class VnPayService
         $signData = http_build_query($params, '', '&', PHP_QUERY_RFC1738);
         $params['vnp_SecureHash'] = hash_hmac('sha512', $signData, $hashSecret);
 
-        return rtrim(config('services.vnpay.payment_url'), '?').'?' . http_build_query($params, '', '&', PHP_QUERY_RFC1738);
+        return rtrim(config('services.vnpay.payment_url'), '?').'?'.http_build_query($params, '', '&', PHP_QUERY_RFC1738);
     }
 
     public function verify(array $query): bool
@@ -127,8 +131,10 @@ class VnPayService
 
         return $this->processVerifiedPayment([
             'vnp_TxnRef' => $order->payment_txn_ref,
-            'vnp_Amount' => $order->total_amount * 100,
-            'vnp_ResponseCode' => match ($outcome) { 'success' => '00', 'cancel' => '24', default => '99' },
+            'vnp_Amount' => $order->payment_amount * 100,
+            'vnp_ResponseCode' => match ($outcome) {
+                'success' => '00', 'cancel' => '24', default => '99'
+            },
             'vnp_TransactionStatus' => $outcome === 'success' ? '00' : '02',
             'vnp_TransactionNo' => 'MOCK-'.$order->payment_txn_ref,
             'vnp_BankCode' => 'MOCK',
@@ -144,7 +150,8 @@ class VnPayService
             }
 
             $amount = filter_var($query['vnp_Amount'] ?? null, FILTER_VALIDATE_INT);
-            if ($amount === false || $amount !== $order->total_amount * 100 || $order->payment_amount !== $order->total_amount) {
+            $expectedAmount = $order->payment_method === 'cod' ? (int) $order->cod_deposit_amount : (int) $order->total_amount;
+            if ($amount === false || $amount !== $expectedAmount * 100 || (int) $order->payment_amount !== $expectedAmount) {
                 return 'invalid';
             }
 
@@ -185,8 +192,14 @@ class VnPayService
                 'payment_transaction_no' => ($query['vnp_TransactionNo'] ?? '') !== '' ? (string) $query['vnp_TransactionNo'] : null,
                 'payment_response_code' => (string) ($query['vnp_ResponseCode'] ?? '00'),
                 'payment_bank_code' => $query['vnp_BankCode'] ?? null,
+                'payout_status' => 'awaiting_delivery',
             ]);
-            $product->update(['status' => Product::STATUS_SOLD]);
+            if ($order->payment_method === 'cod') {
+                app(WalletLedger::class)->bookCodDeposit($order, $provider);
+            } else {
+                app(WalletLedger::class)->bookOrderEscrow($order, $provider);
+                $product->update(['status' => Product::STATUS_SOLD]);
+            }
             if ($order->offer_id) {
                 Offer::where('product_id', $product->id)
                     ->where('status', Offer::STATUS_PENDING)
