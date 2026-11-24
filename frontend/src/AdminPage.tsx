@@ -10,9 +10,10 @@ import AdminDisputePage from './AdminDisputePage'
 import AdminPromotionPage from './AdminPromotionPage'
 import AdminMarketplaceSettingsPage from './AdminMarketplaceSettingsPage'
 import AdminPaymentReconciliationPage from './AdminPaymentReconciliationPage'
+import RevenuePage from './RevenuePage'
 
 type Props = { accessToken: string; userId: number; navigate: (path: string) => void; onLogout: () => void }
-type Section = 'overview' | 'reports' | 'orders' | 'audit' | 'management' | 'messages' | 'withdrawals' | 'disputes' | 'promotions' | 'settings' | 'reconciliation'
+type Section = 'overview' | 'reports' | 'orders' | 'audit' | 'management' | 'messages' | 'withdrawals' | 'disputes' | 'promotions' | 'settings' | 'reconciliation' | 'revenue'
 const number = (value: number) => new Intl.NumberFormat('vi-VN').format(value)
 const date = (value: string) => new Date(value).toLocaleString('vi-VN', { dateStyle: 'medium', timeStyle: 'short' })
 const statusNames: Record<string, string> = { pending_payment: 'Chờ thanh toán', paid: 'Đã thanh toán', processing: 'Đang xử lý', shipping: 'Đang giao', completed: 'Hoàn tất', cancelled: 'Đã hủy', pending: 'Chờ xử lý', actioned: 'Đã xử lý', dismissed: 'Đã bỏ qua' }
@@ -35,6 +36,7 @@ export default function AdminPage({ accessToken, userId, navigate, onLogout }: P
     { id: 'overview', label: 'Tổng quan', Icon: LayoutDashboard },
     { id: 'reports', label: 'Báo cáo vi phạm', Icon: AlertTriangle },
     { id: 'orders', label: 'Giao dịch', Icon: ShoppingCart },
+    { id: 'revenue', label: 'Doanh thu & nghĩa vụ', Icon: Receipt },
     { id: 'withdrawals', label: 'Rút tiền mô phỏng', Icon: Wallet },
     { id: 'disputes', label: 'Khiếu nại đơn hàng', Icon: AlertTriangle },
     { id: 'promotions', label: 'Gói ưu tiên tin', Icon: Megaphone },
@@ -138,6 +140,7 @@ export default function AdminPage({ accessToken, userId, navigate, onLogout }: P
         {section === 'promotions' && <AdminPromotionPage accessToken={accessToken} />}
         {section === 'settings' && <AdminMarketplaceSettingsPage accessToken={accessToken} />}
         {section === 'reconciliation' && <AdminPaymentReconciliationPage accessToken={accessToken} />}
+        {section === 'revenue' && <RevenuePage accessToken={accessToken} admin />}
         {section === 'messages' && <MessagePages accessToken={accessToken} userId={userId} navigate={navigate} isAdmin />}
       </div>
       {preview?.kind === 'report' && <AdminPreviewDialog title={preview.value.target_type === 'product' ? preview.value.product?.title || `Sản phẩm #${preview.value.target_id}` : preview.value.reported_user?.full_name || preview.value.reported_user?.email || `Tài khoản #${preview.value.target_id}`} subtitle={`Báo cáo #${preview.value.id} · Gửi lúc ${date(preview.value.created_at)}`} onClose={() => setPreview(null)}>

@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('api')->get('/api/v1/payments/vnpay/ipn', [VnPayController::class, 'ipn'])->name('payments.vnpay.ipn');
 Route::middleware('api')->get('/api/v1/payments/vnpay/return', [VnPayController::class, 'return'])->name('payments.vnpay.return');
+Route::middleware('api')->get('/api/v1/payments/vnpay/wallet/ipn', [\App\Modules\Wallet\Http\Controllers\WalletVnPayController::class, 'ipn'])->name('payments.vnpay.wallet.ipn');
+Route::middleware('api')->get('/api/v1/payments/vnpay/wallet/return', [\App\Modules\Wallet\Http\Controllers\WalletVnPayController::class, 'return'])->name('payments.vnpay.wallet.return');
 
 Route::middleware(['web', 'signed:relative'])->group(function (): void {
     Route::get('/payments/vnpay/mock/{txnRef}', [MockVnPayController::class, 'show'])->name('payments.vnpay.mock');

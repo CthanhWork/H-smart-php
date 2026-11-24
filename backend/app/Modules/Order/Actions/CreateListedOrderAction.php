@@ -40,7 +40,7 @@ class CreateListedOrderAction
                 $rate = min(100, max(0, $settings->get('commission_rate')));
                 $depositPercent = min(30, max(20, $settings->get('cod_deposit_percent')));
                 if ($expectedPricing !== [] && ((int) ($expectedPricing['shipping_fee'] ?? -1) !== $shippingFee
-                    || (int) ($expectedPricing['commission_rate'] ?? -1) !== $rate
+                    || (isset($expectedPricing['commission_rate']) && (int) $expectedPricing['commission_rate'] !== $rate)
                     || (int) ($expectedPricing['cod_deposit_percent'] ?? -1) !== $depositPercent)) {
                     throw new ConflictHttpException('Phí hoặc tỷ lệ đặt cọc đã thay đổi. Vui lòng kiểm tra báo giá mới và xác nhận lại.');
                 }
@@ -105,7 +105,7 @@ class CreateListedOrderAction
         if ($expectedPricing !== []) {
             $samePayload = $samePayload
                 && (int) $existing->shipping_fee === (int) ($expectedPricing['shipping_fee'] ?? -1)
-                && (int) $existing->commission_rate === (int) ($expectedPricing['commission_rate'] ?? -1);
+                && (! isset($expectedPricing['commission_rate']) || (int) $existing->commission_rate === (int) $expectedPricing['commission_rate']);
             if ($paymentMethod === 'cod') {
                 $samePayload = $samePayload
                     && (int) $existing->cod_deposit_percent === (int) ($expectedPricing['cod_deposit_percent'] ?? -1);

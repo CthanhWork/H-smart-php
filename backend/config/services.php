@@ -48,6 +48,8 @@ return [
         'payment_url' => env('VNPAY_PAY_URL', env('VNPAY_PAYMENT_URL', 'https://pay.vnpay.vn/vpcpay.html')),
         'return_url' => env('VNPAY_RETURN_URL'),
         'ipn_url' => env('VNPAY_IPN_URL'),
+        'wallet_return_url' => env('VNPAY_WALLET_RETURN_URL'),
+        'wallet_result_url' => env('VNPAY_WALLET_RESULT_URL', rtrim(env('FRONTEND_URL', 'http://localhost:5174'), '/').'/me/wallet'),
         'result_redirect_url' => env('VNPAY_RESULT_REDIRECT_URL', env('FRONTEND_URL', 'http://localhost:5173').'/me/orders'),
         'sandbox_return_fallback' => (bool) env('VNPAY_SANDBOX_RETURN_FALLBACK', false),
     ],

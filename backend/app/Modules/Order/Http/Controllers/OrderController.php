@@ -46,10 +46,6 @@ class OrderController
             'product_amount' => $productAmount,
             'shipping_fee' => $shippingFee,
             'total_amount' => $productAmount + $shippingFee,
-            'fee_base' => $feeBase,
-            'commission_rate' => $commissionRate,
-            'platform_fee' => $platformFee,
-            'seller_amount' => $productAmount - $platformFee,
             'cod_deposit_percent' => $settings->get('cod_deposit_percent'),
             'cod_deposit_amount' => (int) ceil($productAmount * $settings->get('cod_deposit_percent') / 100),
             'cod_remaining_amount' => $productAmount - (int) ceil($productAmount * $settings->get('cod_deposit_percent') / 100),
@@ -98,10 +94,10 @@ class OrderController
         ];
         $order = isset($data['product_id'])
             ? $listedAction->execute((int) $request->user()->id, (int) $data['product_id'], (int) $data['expected_price'], (string) $data['idempotency_key'], $address, $data['payment_method'] ?? 'vnpay', $settings, [
-                'shipping_fee' => (int) $data['expected_shipping_fee'], 'commission_rate' => (int) $data['expected_commission_rate'], 'cod_deposit_percent' => (int) $data['expected_cod_deposit_percent'],
+                'shipping_fee' => (int) $data['expected_shipping_fee'], 'cod_deposit_percent' => (int) $data['expected_cod_deposit_percent'],
             ])
             : $action->execute((int) $request->user()->id, (int) $data['offer_id'], $address, $data['payment_method'] ?? 'vnpay', $settings, [
-                'shipping_fee' => (int) $data['expected_shipping_fee'], 'commission_rate' => (int) $data['expected_commission_rate'], 'cod_deposit_percent' => (int) $data['expected_cod_deposit_percent'],
+                'shipping_fee' => (int) $data['expected_shipping_fee'], 'cod_deposit_percent' => (int) $data['expected_cod_deposit_percent'],
             ]);
         $notifications->send($order->seller, $order->buyer, 'order_created', 'Có đơn hàng mới', 'Bạn có đơn hàng #'.$order->id.' cho sản phẩm “'.$order->product->title.'”.', '/me/orders', ['order_id' => $order->id]);
 

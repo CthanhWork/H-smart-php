@@ -5,6 +5,7 @@ namespace App\Modules\Wallet\Http\Controllers;
 use App\Modules\Wallet\Models\WalletTransaction;
 use App\Modules\Wallet\Models\WithdrawalRequest;
 use App\Modules\Wallet\Services\WalletLedger;
+use App\Modules\Wallet\Services\WalletVnPayService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -14,7 +15,7 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class WalletController
 {
-    public function show(Request $request, WalletLedger $ledger): JsonResponse
+    public function show(Request $request, WalletLedger $ledger, WalletVnPayService $vnpayDeposits): JsonResponse
     {
         $userId = (int) $request->user()->id;
         $ledger->ensureAccount($userId);
@@ -25,6 +26,7 @@ class WalletController
                 'type' => $transaction->type,
                 'status' => $transaction->status,
                 'amount' => (int) ($transaction->metadata['amount'] ?? $transaction->entries->sum('amount')),
+                'mode' => $transaction->metadata['mode'] ?? ($transaction->type === 'simulated_deposit' ? 'simulation' : null),
                 'created_at' => $transaction->posted_at?->toIso8601String(),
             ]);
         $withdrawals = WithdrawalRequest::query()->where('user_id', $userId)->latest('id')->limit(20)->get()->map(fn (WithdrawalRequest $item) => [
@@ -32,10 +34,17 @@ class WalletController
             'reference' => $item->reference, 'created_at' => $item->created_at?->toIso8601String(),
             'decision_reason' => $item->decision_reason,
         ]);
+        $deposits = \App\Modules\Wallet\Models\WalletVnPayDeposit::query()->where('user_id', $userId)->latest('id')->limit(20)->get()->map(fn ($item) => [
+            'reference' => $item->reference, 'amount' => (int) $item->amount, 'provider' => 'vnpay', 'mode' => 'sandbox',
+            'status' => $item->status, 'expires_at' => $item->expires_at?->toIso8601String(), 'paid_at' => $item->paid_at?->toIso8601String(),
+            'resolution_note' => $item->resolution_note,
+        ]);
 
         return response()->json(['status' => 'success', 'message' => 'Số dư ví H-Smart.', 'data' => [
-            ...$ledger->balance($userId), 'transactions' => $transactions, 'withdrawals' => $withdrawals,
+            ...$ledger->balance($userId), 'transactions' => $transactions, 'withdrawals' => $withdrawals, 'deposits' => $deposits,
             'mode' => 'simulation',
+            'simulation_enabled' => in_array(app()->environment(), ['local', 'testing'], true) && config('services.wallet.simulation_enabled'),
+            'vnpay_sandbox_available' => $vnpayDeposits->sandboxAvailable(),
         ]]);
     }
 
@@ -51,7 +60,7 @@ class WalletController
         $transaction = $ledger->post($userId, $reference, 'simulated_deposit', [
             ['user_id' => $userId, 'account_code' => 'available', 'amount' => (int) $data['amount']],
             ['user_id' => null, 'account_code' => 'system_simulation_clearing', 'amount' => -(int) $data['amount']],
-        ], 'simulated_deposit', null, ['environment' => app()->environment(), 'amount' => (int) $data['amount']]);
+        ], 'simulated_deposit', null, ['environment' => app()->environment(), 'mode' => 'simulation', 'amount' => (int) $data['amount']]);
 
         return response()->json(['status' => 'success', 'message' => 'Đã cộng số dư mô phỏng; đây không phải khoản tiền thật.', 'data' => [
             'reference' => $transaction->reference, 'balance' => $ledger->balance($userId), 'mode' => 'simulation',

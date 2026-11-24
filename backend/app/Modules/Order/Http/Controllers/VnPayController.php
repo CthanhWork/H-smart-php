@@ -5,6 +5,8 @@ namespace App\Modules\Order\Http\Controllers;
 use App\Modules\Order\Models\Order;
 use App\Modules\Order\Services\VnPayService;
 use App\Modules\Notification\Services\NotificationService;
+use App\Modules\Wallet\Models\WalletVnPayDeposit;
+use App\Modules\Wallet\Services\WalletVnPayService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,8 +26,30 @@ class VnPayController
         ]);
     }
 
-    public function ipn(Request $request, VnPayService $vnpay, NotificationService $notifications): JsonResponse
+    public function ipn(Request $request, VnPayService $vnpay, WalletVnPayService $walletDeposits, NotificationService $notifications): JsonResponse
     {
+        $txnRef = (string) $request->query('vnp_TxnRef', '');
+        if (str_starts_with($txnRef, 'HWS')) {
+            $result = $walletDeposits->processCallback($request->query());
+            if ($result === 'newly_paid') {
+                $deposit = WalletVnPayDeposit::with('user')->where('reference', $txnRef)->first();
+                if ($deposit) {
+                    $notifications->send($deposit->user, null, 'wallet_vnpay_deposit_paid', 'Nạp VNPay Sandbox thành công', 'Đã ghi có '.number_format((int) $deposit->amount, 0, ',', '.').'đ vào số dư mô phỏng Sandbox.', '/me/wallet', ['reference' => $deposit->reference]);
+                }
+            }
+
+            $responseCode = match ($result) {
+                'invalid' => '97',
+                'amount_mismatch' => '04',
+                default => '00',
+            };
+
+            return response()->json([
+                'RspCode' => $responseCode,
+                'Message' => $responseCode === '97' ? 'Invalid signature or transaction' : ($responseCode === '04' ? 'Invalid amount' : 'Confirm Success'),
+            ]);
+        }
+
         $result = $vnpay->processIpn($request->query());
         if ($result === 'newly_paid') {
             $order = Order::with(['buyer', 'seller'])->where('payment_txn_ref', $request->query('vnp_TxnRef'))->first();

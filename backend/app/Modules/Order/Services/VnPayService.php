@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
+use DateTimeInterface;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 
@@ -65,9 +66,20 @@ class VnPayService
             return rtrim(config('app.url'), '/').$path;
         }
 
-        $createdAt = now()->timezone('Asia/Ho_Chi_Minh');
-        $expiresAt = $order->expires_at->timezone('Asia/Ho_Chi_Minh');
         $returnUrl = config('services.vnpay.return_url') ?: rtrim(config('app.url'), '/').'/api/v1/payments/vnpay/return';
+        return $this->createGatewayUrl((int) $order->payment_amount, (string) $order->payment_txn_ref,
+            'Thanh toan don hang '.$order->id, $order->expires_at, $request, $returnUrl);
+    }
+
+    public function createGatewayUrl(int $amount, string $txnRef, string $orderInfo, DateTimeInterface $expiresAt, Request $request, string $returnUrl): string
+    {
+        $tmnCode = config('services.vnpay.tmn_code');
+        $hashSecret = config('services.vnpay.hash_secret');
+        if (config('services.vnpay.mode') !== 'gateway' || ! $tmnCode || ! $hashSecret) {
+            throw new ServiceUnavailableHttpException(null, 'Thanh toán VNPay Sandbox chưa được cấu hình đầy đủ.');
+        }
+        $createdAt = now()->timezone('Asia/Ho_Chi_Minh');
+        $expiresAt = \Illuminate\Support\Carbon::instance($expiresAt)->timezone('Asia/Ho_Chi_Minh');
         $ipAddress = $request->ip() ?: '127.0.0.1';
         if (str_contains($ipAddress, ',')) {
             $ipAddress = trim(explode(',', $ipAddress)[0]);
@@ -77,10 +89,10 @@ class VnPayService
             'vnp_Version' => '2.1.0',
             'vnp_Command' => 'pay',
             'vnp_TmnCode' => $tmnCode,
-            'vnp_Amount' => (string) ($order->payment_amount * 100),
+            'vnp_Amount' => (string) ($amount * 100),
             'vnp_CurrCode' => 'VND',
-            'vnp_TxnRef' => $order->payment_txn_ref,
-            'vnp_OrderInfo' => 'Thanh toan don hang '.$order->id,
+            'vnp_TxnRef' => $txnRef,
+            'vnp_OrderInfo' => $orderInfo,
             'vnp_OrderType' => 'other',
             'vnp_Locale' => 'vn',
             'vnp_ReturnUrl' => $returnUrl,
@@ -113,6 +125,10 @@ class VnPayService
     /** @return 'success'|'newly_paid'|'failed'|'invalid' */
     public function processIpn(array $query): string
     {
+        if (str_starts_with((string) ($query['vnp_TxnRef'] ?? ''), 'HWS')) {
+            return 'invalid';
+        }
+
         if (! $this->verify($query)) {
             return 'invalid';
         }

@@ -17,6 +17,7 @@ import AssistantPage from './AssistantPage'
 import CartPage from './CartPage'
 import PolicyPage from './PolicyPage'
 import WalletPage from './WalletPage'
+import RevenuePage from './RevenuePage'
 import SellerProfilePage from './SellerProfilePage'
 
 
@@ -74,6 +75,7 @@ function App() {
   const isAssistant = path === '/assistant'
   const isCart = path === '/me/cart'
   const isWallet = path === '/me/wallet'
+  const isRevenue = path === '/me/revenue'
   const isPolicy = path.startsWith('/policies/')
   const isOrderCreation = path === '/orders/create'
   const sellerProfileMatch = path.match(/^\/sellers\/(\d+)$/)
@@ -309,6 +311,7 @@ function App() {
         : isAssistant ? <AssistantPage key={path} accessToken={tokens?.accessToken ?? ''} navigate={navigate} />
           : isCart && tokens ? <CartPage key={path} accessToken={tokens.accessToken} navigate={navigate} />
             : isWallet && tokens ? <WalletPage key={path} accessToken={tokens.accessToken} navigate={navigate} />
+              : isRevenue && tokens ? <RevenuePage key={path} accessToken={tokens.accessToken} navigate={navigate} />
           : isProfile && tokens ? <ProfilePage accessToken={tokens.accessToken} navigate={navigate} onSaved={(fullName) => setTokens((current) => current ? { ...current, user: { ...current.user, full_name: fullName } } : current)} />
             : isNotifications && tokens ? <NotificationsPage accessToken={tokens.accessToken} navigate={navigate} />
               : isProducts && (!isPrivateProductList || tokens) ? path === '/products' || isPrivateProductList
