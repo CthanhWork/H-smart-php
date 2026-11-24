@@ -284,7 +284,7 @@ class AssistantController
         if ($order->tracking_number) $answer .= ' Mã vận đơn: '.$order->tracking_number.'.';
         if ($order->payment_method === 'cod') {
             $answer .= $order->cod_collected_at ? ' Đơn vị giao hàng đã thu COD.' : ' Chưa ghi nhận thu COD.';
-            if ($order->seller_id === $userId) {
+            if ((int) $order->seller_id === $userId) {
                 $answer .= ' Hoa hồng sàn: '.number_format($order->platform_fee, 0, ',', '.').'đ. Người bán dự kiến nhận: '.number_format($order->product_amount - $order->platform_fee, 0, ',', '.').'đ.';
                 $answer .= $order->carrier_settled_at ? ' Tiền COD đã được đối soát về sàn.' : ' Tiền COD chưa được đối soát về sàn.';
                 $answer .= $order->seller_paid_at ? ' Khoản tiền người bán đã được ghi nhận chi trả.' : ' Chưa ghi nhận chi trả cho người bán.';

@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
+use App\Modules\Wallet\Services\WalletVnPayService;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -50,6 +51,13 @@ Artisan::command('orders:release-eligible', function (\App\Modules\Order\Actions
 })->purpose('Ghi có tiền thuần vào số dư người bán sau xác nhận giao và hết hạn khiếu nại');
 
 Schedule::command('orders:release-eligible')->everyMinute()->withoutOverlapping();
+
+Artisan::command('wallet:expire-vnpay-deposits', function (WalletVnPayService $deposits) {
+    $count = $deposits->expirePending();
+    $this->info("Đã hết hạn {$count} yêu cầu nạp VNPay chưa thanh toán.");
+})->purpose('Đánh dấu yêu cầu nạp VNPay Sandbox đã quá hạn');
+
+Schedule::command('wallet:expire-vnpay-deposits')->everyMinute()->withoutOverlapping();
 
 Artisan::command('products:expire-promotions', function (\App\Modules\Product\Services\ProductPromotionService $promotions) {
     $count = $promotions->expire();

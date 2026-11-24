@@ -24,7 +24,7 @@ class CreateOrderRequest extends FormRequest
             'payment_method' => ['sometimes', 'string', 'in:vnpay,cod,vietqr'],
             'accept_policy' => ['required', 'accepted'],
             'expected_shipping_fee' => ['required', 'integer', 'min:0'],
-            'expected_commission_rate' => ['required', 'integer', 'between:0,100'],
+            'expected_commission_rate' => ['sometimes', 'integer', 'between:0,100'],
             'expected_cod_deposit_percent' => ['required', 'integer', 'between:20,30'],
             'buyer_id' => ['prohibited'],
             'seller_id' => ['prohibited'],

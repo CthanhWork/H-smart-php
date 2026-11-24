@@ -39,10 +39,12 @@ const memberLinks = [
   { label: 'Mua sắm', href: '/products' },
   { label: 'Tin nhắn', href: '/me/messages' },
   { label: 'Đăng bán', href: '/sell' },
+  { label: 'Doanh thu', href: '/me/revenue' },
 ]
 const accountLinks = [
   { label: 'Giỏ hàng', href: '/me/cart' },
   { label: 'Số dư H-Smart (mô phỏng)', href: '/me/wallet' },
+  { label: 'Doanh thu bán hàng', href: '/me/revenue' },
   { label: 'Sản phẩm của tôi', href: '/me/products' },
   { label: 'Đề nghị mua bán', href: '/me/offers' },
   { label: 'Đơn mua', href: '/me/orders' },

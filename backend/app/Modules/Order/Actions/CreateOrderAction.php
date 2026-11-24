@@ -54,7 +54,7 @@ class CreateOrderAction
             $commissionRate = min(100, max(0, $settings->get('commission_rate')));
             $depositPercent = min(30, max(20, $settings->get('cod_deposit_percent')));
             if ($expectedPricing !== [] && ((int) ($expectedPricing['shipping_fee'] ?? -1) !== $shippingFee
-                || (int) ($expectedPricing['commission_rate'] ?? -1) !== $commissionRate
+                || (isset($expectedPricing['commission_rate']) && (int) $expectedPricing['commission_rate'] !== $commissionRate)
                 || (int) ($expectedPricing['cod_deposit_percent'] ?? -1) !== $depositPercent)) {
                 throw new ConflictHttpException('Phí hoặc tỷ lệ đặt cọc đã thay đổi. Vui lòng kiểm tra báo giá mới và xác nhận lại.');
             }

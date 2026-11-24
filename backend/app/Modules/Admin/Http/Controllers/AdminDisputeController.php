@@ -15,14 +15,17 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class AdminDisputeController
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $disputes = OrderDispute::query()->with(['opener:id,username,full_name,email', 'events.actor:id,username,full_name'])
-            ->whereIn('status', ['open', 'reconciliation_pending'])->with('order.product.images', 'order.buyer', 'order.seller')
-            ->latest('id')->paginate(30);
+        $status = $request->validate(['status' => ['sometimes', 'in:open,resolved,all']])['status'] ?? 'open';
+        $query = OrderDispute::query()->with(['opener:id,username,full_name,email', 'events.actor:id,username,full_name'])
+            ->with('order.product.images', 'order.buyer', 'order.seller');
+        if ($status === 'open') $query->whereIn('status', ['open', 'reconciliation_pending']);
+        elseif ($status === 'resolved') $query->where('status', 'resolved');
+        $disputes = $query->latest('id')->paginate(30);
         return response()->json(['status' => 'success', 'message' => 'Khiếu nại đơn hàng cần xử lý.', 'data' => [
             'content' => $disputes->getCollection()->map(fn (OrderDispute $dispute) => $this->resource($dispute))->values(),
-            'page' => $disputes->currentPage(), 'total' => $disputes->total(),
+            'page' => $disputes->currentPage(), 'total' => $disputes->total(), 'status_filter' => $status,
         ]]);
     }
 
@@ -94,6 +97,9 @@ class AdminDisputeController
             'order' => $order ? [
                 'id' => $order->id, 'status' => $order->status, 'payment_status' => $order->payment_status,
                 'payment_provider' => $order->payment_provider, 'payout_status' => $order->payout_status,
+                'payment_method' => $order->payment_method,
+                'cod_remaining_collection_type' => $order->cod_remaining_collection_type,
+                'carrier_settled_at' => $order->carrier_settled_at?->toIso8601String(),
                 'product_amount' => $order->product_amount, 'shipping_fee' => $order->shipping_fee,
                 'platform_fee' => $order->platform_fee, 'total_amount' => $order->total_amount,
                 'buyer' => $order->buyer?->only(['id', 'username', 'full_name', 'email']),

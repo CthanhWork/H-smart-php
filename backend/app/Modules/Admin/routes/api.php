@@ -18,6 +18,7 @@ use App\Modules\Admin\Http\Controllers\AdminDeliveryController;
 use App\Modules\Admin\Http\Controllers\AdminPromotionController;
 use App\Modules\Admin\Http\Controllers\AdminMarketplaceSettingsController;
 use App\Modules\Admin\Http\Controllers\AdminPaymentReconciliationController;
+use App\Modules\Admin\Http\Controllers\AdminRevenueController;
 use App\Modules\Admin\Http\Middleware\EnsureAdmin;
 use App\Modules\Auth\Http\Middleware\AuthenticateJwt;
 use Illuminate\Support\Facades\Route;
@@ -26,6 +27,7 @@ Route::prefix('v1/admin')
     ->middleware([AuthenticateJwt::class, EnsureAdmin::class])
     ->group(function (): void {
         Route::get('stats', AdminDashboardController::class);
+        Route::get('revenue', AdminRevenueController::class);
         Route::get('orders', AdminOrderController::class);
         Route::post('orders/{id}/cod', [AdminCodController::class, 'update'])->whereNumber('id');
         Route::post('orders/{id}/delivery-confirmation', [AdminDeliveryController::class, 'confirm'])->whereNumber('id');

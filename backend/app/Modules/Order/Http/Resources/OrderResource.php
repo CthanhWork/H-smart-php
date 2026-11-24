@@ -3,6 +3,7 @@
 namespace App\Modules\Order\Http\Resources;
 
 use App\Modules\Product\Http\Resources\ProductResource;
+use App\Modules\Order\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -10,17 +11,35 @@ class OrderResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $user = $request->user();
+        $canSeeSellerFinance = $user && ($user->role === 'admin' || (int) $user->id === (int) $this->seller_id);
+        $isBuyer = $user && (int) $user->id === (int) $this->buyer_id;
+        $hasOpenDispute = $isBuyer && ($this->resource->relationLoaded('disputes')
+            ? $this->disputes->contains(fn ($dispute) => $dispute->status === 'open')
+            : $this->disputes()->where('status', 'open')->exists());
+
         return [
             'id' => $this->id,
             'product_amount' => $this->product_amount,
             'shipping_fee' => $this->shipping_fee,
-            'platform_fee' => $this->platform_fee,
-            'fee_base' => $this->fee_base,
-            'commission_rate' => $this->commission_rate,
             'purchase_type' => $this->purchase_type,
             'policy_version' => $this->policy_version,
             'policy_accepted_at' => $this->policy_accepted_at?->toIso8601String(),
-            'payout_status' => $this->payout_status,
+            ...($canSeeSellerFinance ? ['seller_financials' => [
+                'fee_base' => (int) $this->fee_base,
+                'commission_rate' => (int) $this->commission_rate,
+                'platform_fee' => (int) $this->platform_fee,
+                'seller_net_amount' => max(0, (int) $this->product_amount - (int) $this->platform_fee),
+                'payout_status' => $this->payout_status,
+                'release_eligible_at' => $this->release_eligible_at?->toIso8601String(),
+                'carrier_settled_at' => $this->carrier_settled_at?->toIso8601String(),
+                'seller_paid_at' => $this->seller_paid_at?->toIso8601String(),
+                'wallet_credited_at' => $this->wallet_credited_at?->toIso8601String(),
+                'cod_remaining_collection_type' => $this->cod_remaining_collection_type,
+            ]] : []),
+            ...($isBuyer ? ['can_open_dispute' => in_array($this->status, [Order::STATUS_SHIPPING, Order::STATUS_COMPLETED], true)
+                && $this->payment_status === 'paid' && $this->payout_status !== 'credited_to_wallet'
+                && $this->seller_paid_at === null && ! $hasOpenDispute] : []),
             'total_amount' => $this->total_amount,
             'cod_collected_at' => $this->cod_collected_at?->toIso8601String(),
             'cod_deposit_percent' => $this->cod_deposit_percent,
@@ -28,10 +47,10 @@ class OrderResource extends JsonResource
             'cod_remaining_amount' => $this->cod_remaining_amount,
             'cod_remaining_collected_at' => $this->cod_remaining_collected_at?->toIso8601String(),
             'cod_deposit_wallet_consent_at' => $this->cod_deposit_wallet_consent_at?->toIso8601String(),
-            'cod_remaining_collection_type' => $this->cod_remaining_collection_type,
-            'carrier_settled_at' => $this->carrier_settled_at?->toIso8601String(),
-            'seller_paid_at' => $this->seller_paid_at?->toIso8601String(),
-            'wallet_credited_at' => $this->wallet_credited_at?->toIso8601String(),
+            ...($canSeeSellerFinance ? [
+                'cod_remaining_collection_type' => $this->cod_remaining_collection_type,
+                'carrier_settled_at' => $this->carrier_settled_at?->toIso8601String(),
+            ] : []),
             'disputes' => $this->whenLoaded('disputes', fn () => $this->disputes->map(fn ($dispute) => [
                 'id' => $dispute->id, 'opened_by' => $dispute->opened_by, 'status' => $dispute->status,
                 'reason' => $dispute->reason, 'details' => $dispute->details, 'evidence_notes' => $dispute->evidence_notes,
@@ -48,7 +67,6 @@ class OrderResource extends JsonResource
             'confirmed_at' => $this->confirmed_at?->toIso8601String(),
             'shipped_at' => $this->shipped_at?->toIso8601String(),
             'delivered_at' => $this->delivered_at?->toIso8601String(),
-            'release_eligible_at' => $this->release_eligible_at?->toIso8601String(),
             'shipping_carrier' => $this->shipping_carrier,
             'tracking_number' => $this->tracking_number,
             'delivery_status' => $this->delivery_status,
