@@ -76,7 +76,7 @@ export default function AdminPage({ accessToken, userId, navigate, onLogout }: P
     if (preview?.kind !== 'order') return
     const reason = action === 'delivery_failed' ? window.prompt('Lý do giao hàng thất bại')?.trim() : action === 'refund_deposit' ? window.prompt('Lý do hoàn cọc')?.trim() : undefined
     if ((action === 'delivery_failed' || action === 'refund_deposit') && !reason) return
-    const evidence = action === 'delivered' || action === 'carrier_settled' || action === 'seller_paid' ? window.prompt(action === 'seller_paid' ? 'Ghi căn cứ xác nhận giải ngân trong phạm vi demo/Sandbox (mã tham chiếu thử nghiệm hoặc biên bản) ' : 'Ghi căn cứ xác nhận (biên bản, mã đối soát hoặc nguồn xác minh)')?.trim() : undefined
+    const evidence = action === 'delivered' || action === 'carrier_settled' || action === 'seller_paid' ? window.prompt(action === 'seller_paid' ? 'Mã tham chiếu xác nhận giải ngân' : 'Ghi căn cứ xác nhận (mã đối soát hoặc nguồn xác minh)')?.trim() : undefined
     if ((action === 'delivered' || action === 'carrier_settled' || action === 'seller_paid') && !evidence) return
     let collectionType: 'carrier' | 'direct' | undefined
     if (action === 'delivered') {

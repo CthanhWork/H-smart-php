@@ -24,7 +24,7 @@ export default function AdminPaymentReconciliationPage({ accessToken }: Props) {
   return <section className="rounded-2xl border bg-white">
     <header className="border-b p-5">
       <h2 className="text-xl font-semibold">Lịch sử đối soát VietQR</h2>
-      <p className="mt-2 text-sm leading-6 text-slate-600">Chỉ tra cứu các bản ghi lịch sử. Dự án hiện không nhận xác nhận thanh toán VietQR mới và không tích hợp ngân hàng production; đơn VietQR cũ còn chờ vẫn giữ nguyên trạng thái để xử lý theo hồ sơ riêng.</p>
+      <p className="mt-2 text-sm leading-6 text-slate-600">Chỉ tra cứu lịch sử. Không thể tạo hoặc xác nhận giao dịch VietQR mới; đơn cũ còn chờ được giữ nguyên để xử lý theo hồ sơ riêng.</p>
     </header>
     {error && <p role="alert" className="p-4 text-sm text-red-700">{error}</p>}
     {items.length ? <div className="divide-y">{items.map((item) => <article key={item.id} className="p-4 text-sm">

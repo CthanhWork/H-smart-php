@@ -1,4 +1,4 @@
-# Chính sách mua bán H-Smart (bản demo)
+# Chính sách mua bán H-Smart
 
 ## Hoa hồng đơn hàng
 
@@ -10,7 +10,7 @@ Sản phẩm trong giỏ chưa được giữ. Khi đặt mua, máy chủ kiểm
 
 ## Thanh toán VNPay Sandbox
 
-Nạp ví và thanh toán đơn dùng VNPay Sandbox. Callback chỉ ghi nhận khi máy chủ xác minh chữ ký, số tiền và tham chiếu; redirect trình duyệt không tự xác nhận thanh toán. Đây không phải giao dịch production. Không gửi thông tin ngân hàng hoặc mã xác thực qua chatbot.
+Nạp ví và thanh toán đơn dùng VNPay Sandbox. Callback chỉ ghi nhận khi máy chủ xác minh chữ ký, số tiền và tham chiếu; redirect trình duyệt không tự xác nhận thanh toán. Không gửi thông tin ngân hàng hoặc mã xác thực qua chatbot.
 
 ## COD có đặt cọc
 
@@ -22,7 +22,7 @@ Không nhận yêu cầu VietQR mới. Bản ghi VietQR lịch sử chỉ đư�
 
 ## Dịch vụ chưa được bật
 
-Hạn mức 5 tin miễn phí/tháng và phí 5.000đ/tin từ tin thứ 6 được áp dụng trong bản demo; phí được ghi nợ từ số dư khả dụng trong sổ ví. Gói đẩy tin mặc định 10.000đ/3 ngày được ưu tiên luân phiên trong danh mục; VIP mặc định 15.000đ/7 ngày được ưu tiên luân phiên ở trang chủ và danh mục. Theo sắp xếp mặc định, tối đa ba tin ưu tiên đứng trước danh sách thường; VIP xếp trước tin đẩy và các tin cùng gói luân phiên theo lát 5 phút. Bộ lọc vẫn áp dụng, gói không đảm bảo vị trí cố định, và ưu tiên dừng khi tin hết hạn, bị ẩn hoặc bán xong. Quản trị viên có thể thay biểu phí và giới hạn cho giao dịch mới trong trang quản trị; đơn cũ giữ các giá trị đã chụp. Sổ ví ghi nhận khoản thu, khoản giữ và khoản hoàn. Sau thời hạn khiếu nại 48 giờ, đơn đủ điều kiện chuyển sang chờ admin xác nhận giải ngân; scheduler không tự ghi có. Yêu cầu chi trả cho người bán được admin xử lý thủ công trong phạm vi demo/Sandbox, không phải xác nhận chuyển khoản ngân hàng thật.
+Hạn mức 5 tin miễn phí/tháng và phí 5.000đ/tin từ tin thứ 6 được áp dụng; phí được ghi nợ từ số dư khả dụng trong sổ ví. Gói đẩy tin mặc định 10.000đ/3 ngày được ưu tiên luân phiên trong danh mục; VIP mặc định 15.000đ/7 ngày được ưu tiên luân phiên ở trang chủ và danh mục. Theo sắp xếp mặc định, tối đa ba tin ưu tiên đứng trước danh sách thường; VIP xếp trước tin đẩy và các tin cùng gói luân phiên theo lát 5 phút. Bộ lọc vẫn áp dụng, gói không đảm bảo vị trí cố định, và ưu tiên dừng khi tin hết hạn, bị ẩn hoặc bán xong. Quản trị viên có thể thay biểu phí và giới hạn cho giao dịch mới trong trang quản trị; đơn cũ giữ các giá trị đã chụp. Sổ ví ghi nhận khoản thu, khoản giữ và khoản hoàn. Sau thời hạn khiếu nại 48 giờ, đơn đủ điều kiện chuyển sang chờ admin xác nhận giải ngân; scheduler không tự ghi có. Yêu cầu chi trả cho người bán được admin xử lý thủ công; VNPay Sandbox không cung cấp luồng chuyển tiền ra ngân hàng.
 
 ## Hỗ trợ
 

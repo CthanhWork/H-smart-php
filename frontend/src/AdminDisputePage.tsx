@@ -12,7 +12,7 @@ type Dispute = {
 }
 type Props = { accessToken: string }
 const money = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)
-const providerLabels: Record<string, string> = { vnpay: 'VNPay Sandbox', vnpay_mock: 'Thanh toán dữ liệu demo', cod: 'COD', vietqr: 'VietQR (lịch sử)' }
+const providerLabels: Record<string, string> = { vnpay: 'VNPay Sandbox', vnpay_mock: 'Thanh toán trước đây', cod: 'COD', vietqr: 'VietQR (lịch sử)' }
 const payoutLabels: Record<string, string> = { awaiting_dispute_window: 'Trong thời hạn khiếu nại', awaiting_carrier_settlement: 'Chờ đối soát COD', eligible: 'Chờ quản trị viên giải ngân', held: 'Đang tạm giữ do khiếu nại', credited_to_wallet: 'Đã giải ngân vào ví', not_ready: 'Chưa đủ điều kiện', refunded: 'Đã hoàn tiền' }
 const eventLabels: Record<string, string> = { release_to_seller: 'Giải ngân cho người bán', refund_to_buyer_wallet: 'Hoàn vào ví người mua', manual_reconciliation: 'Tiếp tục chờ đối soát' }
 
