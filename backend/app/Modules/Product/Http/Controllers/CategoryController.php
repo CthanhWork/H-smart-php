@@ -12,7 +12,7 @@ class CategoryController
         return response()->json([
             'status' => 'success',
             'message' => 'Danh sách danh mục.',
-            'data' => Category::query()->orderBy('name')->get(['id', 'name', 'slug']),
+            'data' => Category::query()->where('slug', 'not like', 'qa-%')->orderBy('name')->get(['id', 'name', 'slug']),
         ]);
     }
 }

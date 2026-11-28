@@ -94,10 +94,10 @@ class AdminWithdrawalController
                 ], 'withdrawal_request', $item->id, ['sandbox_reference' => $data['sandbox_reference'] ?? null]);
                 $item->update(['status' => $success ? 'succeeded' : 'failed', 'decision_reason' => $data['note'], 'reviewed_by' => $request->user()->id, 'reviewed_at' => now(), 'paid_at' => $success ? now() : null]);
             }
-            $audit->record($request->user(), 'withdrawal_outcome_'.$data['outcome'], 'withdrawal_request', $item->id, 'Quản trị viên ghi nhận kết quả chi trả thủ công trong phạm vi Sandbox/demo.', ['reference' => $item->reference, 'sandbox_reference' => $data['sandbox_reference'] ?? null, 'note' => $data['note']]);
+            $audit->record($request->user(), 'withdrawal_outcome_'.$data['outcome'], 'withdrawal_request', $item->id, 'Quản trị viên ghi nhận kết quả chi trả thủ công trong phạm vi Sandbox.', ['reference' => $item->reference, 'sandbox_reference' => $data['sandbox_reference'] ?? null, 'note' => $data['note']]);
             return $item;
         }, 3);
-        return response()->json(['status' => 'success', 'message' => 'Đã ghi nhận kết quả chi trả thủ công trong phạm vi demo/Sandbox; đây không phải xác nhận chuyển khoản ngân hàng thật.', 'data' => $this->resource($item)]);
+        return response()->json(['status' => 'success', 'message' => 'Đã ghi nhận kết quả chi trả thủ công trong phạm vi Sandbox.', 'data' => $this->resource($item)]);
     }
 
     private function resource(WithdrawalRequest $item): array

@@ -72,7 +72,7 @@ class AdminRevenueController
 
         return response()->json(['status' => 'success', 'message' => 'Báo cáo tài chính quản trị.', 'data' => [
             'period' => ['preset' => $range['period'], 'from' => $range['from'], 'to' => $range['to'], 'timezone' => $range['timezone'], 'grain' => $range['grain']],
-            'mode' => 'Dữ liệu sổ ứng dụng; khoản thanh toán VNPay sử dụng Sandbox và chưa phải đối soát ngân hàng production.',
+            'mode' => 'Báo cáo từ sổ giao dịch H-Smart; thanh toán VNPay sử dụng Sandbox.',
             'metrics' => [
                 'paid_goods_value' => $goodsValue,
                 'paid_orders' => $paidOrderCount,

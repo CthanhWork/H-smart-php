@@ -20,9 +20,9 @@ H-Smart hỗ trợ sinh viên đăng tin, tìm và lưu sản phẩm, trả giá
 | Cơ sở dữ liệu | MySQL 8 | Lưu tài khoản, sản phẩm, đơn hàng và dữ liệu nghiệp vụ |
 | AI | Python, FastAPI, Ultralytics YOLO, Gemini API | Hỏi đáp trên tài liệu đã duyệt; nhận diện vật thể và tạo mô tả nháp từ dữ kiện sản phẩm |
 | Môi trường phát triển | Docker Compose | Khởi chạy frontend, backend, Python AI, MySQL, phpMyAdmin và Mailpit |
-| Kiểm thử | PHPUnit/Laravel feature tests, TypeScript build | Kiểm tra luồng API và biên dịch frontend |
+| Xác minh | PHPUnit, TypeScript build | Xác minh luồng API và biên dịch frontend |
 
-Các tệp triển khai chính là `compose.yaml`, `backend/Dockerfile` và `frontend/Dockerfile`. Laravel tự chạy migration khi khởi động backend. Seeder tạo tài khoản quản trị và dữ liệu sản phẩm demo trong môi trường đồ án.
+Các tệp triển khai chính là `compose.yaml`, `backend/Dockerfile` và `frontend/Dockerfile`. Laravel tự chạy migration khi khởi động backend. Seeder tạo tài khoản quản trị và dữ liệu sản phẩm khởi tạo trong môi trường phát triển.
 
 ```mermaid
 flowchart LR
@@ -39,7 +39,7 @@ flowchart LR
     PROD --> DB
     SOCIAL --> DB
     ADMIN --> DB
-    API --> MAIL[Mailpit trong môi trường demo]
+    API --> MAIL[Mailpit cho thư nội bộ]
 ```
 
 ## 3. Frontend
@@ -186,7 +186,7 @@ API được nhóm dưới tiền tố `/api/v1`. Những tuyến yêu cầu đ�
 - Seller là người chấp nhận/từ chối đề nghị; hệ thống kiểm tra trạng thái, hạn dùng và chỉ cho phép một đề nghị được chấp nhận cho sản phẩm.
 - Khi tạo đơn, backend kiểm tra bên mua, đề nghị đã chấp nhận, số tiền và địa chỉ; tạo đơn trong transaction và chuyển sản phẩm sang trạng thái giữ chỗ.
 - Một sản phẩm không được giữ bởi nhiều đơn hoạt động cùng lúc. Checkout chưa thanh toán hết hạn có thể bị hủy và giải phóng sản phẩm theo nghiệp vụ.
-- Backend tạo URL VNPay đã ký HMAC-SHA512. Production xác nhận đơn qua IPN sau khi kiểm tra chữ ký, mã merchant, mã giao dịch và số tiền. Với demo localhost, `VNPAY_SANDBOX_RETURN_FALLBACK=true` cho phép xử lý Return đã ký chỉ khi payment URL là VNPay Sandbox; production không dùng fallback này.
+- Backend tạo URL VNPay đã ký HMAC-SHA512. VNPay Sandbox xác nhận đơn qua IPN sau khi kiểm tra chữ ký, mã merchant, mã giao dịch và số tiền. Với localhost, `VNPAY_SANDBOX_RETURN_FALLBACK=true` cho phép xử lý Return đã ký chỉ khi payment URL là VNPay Sandbox.
 - Trạng thái đơn gồm `pending_payment`, `paid`, `processing`, `shipping`, `completed`, `cancelled`. Seller xác nhận và cập nhật đơn vận chuyển; mã hãng vận chuyển và tracking được lưu trên đơn; buyer hoàn tất đơn.
 
 **Tin nhắn và đánh giá**
@@ -231,16 +231,16 @@ Migration trong `backend/database/migrations` là nguồn chuẩn để dựng c
 
 So với mô hình 15 bảng trong tài liệu thiết kế, bản đang chạy lưu mã vận đơn và hãng vận chuyển trực tiếp trên `orders` thay vì có bảng `shipments`; `messages` gắn thẳng với sản phẩm và hai tài khoản thay vì tách bảng `conversations`; báo cáo được lưu ở `admin_reports`. Hai bảng `assistant_conversations` và `assistant_messages` phục vụ lịch sử chatbot.
 
-## 6. Kiểm thử và vận hành
+## 6. Xác minh và vận hành
 
 AI Service được build từ `D:\H-smart\ai-service`, gồm `POST /v1/chat` cho RAG, `POST /api/v1/predict` cho YOLO và `POST /v1/listing-description` cho YOLO kết hợp Gemini. Laravel cung cấp các endpoint đã xác thực `POST /api/v1/assistant/analyze-image` và `POST /api/v1/assistant/generate-listing-description`; ảnh chỉ được xử lý trong AI Service nội bộ, không chuyển sang Gemini.
 
 - Backend có Laravel feature tests bao phủ xác thực, danh mục, sản phẩm, yêu thích, đề nghị, đơn hàng, hồ sơ, tin nhắn, đánh giá và chức năng admin.
 - Frontend được kiểm tra kiểu và build bằng `npm run build` (`tsc -b` và Vite).
 - Docker Compose dùng volume để giữ database và tệp lưu trữ giữa các lần dừng/chạy.
-- Mailpit nhận email demo để kiểm tra liên kết xác thực và khôi phục tài khoản.
+- Mailpit nhận thư nội bộ để xác minh tài khoản và khôi phục mật khẩu.
 - phpMyAdmin được cung cấp để quan sát MySQL trong môi trường đồ án.
-- Tài khoản admin seed mặc định được mô tả trong `README.md`; đây là thông tin phục vụ demo, cần thay đổi nếu triển khai ra môi trường dùng chung.
+- Tài khoản quản trị ban đầu phải được cấu hình bằng thông tin riêng trước khi vận hành.
 
 ## 7. Phạm vi chưa triển khai hoặc còn giới hạn
 
@@ -253,6 +253,6 @@ AI Service được build từ `D:\H-smart\ai-service`, gồm `POST /v1/chat` ch
 
 ## 8. Gợi ý dùng tài liệu khi viết báo cáo
 
-Có thể dựa vào các mục trên để viết báo cáo theo thứ tự: bài toán và đối tượng sử dụng; kiến trúc tổng thể; công nghệ; thiết kế module; thiết kế dữ liệu; các luồng đăng ký/xác thực, đăng tin, trả giá, đặt hàng, nhắn tin và đánh giá; giao diện admin; bảo mật; kiểm thử; giới hạn và hướng phát triển.
+Có thể dựa vào các mục trên để viết báo cáo theo thứ tự: bài toán và đối tượng sử dụng; kiến trúc tổng thể; công nghệ; thiết kế module; thiết kế dữ liệu; các luồng đăng ký/xác thực, đăng tin, trả giá, đặt hàng, nhắn tin và đánh giá; giao diện quản trị; bảo mật; xác minh nghiệp vụ; giới hạn và hướng phát triển.
 
 Khi cần minh họa, lấy sơ đồ, chuẩn kỹ thuật và quyết định thiết kế tại `docs/architecture`. Nếu tài liệu thiết kế nói đến công nghệ hoặc module chưa liệt kê trong mục **Phạm vi chưa triển khai**, hãy trình bày đó là hướng thiết kế/mở rộng, không khẳng định đã chạy trong phiên bản hiện tại.

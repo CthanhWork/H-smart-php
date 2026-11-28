@@ -29,6 +29,7 @@ Bản triển khai và các ca kiểm thử dùng dữ liệu local/demo, VNPay 
 - Cấu hình VNPay mặc định trỏ đến `sandbox.vnpayment.vn`; backend từ chối tạo checkout và xử lý callback nếu host không phải Sandbox. Có kiểm thử khẳng định host production `pay.vnpay.vn` bị từ chối.
 - Chi trả seller có kiểm thử từ chối, thất bại, kết quả chưa rõ và xử lý lặp; khoản giữ chỉ được trả lại một lần khi từ chối/thất bại đã xác định. Tranh chấp chưa rõ tiếp tục giữ tiền.
 - Migration `2026_11_28_000002_hide_legacy_qa_listings` chuyển listing test cũ còn trạng thái đang bán sang ẩn và gỡ danh mục QA rỗng; giữ nguyên listing đã bán, đơn và sổ giao dịch. Migration đã chạy trên DB local.
+- Migration `2026_11_28_000003_archive_legacy_seed_accounts` khóa và đổi thông tin hiển thị của tài khoản QA cũ, đổi hồ sơ seller seed sang tên trung tính, gỡ liên kết danh mục QA nhưng vẫn giữ tài khoản, sản phẩm và lịch sử tài chính theo ID.
 
 ## Kết quả kiểm tra
 

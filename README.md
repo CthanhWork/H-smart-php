@@ -1,6 +1,6 @@
 # H-Smart
 
-H-Smart là đồ án chợ đồ cũ dành cho sinh viên. Dự án gồm giao diện React, API Laravel và MySQL; Docker Compose chạy toàn bộ các dịch vụ.
+H-Smart là sàn giao dịch đồ đã qua sử dụng. Dự án gồm giao diện React, API Laravel và MySQL; Docker Compose chạy toàn bộ các dịch vụ.
 
 ## Chạy bằng Docker
 
@@ -10,18 +10,18 @@ Cài Docker Desktop và bật Docker Engine. Tải mã nguồn, mở PowerShell 
 .\docker-start.ps1
 ```
 
-Lần đầu Docker sẽ tải các image và build ứng dụng. Backend tự chạy migration và nạp dữ liệu demo gồm danh mục cùng các tin đăng mẫu. Các lần chạy sau sẽ giữ dữ liệu trong Docker volumes.
+Lần đầu Docker sẽ tải các image và build ứng dụng. Backend tự chạy migration và nạp danh mục cùng các tin đăng khởi tạo. Các lần chạy sau sẽ giữ dữ liệu trong Docker volumes.
 
 Mở ứng dụng tại:
 
 - Giao diện: http://localhost:5174
 - API: http://localhost:8001
-- Hộp thư thử nghiệm: http://localhost:8026
+- Hộp thư nội bộ: http://localhost:8026
 - Quản lý cơ sở dữ liệu: http://localhost:8082
 
 ### Thanh toán VNPay Sandbox
 
-Xem [hướng dẫn cấu hình merchant Sandbox, Return/IPN và chạy thử thanh toán](docs/HUONG_DAN_THANH_TOAN_VNPAY_SANDBOX.md). Cần dùng thông tin Sandbox riêng; không commit thông tin merchant hoặc secret vào GitHub.
+Xem [hướng dẫn cấu hình merchant Sandbox và Return/IPN](docs/HUONG_DAN_THANH_TOAN_VNPAY_SANDBOX.md). Cần dùng thông tin Sandbox riêng; không commit thông tin merchant hoặc secret vào GitHub.
 
 Để hiểu cách các API doanh thu, ví VNPay, quyền xem tiền theo vai trò và xử lý khiếu nại nối với dữ liệu, xem [tài liệu luồng API tài chính cho người không chuyên kỹ thuật](docs/financial-api-flow-for-nontechnical.md).
 
@@ -60,32 +60,21 @@ docker compose -f compose.yaml -f compose.low-memory.yaml stop phpmyadmin
 
 Nếu phpMyAdmin đã chạy ở chế độ thường, dùng lệnh `stop phpmyadmin` trên khi chuyển sang chế độ tiết kiệm RAM. Để dừng ứng dụng, chạy `docker compose -f compose.yaml -f compose.low-memory.yaml down` (giữ dữ liệu).
 
-Nên dành khoảng 3 GB RAM cho máy ảo Docker trên laptop 8 GB và đóng bớt ứng dụng nặng. Lần build đầu cần thêm RAM và thời gian; script build tuần tự trong chế độ này. Đây là cấu hình cho phát triển/demo với ít người dùng đồng thời; giới hạn RAM container không bao gồm RAM của Windows, trình duyệt và Docker Desktop. Chạy `docker stats --no-stream` để xem mức dùng thực tế.
+Nên dành khoảng 3 GB RAM cho máy ảo Docker trên laptop 8 GB và đóng bớt ứng dụng nặng. Lần build đầu cần thêm RAM và thời gian; script build tuần tự trong chế độ này. Đây là cấu hình phát triển với ít người dùng đồng thời; giới hạn RAM container không bao gồm RAM của Windows, trình duyệt và Docker Desktop. Chạy `docker stats --no-stream` để xem mức dùng thực tế.
 
 Quay lại chế độ Vite phục vụ phát triển: `.\docker-start.ps1` (không có `-LowMemory`).
 
-Kết quả kiểm tra ngày 31/10/2026 trên máy host 24 GB, máy ảo Docker giới hạn khoảng 1,9 GiB:
-
-| Hạng mục | Số đo |
-| --- | --- |
-| Frontend Vite trước tối ưu | 466,9 MiB RAM |
-| Frontend Nginx sau tối ưu | 7,8 MiB RAM |
-| Tổng 6 container sau gọi API và nhận diện ảnh | Khoảng 547 MiB RAM tại thời điểm đo |
-| API danh sách sản phẩm qua Nginx, 20 request / 2 đồng thời | 20/20 thành công; median 15,2 ms, p95 22,5 ms |
-
-Phép đo API dùng `127.0.0.1` để tránh độ trễ chuyển IPv6/IPv4 của `localhost` trên máy đo. Đã kiểm tra trang chủ trong trình duyệt, reload đường dẫn SPA, API đăng nhập, upload ảnh nhận diện, gzip và cache asset. AI dùng model YOLO thật trên CPU (`demo_mode=false`). Các container không ghi nhận OOM hoặc tự khởi động lại trong lượt thử. Số RAM trên là snapshot, không phải mức đỉnh; chưa kiểm thử tải lớn hoặc trực tiếp trên phần cứng 8 GB.
-
-Tài khoản quản trị được cấu hình bằng `INITIAL_ADMIN_EMAIL` và `INITIAL_ADMIN_PASSWORD` trong `.env`. Script tự tạo `.env` sẽ sinh mật khẩu riêng; không dùng chung file `.env` chứa mật khẩu admin giữa các môi trường. Tài khoản người dùng mới cần xác thực email từ hộp thư thử nghiệm trước khi đăng nhập.
+Tài khoản quản trị được cấu hình bằng `INITIAL_ADMIN_EMAIL` và `INITIAL_ADMIN_PASSWORD` trong `.env`. Script tự tạo `.env` sẽ sinh mật khẩu riêng; không dùng chung file `.env` chứa mật khẩu admin giữa các môi trường. Tài khoản người dùng mới cần xác thực email từ hộp thư nội bộ trước khi đăng nhập.
 
 ## Dữ liệu và cơ sở dữ liệu
 
-Migration và seeder trong `backend/database` là nguồn dữ liệu có thể tái tạo. Khi khởi tạo lần đầu, `DatabaseSeeder` tạo tài khoản quản trị, các danh mục và các sản phẩm demo. Seeder sản phẩm có thể chạy lại mà không tạo bản sao cho các tin mẫu.
+Migration và seeder trong `backend/database` là nguồn dữ liệu có thể tái tạo. Khi khởi tạo lần đầu, `DatabaseSeeder` tạo tài khoản quản trị, danh mục và tin đăng khởi tạo. Seeder có thể chạy lại mà không tạo bản sao.
 
-Dự án có kèm snapshot database thử nghiệm tại `database/hsmart-demo.sql`. Trên lần khởi động đầu tiên với Docker volume mới, MySQL tự nạp snapshot này; sau đó backend chạy migration và seeder để cập nhật cấu trúc và dữ liệu mẫu. Snapshot gồm tài khoản demo, danh mục, sản phẩm và toàn bộ dữ liệu thử nghiệm hiện có.
+Dự án có kèm snapshot database tại `database/hsmart-initial.sql`. Trên lần khởi động đầu tiên với Docker volume mới, MySQL tự nạp snapshot này; sau đó backend chạy migration và seeder để cập nhật cấu trúc và dữ liệu khởi tạo.
 
 Dữ liệu sau khi chạy được lưu trong Docker volume. `docker compose down` dừng dịch vụ và giữ dữ liệu. Lệnh `docker compose down -v` xóa database và các tệp lưu trong volumes; lần khởi động tiếp theo sẽ nạp lại snapshot từ đầu. Lệnh này xóa mọi thay đổi cục bộ nên chỉ dùng khi muốn reset toàn bộ dữ liệu.
 
-Trong phpMyAdmin, chọn máy chủ `db`, đăng nhập với tên người dùng `hsmart` và mật khẩu lấy từ file `.env` ở thư mục dự án. Snapshot trong repo chỉ chứa dữ liệu phục vụ đồ án và tài khoản thử nghiệm. Không thay file snapshot bằng database thật hoặc commit `.env` lên GitHub.
+Trong phpMyAdmin, chọn máy chủ `db`, đăng nhập với tên người dùng `hsmart` và mật khẩu lấy từ file `.env` ở thư mục dự án. Không thay file snapshot bằng database vận hành hoặc commit `.env` lên GitHub.
 
 ## Lệnh thường dùng
 
@@ -118,12 +107,8 @@ Thanh toán đơn và nạp ví dùng VNPay Sandbox; các giao dịch hợp lệ
 - Không nhận yêu cầu VietQR mới. Dữ liệu đối soát cũ chỉ để tra cứu; API ghi nhận/đối soát mới trả HTTP 410. Đơn VietQR cũ còn chờ giữ nguyên trạng thái và không tự mở khóa hoặc được đánh dấu đã thanh toán.
 - Admin có thể xem các bản ghi lịch sử tại **Quản trị → Đối soát thanh toán**. Không dùng sao kê ngân hàng hoặc giao dịch ngoài Sandbox để ghi có đơn trong bản triển khai này.
 
-### Kịch bản demo thương mại
+## Cập nhật và vận hành
 
-Trong file `.env` ở thư mục gốc (được `docker-start.ps1` tạo và Git bỏ qua), đặt `SEED_COMMERCE_DEMO=true` và `DEMO_USER_PASSWORD` thành mật khẩu riêng dài ít nhất 16 ký tự. Sau khi migration và sản phẩm demo đã được seed, chạy `docker compose exec backend php artisan db:seed`. Seeder chỉ chạy trong `local`/`testing`; tài khoản đăng nhập là `demo-seller@hsmart.local` và `demo-buyer@hsmart.local`, dùng mật khẩu đã cấu hình. Seeder tạo năm lượt đăng miễn phí đã dùng, gói VIP còn hạn và đã hết hạn, món hàng trong giỏ, đơn COD đã cọc, đơn còn trong cửa sổ 48 giờ, đơn có khiếu nại, cùng số dư và yêu cầu rút tiền demo/Sandbox. Không chạy seeder này trên dữ liệu production.
+Sau khi cập nhật mã, chạy migration bằng `docker compose exec backend php artisan migrate --force`. Scheduler trong cấu hình compose chạy lệnh `orders:expire-pending`, `orders:release-eligible` và `products:expire-promotions` mỗi phút; ở môi trường khác cần chạy Laravel Scheduler liên tục. Chạy `cd frontend; npm run build` để build giao diện.
 
-Sau khi cập nhật mã, chạy migration bằng `docker compose exec backend php artisan migrate --force`. Scheduler trong cấu hình compose chạy lệnh `orders:expire-pending`, `orders:release-eligible` và `products:expire-promotions` mỗi phút; ở môi trường khác cần chạy Laravel Scheduler liên tục. Chạy `cd frontend; npm run build` để kiểm tra giao diện.
-
-Để demo: mở `/assistant`, tìm “nồi cơm điện dưới 500 nghìn”, chọn một thẻ để xem giá hiện tại, thêm vào giỏ, nhập thông tin giao nhận và đặt từng sản phẩm thành đơn riêng. Mở `/me/orders` để tiếp tục thanh toán VNPay Sandbox. Sau khi xác nhận giao hàng hợp lệ, khoản bán hàng chờ đủ 48 giờ rồi chuyển sang chờ admin giải ngân; scheduler không tự ghi có. Buyer có thể mở khiếu nại trong thời gian tiền chưa giải ngân; admin xử lý tại mục Khiếu nại. `/me/wallet` và mục Rút tiền dùng quy trình admin ghi nhận thủ công trong phạm vi demo/Sandbox; không chuyển tiền ngân hàng thật. Kiểm tra AI fallback bằng `cd ai-service; python -m unittest discover -s tests -v`. Khi Docker chạy, kiểm thử backend trên SQLite tạm trong test bằng `docker compose exec backend php artisan test`.
-
-Các trang chính sách công khai nằm tại `/policies/fees` và `/policies/payment`. Nạp, rút, ví và giải ngân vẫn là demo/Sandbox nội bộ; chưa có xác minh ngân hàng thật hay đối soát đơn vị vận chuyển thật. Không dùng chế độ demo/Sandbox như giao dịch tiền thật. Xem [chính sách chatbot đã duyệt](docs/assistant/approved/commerce-policies.md) để biết phần cần cấu hình trước khi vận hành.
+Các trang chính sách công khai nằm tại `/policies/fees` và `/policies/payment`. Nạp ví và thanh toán đơn dùng VNPay Sandbox; yêu cầu chi trả do quản trị viên xử lý thủ công. Xem [chính sách chatbot đã duyệt](docs/assistant/approved/commerce-policies.md) để biết các quy tắc nghiệp vụ.

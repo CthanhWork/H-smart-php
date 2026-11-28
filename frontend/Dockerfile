@@ -9,8 +9,6 @@ EXPOSE 5173
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--strictPort"]
 
 FROM development AS build
-ARG VITE_DEMO_MAILBOX_URL=http://localhost:8026
-ENV VITE_DEMO_MAILBOX_URL=$VITE_DEMO_MAILBOX_URL
 RUN npm run build
 
 FROM nginx:stable-alpine AS low-memory

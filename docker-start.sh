@@ -52,7 +52,7 @@ if [ $? -eq 0 ]; then
     echo ""
     echo "Truy cập ứng dụng:"
     echo "  • Giao diện web:     http://localhost:5173"
-    echo "  • Email thử nghiệm:  http://localhost:8025"
+    echo "  • Hộp thư nội bộ:    http://localhost:8025"
     echo "  • Backend API:       http://localhost:8000"
     echo "  • Quản lý database:  http://localhost:8081"
     echo ""

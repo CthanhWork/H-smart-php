@@ -35,7 +35,7 @@ class VnPayService
     {
         $mock = $this->mockEnabled();
         if (config('services.vnpay.mode') === 'mock' && ! $mock) {
-            throw new ServiceUnavailableHttpException(null, 'Thanh toán mô phỏng chỉ dùng trong môi trường local/testing.');
+            throw new ServiceUnavailableHttpException(null, 'Thanh toán VNPay chưa được cấu hình hợp lệ.');
         }
         $tmnCode = config('services.vnpay.tmn_code');
         $hashSecret = config('services.vnpay.hash_secret');

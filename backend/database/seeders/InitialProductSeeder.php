@@ -10,22 +10,22 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
-class DemoProductSeeder extends Seeder
+class InitialProductSeeder extends Seeder
 {
     /**
-     * Add realistic sample listings and Unsplash photos for local demos.
+     * Add local sample listings and Unsplash photos.
      * Safe to run repeatedly: each seller/title pair is updated in place.
      */
     public function run(): void
     {
         $seller = User::firstOrCreate(
-            ['email' => 'demo-seller@hsmart.local'],
+            ['email' => 'seller@hsmart.local'],
             [
-                'username' => 'demo-seller',
+                'username' => 'seller-hsmart',
                 'password_hash' => Hash::make(Str::random(64)),
                 'role' => 'member',
                 'status' => 'active',
-                'full_name' => 'Người bán mẫu',
+                'full_name' => 'Cửa hàng H-Smart',
             ],
         );
 

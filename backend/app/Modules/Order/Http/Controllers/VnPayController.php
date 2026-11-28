@@ -74,7 +74,7 @@ class VnPayController
         $valid = $vnpay->verify($query)
             && ($request->query('vnp_TmnCode') === config('services.vnpay.tmn_code'));
         $isSandbox = $vnpay->isSandboxGateway();
-        // Local demo browsers can reach localhost; VNPay's server cannot. Keep this fallback sandbox-only.
+        // Local browsers can reach localhost; VNPay's server cannot. Keep this fallback sandbox-only.
         $processed = $valid && config('services.vnpay.sandbox_return_fallback') && $isSandbox
             ? $vnpay->processIpn($query)
             : null;

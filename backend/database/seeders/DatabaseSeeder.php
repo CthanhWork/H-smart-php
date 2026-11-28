@@ -39,7 +39,7 @@ class DatabaseSeeder extends Seeder
                 User::firstOrCreate(['email' => $adminEmail], $attributes);
             }
         } else {
-            // The demo SQL snapshot contains a publicly known admin password.
+            // The initial SQL snapshot contains a publicly known admin password.
             // Disable that account unless the operator supplies a private password.
             $legacyAdmin = User::where('email', 'admin@hsmart.local')->first();
             if ($legacyAdmin && password_verify('Admin@123456', $legacyAdmin->password_hash)) {
@@ -48,9 +48,6 @@ class DatabaseSeeder extends Seeder
             }
         }
 
-        $this->call(DemoProductSeeder::class);
-        if (filter_var(env('SEED_COMMERCE_DEMO', false), FILTER_VALIDATE_BOOL)) {
-            $this->call(DemoCommerceSeeder::class);
-        }
+        $this->call(InitialProductSeeder::class);
     }
 }
