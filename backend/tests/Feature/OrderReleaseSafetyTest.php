@@ -34,7 +34,7 @@ class OrderReleaseSafetyTest extends TestCase
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
     }
 
-    public function test_open_dispute_holds_funds_and_scheduler_releases_only_once_after_resolution(): void
+    public function test_open_dispute_holds_funds_and_scheduler_only_marks_eligibility_after_resolution(): void
     {
         $buyer = User::create(['username' => 'release-buyer', 'email' => 'release-buyer@example.test', 'password_hash' => 'unused']);
         $seller = User::create(['username' => 'release-seller', 'email' => 'release-seller@example.test', 'password_hash' => 'unused']);
@@ -61,14 +61,18 @@ class OrderReleaseSafetyTest extends TestCase
         $this->assertSame(0, $ledger->balance((int) $seller->id)['available']);
         $this->assertSame(98_000, $ledger->balance((int) $seller->id)['pending_release']);
 
+        $dispute->update(['status' => 'reconciliation_pending']);
+        $this->assertSame(0, $action->execute($ledger, $notifications));
+        $this->assertSame('awaiting_dispute_window', $order->fresh()->payout_status);
+
         $dispute->update(['status' => 'resolved']);
         $this->assertSame(1, $action->execute($ledger, $notifications));
         $this->assertSame(0, $action->execute($ledger, $notifications));
-        $this->assertSame(98_000, $ledger->balance((int) $seller->id)['available']);
-        $this->assertSame(0, $ledger->balance((int) $seller->id)['pending_release']);
-        $this->assertSame(1, WalletTransaction::where('reference', 'ORDER_RELEASE_'.$order->id)->count());
-        $this->assertNotNull($order->fresh()->wallet_credited_at);
-        $this->assertNotNull($order->fresh()->seller_paid_at);
+        $this->assertSame(0, $ledger->balance((int) $seller->id)['available']);
+        $this->assertSame(98_000, $ledger->balance((int) $seller->id)['pending_release']);
+        $this->assertSame(0, WalletTransaction::where('reference', 'ORDER_RELEASE_'.$order->id)->count());
+        $this->assertNull($order->fresh()->wallet_credited_at);
+        $this->assertNull($order->fresh()->seller_paid_at);
     }
 
     public function test_buyer_confirmation_does_not_shorten_the_delivery_dispute_window(): void
@@ -102,8 +106,9 @@ class OrderReleaseSafetyTest extends TestCase
         Carbon::setTestNow($releaseAt);
         $this->assertSame(1, $action->execute($ledger, $notifications));
         $this->assertSame(0, $action->execute($ledger, $notifications));
-        $this->assertSame(98_000, $ledger->balance((int) $seller->id)['available']);
-        $this->assertSame(1, WalletTransaction::where('reference', 'ORDER_RELEASE_'.$order->id)->count());
+        $this->assertSame(0, $ledger->balance((int) $seller->id)['available']);
+        $this->assertSame(98_000, $ledger->balance((int) $seller->id)['pending_release']);
+        $this->assertSame(0, WalletTransaction::where('reference', 'ORDER_RELEASE_'.$order->id)->count());
         Carbon::setTestNow();
     }
 }

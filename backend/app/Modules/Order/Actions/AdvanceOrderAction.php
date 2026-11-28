@@ -41,7 +41,7 @@ class AdvanceOrderAction
                 if (! in_array($order->status, [Order::STATUS_SHIPPING, Order::STATUS_COMPLETED], true) || $order->payout_status === 'credited_to_wallet') {
                     throw new ConflictHttpException('Đơn hàng chưa thể xác nhận đã nhận hoặc đã được giải ngân vào số dư.');
                 }
-                if ($order->disputes()->where('status', 'open')->exists()) {
+                if ($order->disputes()->whereIn('status', ['open', 'reconciliation_pending'])->exists() || $order->payout_status === 'held') {
                     throw new ConflictHttpException('Đơn đang có khiếu nại; hãy chờ quản trị viên xử lý.');
                 }
                 $confirmedAt = $order->buyer_confirmed_at ?? now();

@@ -71,9 +71,6 @@ class ListingPublicationService
             if ($expectedFee !== $quote['fee']) throw new ConflictHttpException('Hạn mức tháng đã thay đổi. Chưa thu tiền; hãy tải lại báo giá mới là '.(int) $quote['fee'].'đ.');
 
             if ($quote['fee'] > 0) {
-                if (! in_array(app()->environment(), ['local', 'testing'], true) || ! config('services.wallet.simulation_enabled')) {
-                    throw new ConflictHttpException('Thanh toán phí đăng tin bằng số dư chỉ bật trong môi trường mô phỏng local/testing.');
-                }
                 $ledger->post($sellerId, $publication->reference, 'listing_fee', [
                     ['user_id' => $sellerId, 'account_code' => 'available', 'amount' => -$quote['fee']],
                     ['user_id' => null, 'account_code' => 'platform_revenue', 'amount' => $quote['fee']],

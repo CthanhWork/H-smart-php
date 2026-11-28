@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Order\Actions\ExpirePendingOrdersAction;
 use App\Modules\Order\Models\Order;
-use App\Modules\Order\Services\VietQrPaymentAdapter;
 use App\Modules\Order\Services\VnPayService;
 use App\Modules\Product\Models\Product;
 use App\Modules\User\Models\User;
@@ -13,6 +12,7 @@ use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Testing\TestCase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -21,6 +21,9 @@ class VnPayMockTest extends TestCase
 {
     public function createApplication()
     {
+        putenv('APP_ENV=testing');
+        $_ENV['APP_ENV'] = 'testing';
+        $_SERVER['APP_ENV'] = 'testing';
         $app = require __DIR__.'/../../bootstrap/app.php';
         $app->make(Kernel::class)->bootstrap();
 
@@ -103,18 +106,7 @@ class VnPayMockTest extends TestCase
     public function test_pending_payment_attempt_cannot_be_replaced_by_a_different_provider(): void
     {
         [$order, , $request] = $this->checkout();
-        config([
-            'services.vietqr.bank_id' => '970436',
-            'services.vietqr.account_number' => '1234567890',
-            'services.vietqr.account_name' => 'H SMART DEMO',
-        ]);
-
-        try {
-            app(VietQrPaymentAdapter::class)->instruction($order);
-            $this->fail('A pending VNPay request was replaced by VietQR.');
-        } catch (ConflictHttpException) {
-            $this->assertSame('vnpay_mock', $order->fresh()->payment_provider);
-        }
+        $this->assertFalse(Route::has('orders.vietqr.create'), 'No route may create new VietQR payment instructions.');
 
         $order->update(['payment_provider' => 'vietqr', 'payment_txn_ref' => 'QR-PENDING-REFERENCE', 'payment_status' => 'pending']);
         try {
@@ -168,7 +160,7 @@ class VnPayMockTest extends TestCase
         config(['services.vnpay.tmn_code' => 'TEST', 'services.vnpay.hash_secret' => 'test-secret']);
         $query = ['vnp_TmnCode' => 'TEST', 'vnp_TxnRef' => $order->payment_txn_ref, 'vnp_Amount' => '15000000', 'vnp_ResponseCode' => '00', 'vnp_TransactionStatus' => '00'];
         ksort($query);
-        $query['vnp_SecureHash'] = hash_hmac('sha512', http_build_query($query), 'test-secret');
+        $query['vnp_SecureHash'] = hash_hmac('sha512', collect($query)->map(fn ($value, $key) => urlencode((string) $key).'='.urlencode((string) $value))->implode('&'), 'test-secret');
         $this->assertSame('invalid', app(VnPayService::class)->processIpn($query));
         app(VnPayService::class)->processMock($order, 'failed');
         config(['services.vnpay.mode' => 'gateway']);
@@ -203,10 +195,10 @@ class VnPayMockTest extends TestCase
             'vnp_TransactionStatus' => '00',
         ];
         ksort($callback);
-        $callback['vnp_SecureHash'] = hash_hmac('sha512', http_build_query($callback, '', '&', PHP_QUERY_RFC1738), 'test-secret');
+        $callback['vnp_SecureHash'] = hash_hmac('sha512', collect($callback)->map(fn ($value, $key) => urlencode((string) $key).'='.urlencode((string) $value))->implode('&'), 'test-secret');
 
         $this->get('/api/v1/payments/vnpay/return?'.http_build_query($callback))
-            ->assertRedirect('http://localhost:5174/payment-result?payment=success');
+            ->assertRedirect('http://localhost:5174/payment-result?payment=success&order='.$order->id);
         $this->assertSame('paid', $order->refresh()->payment_status);
         $this->assertSame('paid', $order->status);
         $this->assertSame('sold', $product->refresh()->status);

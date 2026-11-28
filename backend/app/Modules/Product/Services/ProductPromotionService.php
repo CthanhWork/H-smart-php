@@ -50,10 +50,6 @@ class ProductPromotionService
             if ($expectedFee !== $package['fee']) {
                 throw new ConflictHttpException('Giá gói đã thay đổi. Chưa thu tiền; hãy xem lại giá hiện tại.');
             }
-            if (! in_array(app()->environment(), ['local', 'testing'], true) || ! config('services.wallet.simulation_enabled')) {
-                throw new ConflictHttpException('Thanh toán gói ưu tiên bằng số dư chỉ bật trong môi trường mô phỏng local/testing.');
-            }
-
             $active = ProductPromotion::where('product_id', $product->id)->where('package_type', $packageType)
                 ->where('status', 'active')->where('expires_at', '>', now())->orderByDesc('expires_at')->lockForUpdate()->first();
             $startsAt = $active && $active->expires_at->isFuture() ? $active->expires_at->copy() : now();

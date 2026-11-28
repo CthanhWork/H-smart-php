@@ -21,7 +21,7 @@ class CreateOrderRequest extends FormRequest
             'recipient_name' => ['required', 'string', 'min:2', 'max:150'],
             'phone' => ['required', 'string', 'min:8', 'max:30'],
             'address' => ['required', 'string', 'min:5', 'max:500'],
-            'payment_method' => ['sometimes', 'string', 'in:vnpay,cod,vietqr'],
+            'payment_method' => ['sometimes', 'string', 'in:vnpay,cod'],
             'accept_policy' => ['required', 'accepted'],
             'expected_shipping_fee' => ['required', 'integer', 'min:0'],
             'expected_commission_rate' => ['sometimes', 'integer', 'between:0,100'],

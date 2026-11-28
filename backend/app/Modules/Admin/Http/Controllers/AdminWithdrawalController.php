@@ -16,7 +16,7 @@ class AdminWithdrawalController
     public function index(): JsonResponse
     {
         $requests = WithdrawalRequest::with('user:id,username,email')->latest('id')->paginate(30);
-        return response()->json(['status' => 'success', 'message' => 'Yêu cầu rút tiền mô phỏng.', 'data' => [
+        return response()->json(['status' => 'success', 'message' => 'Yêu cầu chi trả cho người bán.', 'data' => [
             'content' => $requests->getCollection()->map(fn (WithdrawalRequest $item) => $this->resource($item))->values(),
             'page' => $requests->currentPage(), 'total' => $requests->total(),
         ]]);
@@ -39,7 +39,7 @@ class AdminWithdrawalController
             $item = WithdrawalRequest::lockForUpdate()->findOrFail($id);
             if ($item->status !== 'pending_review') throw new ConflictHttpException('Chỉ yêu cầu đang chờ duyệt mới chuyển sang xử lý được.');
             $item->update(['status' => 'processing', 'reviewed_by' => $request->user()->id, 'reviewed_at' => now()]);
-            $audit->record($request->user(), 'withdrawal_processing', 'withdrawal_request', $item->id, 'Bắt đầu xử lý yêu cầu rút mô phỏng.', ['reference' => $item->reference]);
+            $audit->record($request->user(), 'withdrawal_processing', 'withdrawal_request', $item->id, 'Bắt đầu xử lý yêu cầu chi trả thủ công.', ['reference' => $item->reference]);
             return $item;
         });
         return response()->json(['status' => 'success', 'message' => 'Yêu cầu đang xử lý; số tiền vẫn được giữ.', 'data' => $this->resource($item)]);
@@ -62,35 +62,42 @@ class AdminWithdrawalController
         $data = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:1000']]);
         $item = DB::transaction(function () use ($request, $id, $ledger, $audit, $data): WithdrawalRequest {
             $item = WithdrawalRequest::lockForUpdate()->findOrFail($id);
-            if ($item->status !== 'pending_review') throw new ConflictHttpException('Chỉ có thể từ chối trước khi bắt đầu chuyển tiền.');
+            if ($item->status !== 'pending_review') throw new ConflictHttpException('Chỉ có thể từ chối trước khi bắt đầu xử lý chi trả.');
             $ledger->post($item->user_id, 'WITHDRAW_REJECT_'.$item->id, 'withdrawal_rejected', [
                 ['user_id' => $item->user_id, 'account_code' => 'withdrawal_hold', 'amount' => -$item->amount],
                 ['user_id' => $item->user_id, 'account_code' => 'available', 'amount' => $item->amount],
             ], 'withdrawal_request', $item->id, ['reason' => $data['reason'], 'amount' => $item->amount]);
             $item->update(['status' => 'rejected', 'decision_reason' => $data['reason'], 'reviewed_by' => $request->user()->id, 'reviewed_at' => now()]);
-            $audit->record($request->user(), 'withdrawal_rejected', 'withdrawal_request', $item->id, 'Từ chối yêu cầu rút và hoàn số dư đang giữ.', ['reference' => $item->reference, 'reason' => $data['reason']]);
+            $audit->record($request->user(), 'withdrawal_rejected', 'withdrawal_request', $item->id, 'Từ chối yêu cầu chi trả và hoàn số dư đang giữ.', ['reference' => $item->reference, 'reason' => $data['reason']]);
             return $item;
         }, 3);
         return response()->json(['status' => 'success', 'message' => 'Đã từ chối và trả số dư về khả dụng.', 'data' => $this->resource($item)]);
     }
 
-    public function simulatePaid(Request $request, int $id, WalletLedger $ledger, AdminAuditLogger $audit): JsonResponse
+    public function confirmOutcome(Request $request, int $id, WalletLedger $ledger, AdminAuditLogger $audit): JsonResponse
     {
-        if (! in_array(app()->environment(), ['local', 'testing'], true) || ! config('services.wallet.simulation_enabled')) {
-            throw new ConflictHttpException('Không thể ghi nhận chi trả mô phỏng ngoài môi trường local/testing đã bật.');
-        }
-        $item = DB::transaction(function () use ($request, $id, $ledger, $audit): WithdrawalRequest {
+        $data = $request->validate(['outcome' => ['required', 'in:succeeded,failed,uncertain'], 'note' => ['required', 'string', 'min:5', 'max:1000'], 'sandbox_reference' => ['required_if:outcome,succeeded', 'nullable', 'string', 'min:3', 'max:100', 'regex:/^[A-Za-z0-9._-]+$/']]);
+        $item = DB::transaction(function () use ($request, $id, $ledger, $audit, $data): WithdrawalRequest {
             $item = WithdrawalRequest::lockForUpdate()->findOrFail($id);
             if (! in_array($item->status, ['processing', 'reconciliation_pending'], true)) throw new ConflictHttpException('Yêu cầu phải đang xử lý hoặc chờ đối soát.');
-            $ledger->post($item->user_id, 'WITHDRAW_SIMPAID_'.$item->id, 'simulated_withdrawal_paid', [
-                ['user_id' => $item->user_id, 'account_code' => 'withdrawal_hold', 'amount' => -$item->amount],
-                ['user_id' => null, 'account_code' => 'system_simulation_clearing', 'amount' => $item->amount],
-            ], 'withdrawal_request', $item->id, ['simulation' => true]);
-            $item->update(['status' => 'succeeded_simulated', 'reviewed_by' => $request->user()->id, 'reviewed_at' => now(), 'paid_at' => now()]);
-            $audit->record($request->user(), 'withdrawal_simulated_paid', 'withdrawal_request', $item->id, 'Ghi nhận kết quả chi trả mô phỏng; không chuyển tiền thật.', ['reference' => $item->reference]);
+            if ($data['outcome'] === 'uncertain') {
+                $item->update(['status' => 'reconciliation_pending', 'decision_reason' => $data['note'], 'reviewed_by' => $request->user()->id, 'reviewed_at' => now()]);
+            } else {
+                $success = $data['outcome'] === 'succeeded';
+                if (! $success) $ledger->post($item->user_id, 'WITHDRAW_FAIL_'.$item->id, 'withdrawal_failed', [
+                    ['user_id' => $item->user_id, 'account_code' => 'withdrawal_hold', 'amount' => -$item->amount],
+                    ['user_id' => $item->user_id, 'account_code' => 'available', 'amount' => $item->amount],
+                ], 'withdrawal_request', $item->id, ['reason' => $data['note'], 'amount' => $item->amount]);
+                else $ledger->post($item->user_id, 'WITHDRAW_PAID_'.$item->id, 'withdrawal_paid_manual', [
+                    ['user_id' => $item->user_id, 'account_code' => 'withdrawal_hold', 'amount' => -$item->amount],
+                    ['user_id' => null, 'account_code' => 'manual_payout_clearing', 'amount' => $item->amount],
+                ], 'withdrawal_request', $item->id, ['sandbox_reference' => $data['sandbox_reference'] ?? null]);
+                $item->update(['status' => $success ? 'succeeded' : 'failed', 'decision_reason' => $data['note'], 'reviewed_by' => $request->user()->id, 'reviewed_at' => now(), 'paid_at' => $success ? now() : null]);
+            }
+            $audit->record($request->user(), 'withdrawal_outcome_'.$data['outcome'], 'withdrawal_request', $item->id, 'Quản trị viên ghi nhận kết quả chi trả thủ công trong phạm vi Sandbox/demo.', ['reference' => $item->reference, 'sandbox_reference' => $data['sandbox_reference'] ?? null, 'note' => $data['note']]);
             return $item;
         }, 3);
-        return response()->json(['status' => 'success', 'message' => 'Đã hoàn tất mô phỏng. Không có lệnh chuyển tiền thật.', 'data' => $this->resource($item)]);
+        return response()->json(['status' => 'success', 'message' => 'Đã ghi nhận kết quả chi trả thủ công trong phạm vi demo/Sandbox; đây không phải xác nhận chuyển khoản ngân hàng thật.', 'data' => $this->resource($item)]);
     }
 
     private function resource(WithdrawalRequest $item): array

@@ -2,16 +2,17 @@
 
 namespace Tests\Feature;
 
-use App\Modules\User\Models\User;
 use App\Modules\Order\Models\Order;
 use App\Modules\Order\Models\OrderDispute;
 use App\Modules\Product\Models\Product;
+use App\Modules\User\Models\User;
 use App\Modules\Wallet\Models\WalletEntry;
 use App\Modules\Wallet\Models\WalletVnPayDeposit;
+use App\Modules\Wallet\Models\WithdrawalRequest;
 use App\Modules\Wallet\Services\WalletLedger;
-use App\Modules\Wallet\Services\WalletVnPayService;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Testing\TestCase;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Symfony\Component\Process\Process;
@@ -51,7 +52,7 @@ class WalletVnPayMysqlLockTest extends TestCase
                 'vnp_TransactionStatus' => '00', 'vnp_TxnRef' => $deposit->reference,
             ];
             ksort($query);
-            $query['vnp_SecureHash'] = hash_hmac('sha512', http_build_query($query, '', '&', PHP_QUERY_RFC1738), 'mysql-lock-test-secret');
+            $query['vnp_SecureHash'] = hash_hmac('sha512', collect($query)->map(fn ($value, $key) => urlencode((string) $key).'='.urlencode((string) $value))->implode('&'), 'mysql-lock-test-secret');
             $payload = base64_encode(json_encode([
                 'query' => $query, 'tmn_code' => 'MYSQLTEST', 'hash_secret' => 'mysql-lock-test-secret',
                 'database_default' => config('database.default'),
@@ -146,6 +147,74 @@ class WalletVnPayMysqlLockTest extends TestCase
             $product->delete();
             DB::table('wallet_accounts')->whereIn('user_id', [$admin->id, $buyer->id, $seller->id])->delete();
             User::whereIn('id', [$admin->id, $buyer->id, $seller->id])->delete();
+        }
+    }
+
+    public function test_mysql_two_admins_can_confirm_one_withdrawal_only_once(): void
+    {
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            $this->markTestSkipped('Run with DB_CONNECTION=mysql to exercise MySQL row locks.');
+        }
+
+        $suffix = Str::lower(Str::random(12));
+        $adminOne = User::create(['username' => 'payout_admin_1_'.$suffix, 'email' => $suffix.'-admin1@example.test', 'password_hash' => 'unused', 'role' => 'admin']);
+        $adminTwo = User::create(['username' => 'payout_admin_2_'.$suffix, 'email' => $suffix.'-admin2@example.test', 'password_hash' => 'unused', 'role' => 'admin']);
+        $seller = User::create(['username' => 'payout_seller_'.$suffix, 'email' => $suffix.'-seller@example.test', 'password_hash' => 'unused']);
+        $ledger = app(WalletLedger::class);
+        $ledger->post($seller->id, 'mysql-withdrawal-fund-'.$suffix, 'test_credit', [
+            ['user_id' => $seller->id, 'account_code' => 'available', 'amount' => 120_000],
+            ['user_id' => null, 'account_code' => 'test_clearing', 'amount' => -120_000],
+        ]);
+        $withdrawal = WithdrawalRequest::create([
+            'user_id' => $seller->id, 'amount' => 80_000,
+            'bank_details_ciphertext' => Crypt::encryptString(json_encode([
+                'bank_name' => 'Ngân hàng kiểm thử', 'account_holder' => 'Seller thử nghiệm', 'account_number' => '12345678901',
+            ], JSON_THROW_ON_ERROR)),
+            'status' => 'processing', 'reference' => 'WITHDRAW_MYSQL_'.$suffix,
+            'idempotency_key' => 'mysql-withdrawal-'.$suffix,
+        ]);
+        $ledger->post($seller->id, 'MYSQL_WITHDRAW_HOLD_'.$suffix, 'withdrawal_hold', [
+            ['user_id' => $seller->id, 'account_code' => 'available', 'amount' => -80_000],
+            ['user_id' => $seller->id, 'account_code' => 'withdrawal_hold', 'amount' => 80_000],
+        ], 'withdrawal_request', $withdrawal->id, ['amount' => 80_000]);
+        $workerPath = __DIR__.'/../Fixtures/wallet_vnpay_callback_worker.php';
+
+        try {
+            $workers = collect([$adminOne, $adminTwo])->map(function (User $admin) use ($workerPath, $withdrawal): Process {
+                $payload = base64_encode(json_encode([
+                    'mode' => 'withdrawal_outcome', 'withdrawal_id' => $withdrawal->id, 'admin_id' => $admin->id,
+                    'database_default' => config('database.default'),
+                    'database_connection' => config('database.connections.'.config('database.default')),
+                ], JSON_THROW_ON_ERROR));
+
+                return new Process([PHP_BINARY, $workerPath, $payload]);
+            });
+            foreach ($workers as $worker) {
+                $worker->start();
+            }
+            foreach ($workers as $worker) {
+                $worker->wait();
+            }
+
+            foreach ($workers as $worker) {
+                $this->assertTrue($worker->isSuccessful(), $worker->getErrorOutput().' '.$worker->getOutput());
+            }
+            $this->assertEqualsCanonicalizing(['succeeded', 'conflict'], $workers->map(fn (Process $worker) => trim($worker->getOutput()))->all());
+            $this->assertSame('succeeded', $withdrawal->fresh()->status);
+            $this->assertSame(40_000, $ledger->balance((int) $seller->id)['available']);
+            $this->assertSame(0, $ledger->balance((int) $seller->id)['withdrawal_hold']);
+            $transaction = DB::table('wallet_transactions')->where('reference', 'WITHDRAW_PAID_'.$withdrawal->id)->first();
+            $this->assertNotNull($transaction);
+            $this->assertSame(2, DB::table('wallet_entries')->where('wallet_transaction_id', $transaction->id)->count());
+            $this->assertSame(1, DB::table('admin_audit_logs')->where('subject_type', 'withdrawal_request')->where('subject_id', $withdrawal->id)->where('action', 'withdrawal_outcome_succeeded')->count());
+        } finally {
+            DB::table('admin_audit_logs')->where('subject_type', 'withdrawal_request')->where('subject_id', $withdrawal->id)->delete();
+            $transactionIds = DB::table('wallet_entries')->where('user_id', $seller->id)->pluck('wallet_transaction_id')->unique();
+            DB::table('wallet_entries')->whereIn('wallet_transaction_id', $transactionIds)->delete();
+            DB::table('wallet_transactions')->whereIn('id', $transactionIds)->delete();
+            $withdrawal->delete();
+            DB::table('wallet_accounts')->where('user_id', $seller->id)->delete();
+            User::whereIn('id', [$adminOne->id, $adminTwo->id, $seller->id])->delete();
         }
     }
 }

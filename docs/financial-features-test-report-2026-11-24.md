@@ -2,6 +2,8 @@
 
 Ngày kiểm tra: 24/11/2026. Phạm vi là bốn yêu cầu doanh thu, nạp VNPay Sandbox, ẩn phí theo vai trò của từng đơn và xử lý khiếu nại. Báo cáo này bổ sung, không thay thế [báo cáo tích hợp ngày 22/11/2026](integration-test-report-followup-2026-11-22.md).
 
+> **Bản ghi lịch sử, không phải trạng thái hiện tại.** Một số dòng bên dưới ghi lại nút nạp QA và số dư mô phỏng từng có trong phiên bản ngày 24/11. Luồng nạp trực tiếp đó đã bị gỡ khỏi ứng dụng; mock chỉ còn trong test tự động. Báo cáo này không chứng minh giao dịch VNPay Sandbox end-to-end hay chuyển khoản thật. Từ 28/11, luồng ứng dụng quy định nạp/thanh toán qua VNPay Sandbox và admin ghi nhận chi trả thủ công trên dữ liệu thử nghiệm.
+
 ## Kết quả theo yêu cầu
 
 ### 1. Doanh thu người bán và quản trị viên

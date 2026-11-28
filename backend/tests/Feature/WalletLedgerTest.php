@@ -6,6 +6,7 @@ use App\Modules\User\Models\User;
 use App\Modules\Wallet\Http\Controllers\WalletController;
 use App\Modules\Wallet\Models\WalletEntry;
 use App\Modules\Wallet\Models\WithdrawalRequest;
+use App\Modules\Wallet\Models\SellerBankAccount;
 use App\Modules\Wallet\Services\WalletLedger;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Testing\TestCase;
@@ -96,11 +97,10 @@ class WalletLedgerTest extends TestCase
             ['user_id' => $user->id, 'account_code' => 'available', 'amount' => 100_000],
             ['user_id' => null, 'account_code' => 'system_simulation_clearing', 'amount' => -100_000],
         ]);
-        config(['services.wallet.simulation_enabled' => true]);
+        SellerBankAccount::create(['user_id' => $user->id, 'details_ciphertext' => \Illuminate\Support\Facades\Crypt::encryptString(json_encode(['bank_name' => 'Ngân hàng thử nghiệm', 'account_holder' => 'Người dùng thử nghiệm', 'account_number' => '1234567890']))]);
 
         $request = Request::create('/api/v1/wallet/withdraw', 'POST', [
-            'amount' => 80_000, 'idempotency_key' => 'withdraw-request-key-0001',
-            'bank_name' => 'Ngân hàng thử nghiệm', 'account_holder' => 'Người dùng thử nghiệm', 'account_number' => '1234567890',
+            'amount' => 80_000, 'idempotency_key' => 'withdraw-request-key-0001', 'confirm_bank_details' => true,
         ]);
         $request->setUserResolver(fn () => $user);
         $response = app(WalletController::class)->withdraw($request, $ledger);
@@ -112,8 +112,7 @@ class WalletLedgerTest extends TestCase
         $this->assertNotSame('1234567890', $withdrawal->bank_details_ciphertext);
 
         $second = Request::create('/api/v1/wallet/withdraw', 'POST', [
-            'amount' => 60_000, 'idempotency_key' => 'withdraw-request-key-0002',
-            'bank_name' => 'Ngân hàng thử nghiệm', 'account_holder' => 'Người dùng thử nghiệm', 'account_number' => '9876543210',
+            'amount' => 60_000, 'idempotency_key' => 'withdraw-request-key-0002', 'confirm_bank_details' => true,
         ]);
         $second->setUserResolver(fn () => $user);
         try {
@@ -134,10 +133,9 @@ class WalletLedgerTest extends TestCase
             ['user_id' => $user->id, 'account_code' => 'available', 'amount' => 120_000],
             ['user_id' => null, 'account_code' => 'system_simulation_clearing', 'amount' => -120_000],
         ]);
-        config(['services.wallet.simulation_enabled' => true]);
+        SellerBankAccount::create(['user_id' => $user->id, 'details_ciphertext' => \Illuminate\Support\Facades\Crypt::encryptString(json_encode(['bank_name' => 'Ngân hàng thử nghiệm', 'account_holder' => 'Người dùng thử', 'account_number' => '1234567890']))]);
         $payload = [
-            'amount' => 50_000, 'idempotency_key' => 'withdraw-payload-key-001',
-            'bank_name' => 'Ngân hàng thử nghiệm', 'account_holder' => 'Người dùng thử', 'account_number' => '1234567890',
+            'amount' => 50_000, 'idempotency_key' => 'withdraw-payload-key-001', 'confirm_bank_details' => true,
         ];
         $request = Request::create('/api/v1/me/wallet/withdrawals', 'POST', $payload);
         $request->setUserResolver(fn () => $user);
@@ -157,5 +155,62 @@ class WalletLedgerTest extends TestCase
         $this->assertSame(70_000, $ledger->balance($user->id)['available']);
         $this->assertSame(50_000, $ledger->balance($user->id)['withdrawal_hold']);
         $this->assertSame(1, WithdrawalRequest::where('idempotency_key', 'withdraw-payload-key-001')->count());
+    }
+
+    public function test_bank_account_is_encrypted_masked_and_scoped_to_the_owner(): void
+    {
+        $owner = User::create(['username' => 'bank-owner', 'email' => 'bank-owner@example.test', 'password_hash' => 'unused']);
+        $other = User::create(['username' => 'bank-other', 'email' => 'bank-other@example.test', 'password_hash' => 'unused']);
+        $request = Request::create('/api/v1/me/wallet/bank-account', 'PUT', [
+            'bank_name' => 'Ngân hàng thử nghiệm', 'account_holder' => 'Người bán thử nghiệm', 'account_number' => '  1234-567  ',
+        ]);
+        $request->setUserResolver(fn () => $owner);
+        $saved = app(WalletController::class)->saveBankAccount($request)->getData(true)['data'];
+
+        $this->assertSame('•••4567', $saved['masked_account_number']);
+        $stored = SellerBankAccount::where('user_id', $owner->id)->firstOrFail();
+        $this->assertStringNotContainsString('1234567', $stored->details_ciphertext);
+        $otherRequest = Request::create('/api/v1/me/wallet/bank-account', 'GET');
+        $otherRequest->setUserResolver(fn () => $other);
+        $this->assertNull(app(WalletController::class)->bankAccount($otherRequest)->getData(true)['data']);
+        $ownerRequest = Request::create('/api/v1/me/wallet/bank-account', 'GET');
+        $ownerRequest->setUserResolver(fn () => $owner);
+        $this->assertSame($saved, app(WalletController::class)->bankAccount($ownerRequest)->getData(true)['data']);
+    }
+
+    public function test_withdrawal_snapshot_is_immutable_and_cancel_returns_hold_only_once(): void
+    {
+        $user = User::create(['username' => 'snapshot-seller', 'email' => 'snapshot-seller@example.test', 'password_hash' => 'unused']);
+        $ledger = app(WalletLedger::class);
+        $ledger->post($user->id, 'snapshot-test-topup-001', 'test_credit', [
+            ['user_id' => $user->id, 'account_code' => 'available', 'amount' => 120_000],
+            ['user_id' => null, 'account_code' => 'test_clearing', 'amount' => -120_000],
+        ]);
+        SellerBankAccount::create(['user_id' => $user->id, 'details_ciphertext' => \Illuminate\Support\Facades\Crypt::encryptString(json_encode(['bank_name' => 'Ngân hàng cũ', 'account_holder' => 'Chủ tài khoản cũ', 'account_number' => '12345678901']))]);
+        $withdrawRequest = Request::create('/api/v1/me/wallet/withdrawals', 'POST', [
+            'amount' => 80_000, 'idempotency_key' => 'snapshot-withdraw-key-001', 'confirm_bank_details' => true,
+        ]);
+        $withdrawRequest->setUserResolver(fn () => $user);
+        $created = app(WalletController::class)->withdraw($withdrawRequest, $ledger)->getData(true)['data'];
+        $account = SellerBankAccount::where('user_id', $user->id)->firstOrFail();
+        $account->update(['details_ciphertext' => \Illuminate\Support\Facades\Crypt::encryptString(json_encode(['bank_name' => 'Ngân hàng mới', 'account_holder' => 'Chủ tài khoản mới', 'account_number' => '999999999999999']))]);
+        $withdrawal = WithdrawalRequest::findOrFail($created['id']);
+        $snapshot = json_decode(\Illuminate\Support\Facades\Crypt::decryptString($withdrawal->bank_details_ciphertext), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame('Ngân hàng cũ', $snapshot['bank_name']);
+        $this->assertSame('12345678901', $snapshot['account_number']);
+
+        $cancelRequest = Request::create('/api/v1/me/wallet/withdrawals/'.$withdrawal->id.'/cancel', 'POST');
+        $cancelRequest->setUserResolver(fn () => $user);
+        $this->assertSame(200, app(WalletController::class)->cancelWithdrawal($cancelRequest, $withdrawal->id, $ledger)->getStatusCode());
+        $this->assertSame('cancelled', $withdrawal->fresh()->status);
+        $this->assertSame(120_000, $ledger->balance($user->id)['available']);
+        $this->assertSame(0, $ledger->balance($user->id)['withdrawal_hold']);
+        $this->assertSame(1, DB::table('wallet_transactions')->where('reference', 'WITHDRAW_CANCEL_'.$withdrawal->id)->count());
+        try {
+            app(WalletController::class)->cancelWithdrawal($cancelRequest, $withdrawal->id, $ledger);
+            $this->fail('A repeated cancellation must not release the held amount twice.');
+        } catch (ConflictHttpException) {
+            $this->assertSame(120_000, $ledger->balance($user->id)['available']);
+        }
     }
 }

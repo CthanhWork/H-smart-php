@@ -50,13 +50,13 @@ VNPAY_SANDBOX_RETURN_FALLBACK=true
 
 Giữ nguyên URL Sandbox như trên. `VNPAY_SANDBOX_RETURN_FALLBACK=true` cho phép backend local xử lý callback Return có chữ ký hợp lệ trong môi trường Sandbox, vì máy chủ VNPay không thể gọi địa chỉ `localhost`. Mã nguồn chỉ bật cách này khi host cổng thanh toán là `sandbox.vnpayment.vn`; không dùng fallback cho production.
 
-Mỗi máy clone cấu hình `.env` riêng. Chỉ commit `.env.example`; không commit `.env`, mã `TMN_CODE` hoặc `HASH_SECRET`. Có thể dùng chung merchant Sandbox trong nhóm nếu chủ tài khoản chia sẻ credentials qua password manager/kênh bảo mật. Chế độ mặc định trong repo là `VNPAY_MODE=mock`; đặt `gateway` sau khi điền thông tin Sandbox.
+Mỗi máy clone cấu hình `.env` riêng. Chỉ commit `.env.example`; không commit `.env`, mã `TMN_CODE` hoặc `HASH_SECRET`. Có thể dùng chung merchant Sandbox trong nhóm nếu chủ tài khoản chia sẻ credentials qua password manager/kênh bảo mật. Chế độ mặc định trong repo là `VNPAY_MODE=gateway`; các URL Docker mặc định trỏ VNPay Sandbox. Không đổi sang production.
 
 Địa chỉ Return phải trùng với địa chỉ đã đăng ký trong cấu hình merchant VNPay. Nếu VNPay không cho đăng ký `localhost`, dùng cách tạo HTTPS tunnel ở mục 3. Không điền `localhost` làm IPN URL trên VNPay rồi kỳ vọng máy chủ VNPay truy cập được máy cá nhân.
 
 ### Nạp số dư ví bằng VNPay Sandbox
 
-Tại trang **Số dư**, nhập số tiền từ 10.000đ đến 10.000.000đ và chọn **Nạp qua VNPay Sandbox**. H-Smart tạo một yêu cầu nạp riêng (không tạo đơn hàng), rồi chuyển sang URL thanh toán Sandbox đã ký. Ví chỉ được ghi có khi backend xác minh chữ ký, mã merchant, mã tham chiếu, số tiền và trạng thái thành công. Trang ví tải lại trạng thái từ API bằng mã tham chiếu; query string trên trình duyệt không tự xác nhận giao dịch.
+Tại trang **Ví của tôi**, nhập số tiền từ 10.000đ đến 10.000.000đ và chọn **Nạp tiền qua VNPay**. H-Smart tạo một yêu cầu nạp riêng (không tạo đơn hàng), rồi chuyển sang URL thanh toán Sandbox đã ký. Ví chỉ được ghi có khi backend xác minh chữ ký, mã merchant, mã tham chiếu, số tiền và trạng thái thành công. Trang ví tải lại trạng thái từ API bằng mã tham chiếu; query string trên trình duyệt không tự xác nhận giao dịch.
 
 Wallet Return/IPN có path riêng: `/api/v1/payments/vnpay/wallet/return` và `/api/v1/payments/vnpay/wallet/ipn`. Return/IPN của thanh toán đơn hàng không dùng các path này. Khi cần IPN máy chủ thật, cấu hình trong `.env`:
 
@@ -68,7 +68,7 @@ VNPAY_IPN_URL=https://TEN-MIEN-CON-CONG-KHAI/api/v1/payments/vnpay/ipn
 
 Khai báo URL IPN chung `/api/v1/payments/vnpay/ipn` trong merchant Sandbox. `VNPAY_IPN_URL` trong `.env` là bản ghi cấu hình để nhóm vận hành đối chiếu; VNPay nhận URL IPN từ cổng quản lý merchant, backend không nhúng IPN URL vào URL thanh toán. Backend phân luồng theo namespace tham chiếu: `HWS...` chỉ tra cứu yêu cầu nạp ví; tham chiếu đơn hàng đi vào bộ xử lý đơn hàng. Hai bộ xử lý vẫn xác minh chữ ký, merchant, amount và bản ghi riêng; mã tham chiếu không được chấp nhận chéo. Path `/api/v1/payments/vnpay/wallet/ipn` cũng được cung cấp nếu merchant hỗ trợ callback riêng cho nạp ví. Với máy local không nhận được IPN, có thể bật Return fallback như mục trên; fallback vẫn xác minh chữ ký và dữ liệu như IPN, và chỉ áp dụng với host Sandbox. Không dùng fallback để giả lập callback.
 
-Ví mô phỏng QA là luồng riêng, có nhãn **Nạp mô phỏng QA**. Nó ghi sổ với `mode=simulation`; nạp VNPay dùng `mode=sandbox`. Cả hai đều là môi trường thử nghiệm, không phải khoản tiền thật. Callback hợp lệ đến sau khi yêu cầu hết hạn hoặc đã bị đóng được lưu để đối soát và không tự ghi có.
+Không có nút nạp trực tiếp hoặc endpoint nạp QA trong ứng dụng đang chạy. Mock thanh toán được giữ cho test tự động và không khả dụng trong môi trường local/demo. Callback Sandbox hợp lệ nhưng đến sau khi yêu cầu hết hạn hoặc đã bị đóng được lưu để đối soát và không tự ghi có. VNPay Sandbox của dự án dùng để nạp ví/thanh toán đơn; không cung cấp API chi tiền ra ngân hàng. Chi trả seller được admin ghi nhận thủ công trên dữ liệu thử nghiệm, không phải chuyển khoản ngân hàng thật.
 
 Nếu merchant chỉ chấp nhận hostname đã duyệt `hsmart.thatcherdev.id.vn`, chọn một máy làm host Sandbox dùng chung. Trỏ DNS về máy đó, chuyển tiếp cổng 80/443 tới máy chạy Docker, đặt Return/IPN thành URL HTTPS của hostname và bật proxy bằng `docker compose --profile public-https up -d --build`. Caddy profile này mặc định không chạy trên các máy clone khác. Một hostname/DNS record không thể đồng thời chuyển callback tới nhiều máy local khác nhau; muốn developer thử độc lập cần hostname public riêng được VNPay duyệt cho từng người, hoặc dùng chung host Sandbox.
 
@@ -116,9 +116,9 @@ Với tunnel đang hoạt động, trình duyệt quay về backend qua URL HTTP
 
 Trong lần kiểm tra của dự án ngày 02/11/2026, 20 ca xử lý callback có chữ ký hợp lệ và dữ liệu được rollback đều đạt. Lượt gọi checkout thực tế tới Sandbox bị mã 71 vì merchant chưa được duyệt, nên chưa hoàn tất giao dịch đầu cuối qua cổng ngân hàng. Đây là giới hạn phê duyệt merchant, không phải kết quả cho thấy thanh toán tiền thật đã hoạt động.
 
-## 6. Trước khi triển khai production
+## 6. Phạm vi dự án
 
-Không dùng URL Sandbox, thông tin Sandbox hoặc `VNPAY_SANDBOX_RETURN_FALLBACK=true` cho production. Môi trường production cần thông tin merchant production, tên miền HTTPS công khai, cấu hình Return/IPN đã đăng ký với VNPay và `VNPAY_SANDBOX_RETURN_FALLBACK=false`. Chỉ chuyển sang nhận thanh toán thật sau khi merchant production được VNPay cấp quyền và luồng IPN đã được cấu hình.
+H-Smart trong đồ án này chỉ dùng VNPay Sandbox cho nạp ví và thanh toán đơn. Không cấu hình merchant production, không tích hợp ngân hàng production và không yêu cầu thanh toán tiền thật. Không coi log, mã tham chiếu nội bộ hoặc trạng thái quản trị thủ công là chứng từ ngân hàng.
 
 ## 7. Chạy đầy đủ chức năng AI
 

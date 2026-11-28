@@ -74,7 +74,6 @@ class ProductPromotionTest extends TestCase
     {
         $seller = User::create(['username' => 'seller', 'email' => 'seller@example.test', 'password_hash' => 'unused']);
         $product = Product::create(['seller_id' => $seller->id, 'title' => 'Điện thoại', 'price' => 100000, 'condition' => 'good', 'status' => 'active']);
-        config(['services.wallet.simulation_enabled' => true]);
         $ledger = app(WalletLedger::class);
         $ledger->post($seller->id, 'PROMO_TEST_DEPOSIT', 'simulated_deposit', [
             ['user_id' => $seller->id, 'account_code' => 'available', 'amount' => 15000],

@@ -57,6 +57,7 @@ class AdminDisputeController
                 if (! $dispute->buyer_wallet_refund_consent_at) throw new ConflictHttpException('Người mua chưa đồng ý nhận khoản hoàn vào số dư H-Smart.');
                 if ($order->payment_status !== 'paid') throw new ConflictHttpException('Chưa xác nhận đã thu đủ tiền cho đơn.');
                 if ($order->payment_method === 'cod' && $order->cod_remaining_collection_type !== 'direct' && ! $order->carrier_settled_at) throw new ConflictHttpException('Chưa đối soát được tiền COD; chưa thể ghi nhận hoàn tiền.');
+                if ($order->payment_method === 'cod' && (int) $order->cod_deposit_amount <= 0) throw new ConflictHttpException('Đơn COD thu trực tiếp không có khoản tiền do sàn giữ để hoàn; cần đối soát thủ công.');
                 $ledger->refundOrderToBuyerWallet($order, (int) $request->user()->id, $data['note']);
                 $dispute->update(['status' => 'resolved', 'resolution' => 'refund_to_buyer_wallet', 'resolution_note' => $data['note'], 'resolved_by' => $request->user()->id, 'resolved_at' => now()]);
                 $order->update(['payout_status' => 'refunded_to_wallet']);
@@ -72,7 +73,7 @@ class AdminDisputeController
             return [$dispute->refresh(), $order->refresh()];
         }, 3);
 
-        $title = $data['resolution'] === 'refund_to_buyer_wallet' ? 'Đã hoàn tiền về số dư mô phỏng' : ($data['resolution'] === 'release_to_seller' ? 'Khiếu nại đã được xử lý' : 'Khiếu nại đang chờ đối soát');
+        $title = $data['resolution'] === 'refund_to_buyer_wallet' ? 'Đã ghi nhận hoàn tiền vào ví' : ($data['resolution'] === 'release_to_seller' ? 'Khiếu nại đã được xử lý' : 'Khiếu nại đang chờ đối soát');
         $body = match ($data['resolution']) {
             'refund_to_buyer_wallet' => 'Đơn #'.$order->id.' được hoàn vào số dư H-Smart theo lựa chọn đã đồng ý của người mua.',
             'release_to_seller' => 'Đơn #'.$order->id.' đủ điều kiện ghi có tiền bán hàng vào số dư người bán.',
@@ -99,6 +100,7 @@ class AdminDisputeController
                 'payment_provider' => $order->payment_provider, 'payout_status' => $order->payout_status,
                 'payment_method' => $order->payment_method,
                 'cod_remaining_collection_type' => $order->cod_remaining_collection_type,
+                'cod_deposit_amount' => (int) $order->cod_deposit_amount,
                 'carrier_settled_at' => $order->carrier_settled_at?->toIso8601String(),
                 'product_amount' => $order->product_amount, 'shipping_fee' => $order->shipping_fee,
                 'platform_fee' => $order->platform_fee, 'total_amount' => $order->total_amount,

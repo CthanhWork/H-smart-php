@@ -2,9 +2,9 @@
 
 namespace App\Modules\Order\Http\Controllers;
 
+use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Order\Models\Order;
 use App\Modules\Order\Services\VnPayService;
-use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Wallet\Models\WalletVnPayDeposit;
 use App\Modules\Wallet\Services\WalletVnPayService;
 use Illuminate\Http\JsonResponse;
@@ -34,7 +34,7 @@ class VnPayController
             if ($result === 'newly_paid') {
                 $deposit = WalletVnPayDeposit::with('user')->where('reference', $txnRef)->first();
                 if ($deposit) {
-                    $notifications->send($deposit->user, null, 'wallet_vnpay_deposit_paid', 'Nạp VNPay Sandbox thành công', 'Đã ghi có '.number_format((int) $deposit->amount, 0, ',', '.').'đ vào số dư mô phỏng Sandbox.', '/me/wallet', ['reference' => $deposit->reference]);
+                    $notifications->send($deposit->user, null, 'wallet_vnpay_deposit_paid', 'Nạp VNPay Sandbox thành công', 'Đã ghi có '.number_format((int) $deposit->amount, 0, ',', '.').'đ vào Ví của tôi từ giao dịch VNPay Sandbox.', '/me/wallet', ['reference' => $deposit->reference]);
                 }
             }
 
@@ -73,7 +73,7 @@ class VnPayController
         $query = $request->query();
         $valid = $vnpay->verify($query)
             && ($request->query('vnp_TmnCode') === config('services.vnpay.tmn_code'));
-        $isSandbox = parse_url((string) config('services.vnpay.payment_url'), PHP_URL_HOST) === 'sandbox.vnpayment.vn';
+        $isSandbox = $vnpay->isSandboxGateway();
         // Local demo browsers can reach localhost; VNPay's server cannot. Keep this fallback sandbox-only.
         $processed = $valid && config('services.vnpay.sandbox_return_fallback') && $isSandbox
             ? $vnpay->processIpn($query)
@@ -95,10 +95,18 @@ class VnPayController
                 : (config('services.vnpay.sandbox_return_fallback') && $isSandbox
                     ? (in_array($processed, ['newly_paid', 'success'], true) ? 'success' : 'invalid')
                     : 'processing'));
-        $frontendUrl = (string) config('services.vnpay.result_redirect_url');
+        $frontendUrl = (string) config('services.vnpay.result_redirect_url')
+            ?: rtrim((string) config('services.vnpay.frontend_url', 'http://localhost:5174'), '/').'/payment-result';
 
         $separator = str_contains($frontendUrl, '?') ? '&' : '?';
+        $orderId = $valid && $request->query('vnp_TxnRef')
+            ? Order::where('payment_txn_ref', (string) $request->query('vnp_TxnRef'))->value('id')
+            : null;
+        $redirectUrl = $frontendUrl.$separator.'payment='.$result;
+        if ($orderId) {
+            $redirectUrl .= '&order='.(int) $orderId;
+        }
 
-        return redirect()->away($frontendUrl.$separator.'payment='.$result);
+        return redirect()->away($redirectUrl);
     }
 }

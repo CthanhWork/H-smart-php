@@ -225,7 +225,7 @@ export default function AdminManagementPage({ accessToken, onBack }: Props) {
         {loading && <p className="py-5 text-sm text-black/55">Đang tải…</p>}
         {!loading && products.length === 0 && <p className="rounded-2xl bg-[#F0F0F0] p-6 text-center text-sm text-black/55">Hiện chưa có sản phẩm cần duyệt.</p>}
         <div className="space-y-3">{products.map((product) => <article key={product.id} className="rounded-2xl border border-black/10 p-4 sm:p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-lg font-bold">{product.title}</h3><p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-black/60">{product.description}</p></div><Badge variant="warning">{statusLabel[product.status] ?? product.status}</Badge></div>
+          <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-lg font-bold">{product.title}</h3><p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-black/60">{product.description}</p></div><Badge variant="warning">{statusLabel[product.status] ?? 'Đang được kiểm tra'}</Badge></div>
           <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-xs text-black/55"><span>Giá: {product.price.toLocaleString('vi-VN')} đ</span><span>ID: #{product.id}</span><span>Người bán: #{product.seller_id}</span></div>
           <div className="mt-4 flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setPreview({ kind: 'product', value: product })} disabled={loading}><Eye size={15} className="mr-1.5" />Xem trước và kiểm duyệt</Button></div>
         </article>)}</div>

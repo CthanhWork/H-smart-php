@@ -31,6 +31,6 @@ class ProductPublicationController
     {
         $data = $request->validate(['expected_fee' => ['required', 'integer', 'min:0', 'max:1000000']]);
         $product = $service->pay((int) $request->user()->id, $id, (int) $data['expected_fee'], $ledger);
-        return response()->json(['status' => 'success', 'message' => 'Đã thanh toán phí đăng tin từ số dư mô phỏng và xuất bản sản phẩm.', 'data' => new ProductResource($product)]);
+        return response()->json(['status' => 'success', 'message' => 'Đã thanh toán phí đăng tin từ ví và xuất bản sản phẩm.', 'data' => new ProductResource($product)]);
     }
 }

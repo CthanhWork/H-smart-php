@@ -20,7 +20,17 @@ Người mua có thể gửi đề nghị giá nếu tin cho phép thương lư�
 
 ## Thanh toán và vận chuyển
 
-Đơn hàng có thể thanh toán qua VNPay hoặc chọn thanh toán khi nhận hàng (COD). Với COD, người mua trả tổng tiền đơn cho đơn vị vận chuyển khi nhận kiện. Hãng vận chuyển và mã theo dõi do người bán nhập; quản trị viên mô phỏng việc giao thành công, thu COD, đối soát và chi trả trong bản demo. Trợ lý có thể tra cứu trạng thái đơn khi người dùng là người mua hoặc người bán của đơn đó. Không gửi thông tin thẻ hoặc mật khẩu ngân hàng cho trợ lý.
+Đơn hàng có thể thanh toán qua VNPay Sandbox hoặc chọn thanh toán khi nhận hàng (COD). Với COD có đặt cọc, phần cọc được thanh toán online; phần còn lại được thu khi giao và phải được ghi nhận/đối soát theo phương thức thu thực tế. Người mua bấm “Đã nhận được hàng” để xác nhận giao hàng, thao tác này không tự xác nhận COD đã được thu đủ. Quản trị viên xác nhận giao hàng, đối soát COD và duyệt giải ngân vào Ví của tôi. Nạp ví và thanh toán đơn VNPay chỉ chạy trong Sandbox; không tích hợp ngân hàng production.
+
+## Ví của tôi và chi trả
+
+Mở **Ví của tôi** để xem số dư khả dụng, tiền bán hàng đang chờ quản trị viên giải ngân, tiền đang giữ cho yêu cầu rút và lịch sử giao dịch. Nạp ví dùng VNPay Sandbox; ví chỉ được ghi có sau khi callback hợp lệ đã qua kiểm tra chữ ký, số tiền, mã tham chiếu và xử lý lặp.
+
+Người bán có thể lưu tên ngân hàng, số tài khoản và tên chủ tài khoản trong mục **Tài khoản ngân hàng**. Chỉ nhập dữ liệu thử nghiệm; không nhập OTP, mật khẩu ngân hàng, PIN, CVV hoặc thông tin đăng nhập. Số tài khoản hiển thị được che một phần. Khi tạo yêu cầu rút, hệ thống giữ khoản tiền và chụp thông tin tài khoản làm snapshot để người bán kiểm tra; đổi hồ sơ sau đó không sửa yêu cầu cũ. Muốn đổi đích nhận khi yêu cầu còn chờ duyệt, hãy hủy yêu cầu rồi tạo lại.
+
+Chi trả cho người bán do quản trị viên xử lý thủ công trong phạm vi demo/Sandbox. VNPay Sandbox của dự án không cung cấp luồng chuyển tiền ra ngân hàng; trạng thái do quản trị viên ghi nhận không phải bằng chứng chuyển khoản ngân hàng thật. Nếu kết quả chưa rõ, khoản tiền tiếp tục được giữ để đối soát. Hoàn tiền cho người mua là nghiệp vụ riêng theo hủy đơn/khiếu nại và chỉ dùng khoản hệ thống thực sự đang giữ.
+
+Sau khi giao hàng được xác nhận hợp lệ, thời hạn xem xét khiếu nại là 48 giờ. Hết thời hạn, đơn chỉ chuyển sang **Chờ quản trị viên giải ngân** nếu đã thu/đối soát đủ tiền và không có khiếu nại hoặc lệnh giữ. Người mua xác nhận nhận hàng không rút ngắn thời hạn; tiền chỉ vào số dư khả dụng sau khi quản trị viên xác nhận giải ngân.
 
 ## Phí sàn
 
@@ -36,4 +46,4 @@ Tại trang chi tiết sản phẩm, người dùng có thể báo cáo sản ph
 
 ## Trợ giúp và dữ liệu riêng tư
 
-Trợ lý trả lời câu hỏi chung về cách sử dụng H-Smart dựa trên tài liệu đã duyệt và có thể tra cứu trạng thái đơn hàng mà người hỏi tham gia. Khi tra cứu đơn, Laravel xác thực quyền truy cập và gửi thông tin giao dịch trực tiếp vào câu trả lời; dữ liệu đơn không gửi sang dịch vụ AI. Trợ lý không tra cứu thông tin tài khoản hoặc tin nhắn riêng. Không nhập mật khẩu, mã xác thực hay thông tin thanh toán vào câu hỏi. Nếu cần hỗ trợ giao dịch, hãy liên hệ quản trị viên qua Tin nhắn hỗ trợ.
+Trợ lý trả lời câu hỏi chung về cách sử dụng H-Smart dựa trên tài liệu đã duyệt và có thể tra cứu trạng thái đơn hàng mà người hỏi tham gia. Khi tra cứu đơn, Laravel xác thực quyền truy cập và gửi thông tin giao dịch trực tiếp vào câu trả lời; dữ liệu đơn không gửi sang dịch vụ AI. Trợ lý không tra cứu thông tin tài khoản ngân hàng hoặc tin nhắn riêng. Không nhập mật khẩu, mã xác thực hay thông tin thanh toán vào câu hỏi. Nếu cần hỗ trợ giao dịch, hãy liên hệ quản trị viên qua Tin nhắn hỗ trợ.

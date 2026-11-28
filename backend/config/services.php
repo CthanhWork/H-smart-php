@@ -43,14 +43,15 @@ return [
 
     'vnpay' => [
         'mode' => env('VNPAY_MODE', 'gateway'),
+        'frontend_url' => env('FRONTEND_URL', 'http://localhost:5174'),
         'tmn_code' => env('VNPAY_TMN_CODE'),
         'hash_secret' => env('VNPAY_HASH_SECRET'),
-        'payment_url' => env('VNPAY_PAY_URL', env('VNPAY_PAYMENT_URL', 'https://pay.vnpay.vn/vpcpay.html')),
+        'payment_url' => env('VNPAY_PAY_URL', env('VNPAY_PAYMENT_URL', 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html')),
         'return_url' => env('VNPAY_RETURN_URL'),
         'ipn_url' => env('VNPAY_IPN_URL'),
         'wallet_return_url' => env('VNPAY_WALLET_RETURN_URL'),
-        'wallet_result_url' => env('VNPAY_WALLET_RESULT_URL', rtrim(env('FRONTEND_URL', 'http://localhost:5174'), '/').'/me/wallet'),
-        'result_redirect_url' => env('VNPAY_RESULT_REDIRECT_URL', env('FRONTEND_URL', 'http://localhost:5173').'/me/orders'),
+        'wallet_result_url' => env('VNPAY_WALLET_RESULT_URL') ?: rtrim(env('FRONTEND_URL', 'http://localhost:5174'), '/').'/me/wallet',
+        'result_redirect_url' => env('VNPAY_RESULT_REDIRECT_URL') ?: rtrim(env('FRONTEND_URL', 'http://localhost:5174'), '/').'/payment-result',
         'sandbox_return_fallback' => (bool) env('VNPAY_SANDBOX_RETURN_FALLBACK', false),
     ],
 
@@ -68,14 +69,7 @@ return [
         'policy_version' => env('MARKETPLACE_POLICY_VERSION', 'commerce-v1'),
     ],
     'wallet' => [
-        'simulation_enabled' => filter_var(env('WALLET_SIMULATION_ENABLED', false), FILTER_VALIDATE_BOOL),
         'minimum_withdrawal' => (int) env('WALLET_MINIMUM_WITHDRAWAL', 50000),
         'maximum_withdrawal' => (int) env('WALLET_MAXIMUM_WITHDRAWAL', 10000000),
     ],
-    'vietqr' => [
-        'bank_id' => env('VIETQR_BANK_ID', ''),
-        'account_number' => env('VIETQR_ACCOUNT_NUMBER', ''),
-        'account_name' => env('VIETQR_ACCOUNT_NAME', ''),
-    ],
-
 ];

@@ -17,8 +17,7 @@ class WalletVnPayService
 
     public function sandboxAvailable(): bool
     {
-        return config('services.vnpay.mode') === 'gateway'
-            && parse_url((string) config('services.vnpay.payment_url'), PHP_URL_HOST) === 'sandbox.vnpayment.vn'
+        return $this->vnpay->isSandboxGateway()
             && filled(config('services.vnpay.tmn_code'))
             && filled(config('services.vnpay.hash_secret'));
     }
@@ -26,7 +25,7 @@ class WalletVnPayService
     public function create(int $userId, int $amount, string $idempotencyKey, Request $request): array
     {
         if (! $this->sandboxAvailable()) {
-            throw new ServiceUnavailableHttpException(null, 'Nạp ví VNPay Sandbox chưa được cấu hình. Ví mô phỏng vẫn dùng riêng cho QA local.');
+            throw new ServiceUnavailableHttpException(null, 'Nạp ví VNPay Sandbox chưa được cấu hình. Vui lòng liên hệ quản trị viên.');
         }
 
         try {
@@ -80,6 +79,10 @@ class WalletVnPayService
     /** @return 'newly_paid'|'success'|'failed'|'cancelled'|'late'|'amount_mismatch'|'invalid' */
     public function processCallback(array $query): string
     {
+        if (! $this->vnpay->isSandboxGateway()) {
+            return 'invalid';
+        }
+
         if (! str_starts_with((string) ($query['vnp_TxnRef'] ?? ''), 'HWS')) {
             return 'invalid';
         }

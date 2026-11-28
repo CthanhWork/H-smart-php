@@ -40,7 +40,7 @@ class WalletVnPayController
         $result = $deposits->processCallback($request->query());
         if ($result === 'newly_paid') {
             $deposit = WalletVnPayDeposit::with('user')->where('reference', $request->query('vnp_TxnRef'))->first();
-            if ($deposit) $notifications->send($deposit->user, null, 'wallet_vnpay_deposit_paid', 'Nạp VNPay Sandbox thành công', 'Đã ghi có '.number_format((int) $deposit->amount, 0, ',', '.').'đ vào số dư mô phỏng Sandbox.', '/me/wallet', ['reference' => $deposit->reference]);
+            if ($deposit) $notifications->send($deposit->user, null, 'wallet_vnpay_deposit_paid', 'Nạp VNPay Sandbox thành công', 'Đã ghi có '.number_format((int) $deposit->amount, 0, ',', '.').'đ vào Ví của tôi từ giao dịch VNPay Sandbox.', '/me/wallet', ['reference' => $deposit->reference]);
         }
 
         $responseCode = match ($result) {
@@ -58,7 +58,7 @@ class WalletVnPayController
     public function return(Request $request, WalletVnPayService $deposits): RedirectResponse
     {
         $query = $request->query();
-        $isSandbox = parse_url((string) config('services.vnpay.payment_url'), PHP_URL_HOST) === 'sandbox.vnpayment.vn';
+        $isSandbox = $deposits->sandboxAvailable();
         if ($isSandbox && config('services.vnpay.sandbox_return_fallback')) {
             // The same signature, merchant, reference and amount checks run here as in IPN.
             $deposits->processCallback($query);
@@ -66,7 +66,7 @@ class WalletVnPayController
 
         $reference = trim((string) ($query['vnp_TxnRef'] ?? ''));
         $frontendUrl = (string) config('services.vnpay.wallet_result_url')
-            ?: rtrim((string) config('app.url'), '/').'/me/wallet';
+            ?: rtrim((string) config('services.vnpay.frontend_url', 'http://localhost:5174'), '/').'/me/wallet';
 
         return redirect()->away($frontendUrl.(str_contains($frontendUrl, '?') ? '&' : '?').'depositRef='.rawurlencode($reference));
     }

@@ -1,5 +1,7 @@
 # Báo cáo kiểm thử bổ sung H-Smart
 
+> **Bản ghi lịch sử ngày 22/11/2026.** Các kết quả `mô phỏng`, `simulation` và `succeeded_simulated` dưới đây mô tả hành vi của phiên bản tại ngày kiểm tra, không phải luồng được hỗ trợ hiện nay. Nạp QA trực tiếp đã bị gỡ khỏi ứng dụng; mock được giữ cho test tự động. H-Smart hiện dùng VNPay Sandbox cho nạp/thanh toán, còn chi trả seller được quản trị viên ghi nhận thủ công trên dữ liệu demo/Sandbox. Bản ghi này không chứng minh chuyển khoản ngân hàng thật.
+
 - **Ngày:** 22-11-2026
 - **Báo cáo mốc:** `docs/integration-test-report-2026-11-22.md` (được giữ nguyên)
 - **Mã nguồn:** HEAD `ac2cf04` cộng các thay đổi chưa commit đã có trong workspace và các sửa lỗi trong lượt kiểm thử. Không tạo commit.

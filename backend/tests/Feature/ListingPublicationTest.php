@@ -48,7 +48,6 @@ class ListingPublicationTest extends TestCase
         $this->assertSame(5000, $sixth->publication->fee_amount);
         $this->assertSame(5, app(ListingPublicationService::class)->quote($seller->id)['used']);
 
-        config(['services.wallet.simulation_enabled' => true]);
         app(WalletLedger::class)->post($seller->id, 'TEST_TOPUP_LISTING', 'simulated_deposit', [
             ['user_id' => $seller->id, 'account_code' => 'available', 'amount' => 5000],
             ['user_id' => null, 'account_code' => 'system_simulation_clearing', 'amount' => -5000],
@@ -88,7 +87,6 @@ class ListingPublicationTest extends TestCase
         $approve->execute($paidProduct);
         $admin = User::create(['username' => 'listing-admin', 'email' => 'listing-admin@example.test', 'password_hash' => 'unused', 'role' => 'admin']);
         app(\App\Modules\Admin\Services\MarketplaceSettings::class)->update(['listing_fee' => 6000], (int) $admin->id);
-        config(['services.wallet.simulation_enabled' => true]);
 
         try {
             app(ListingPublicationService::class)->pay($seller->id, $paidProduct->id, 5000, app(WalletLedger::class));

@@ -66,7 +66,7 @@ services:
       APP_ENV: local
       APP_DEBUG: ${APP_DEBUG:-false}
       APP_URL: ${APP_URL:-http://localhost:8001}
-      VNPAY_MODE: ${VNPAY_MODE:-mock}
+      VNPAY_MODE: ${VNPAY_MODE:-gateway}
       VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}
       VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-}
       VNPAY_PAY_URL: ${VNPAY_PAY_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
@@ -74,8 +74,8 @@ services:
       VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-}
       VNPAY_IPN_URL: ${VNPAY_IPN_URL:-}
       VNPAY_WALLET_RETURN_URL: ${VNPAY_WALLET_RETURN_URL:-}
-      VNPAY_WALLET_RESULT_URL: ${VNPAY_WALLET_RESULT_URL:-}
-      VNPAY_RESULT_REDIRECT_URL: ${VNPAY_RESULT_REDIRECT_URL:-}
+      VNPAY_WALLET_RESULT_URL: ${VNPAY_WALLET_RESULT_URL:-http://localhost:5174/me/wallet}
+      VNPAY_RESULT_REDIRECT_URL: ${VNPAY_RESULT_REDIRECT_URL:-http://localhost:5174/payment-result}
       VNPAY_SANDBOX_RETURN_FALLBACK: ${VNPAY_SANDBOX_RETURN_FALLBACK:-false}
       DB_CONNECTION: mysql
       DB_HOST: db
@@ -98,7 +98,6 @@ services:
       SEED_COMMERCE_DEMO: ${SEED_COMMERCE_DEMO:-false}
       DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-}
       AI_SERVICE_URL: http://ai:8000
-      WALLET_SIMULATION_ENABLED: ${WALLET_SIMULATION_ENABLED:-true}
     volumes:
       - backend_config:/run/hsmart
       - backend_storage:/var/www/html/storage

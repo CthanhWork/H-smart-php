@@ -47,8 +47,8 @@ Schedule::command('orders:expire-pending')->everyMinute()->withoutOverlapping();
 
 Artisan::command('orders:release-eligible', function (\App\Modules\Order\Actions\ReleaseEligibleOrderFundsAction $release, \App\Modules\Wallet\Services\WalletLedger $ledger, \App\Modules\Notification\Services\NotificationService $notifications) {
     $count = $release->execute($ledger, $notifications);
-    $this->info("Đã ghi có số dư cho {$count} đơn đủ điều kiện.");
-})->purpose('Ghi có tiền thuần vào số dư người bán sau xác nhận giao và hết hạn khiếu nại');
+    $this->info("Đã cập nhật {$count} đơn sang trạng thái chờ quản trị viên giải ngân.");
+})->purpose('Cập nhật danh sách đơn đủ điều kiện để quản trị viên giải ngân thủ công');
 
 Schedule::command('orders:release-eligible')->everyMinute()->withoutOverlapping();
 

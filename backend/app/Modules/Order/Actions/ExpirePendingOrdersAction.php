@@ -2,9 +2,9 @@
 
 namespace App\Modules\Order\Actions;
 
+use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Offer\Models\Offer;
 use App\Modules\Order\Models\Order;
-use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Product\Models\Product;
 use Illuminate\Support\Facades\DB;
 
@@ -29,7 +29,10 @@ class ExpirePendingOrdersAction
                 $order = Order::lockForUpdate()->find($orderId);
                 if (! $product || ! $order
                     || $order->status !== Order::STATUS_PENDING_PAYMENT
-                    || $order->expires_at->isFuture()) {
+                    || $order->expires_at->isFuture()
+                    // A legacy VietQR transfer may still be in flight. Keep its
+                    // order/product reserved for manual review instead of expiry.
+                    || $order->payment_provider === 'vietqr') {
                     return false;
                 }
 

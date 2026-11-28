@@ -5,15 +5,17 @@ namespace Tests\Feature;
 use App\Modules\Admin\Http\Controllers\AdminCodController;
 use App\Modules\Admin\Services\AdminAuditLogger;
 use App\Modules\Notification\Services\NotificationService;
+use App\Modules\Offer\Models\Offer;
 use App\Modules\Order\Actions\AdvanceOrderAction;
 use App\Modules\Order\Actions\CreateOrderAction;
 use App\Modules\Order\Models\Order;
-use App\Modules\Offer\Models\Offer;
 use App\Modules\Product\Models\Product;
 use App\Modules\User\Models\User;
+use App\Modules\Wallet\Services\WalletLedger;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Testing\TestCase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
@@ -55,12 +57,12 @@ class CodSettlementTest extends TestCase
             'cod_deposit_percent' => 25, 'cod_deposit_amount' => 50000, 'cod_remaining_amount' => 150000,
             'delivery_status' => 'in_transit',
         ]);
-        app(\App\Modules\Wallet\Services\WalletLedger::class)->bookCodDeposit($order, 'vnpay_mock');
+        app(WalletLedger::class)->bookCodDeposit($order, 'vnpay_mock');
 
         return [$order, $product, $seller];
     }
 
-    private function adminAction(int $orderId, string $action, ?string $reason = null): void
+    private function adminAction(int $orderId, string $action, ?string $reason = null, string $collectionType = 'carrier'): void
     {
         $admin = User::firstOrCreate(['email' => 'cod-admin@example.test'], [
             'username' => 'cod-admin', 'password_hash' => 'unused', 'role' => 'admin',
@@ -68,14 +70,14 @@ class CodSettlementTest extends TestCase
         $request = Request::create('/api/v1/admin/orders/'.$orderId.'/cod', 'POST', array_filter([
             'action' => $action,
             'reason' => $reason,
-            'evidence' => in_array($action, ['delivered', 'carrier_settled'], true) ? 'Bằng chứng kiểm thử đã đối soát' : null,
-            'collection_type' => $action === 'delivered' ? 'carrier' : null,
+            'evidence' => in_array($action, ['delivered', 'carrier_settled', 'seller_paid'], true) ? 'Bằng chứng kiểm thử đã đối soát' : null,
+            'collection_type' => $action === 'delivered' ? $collectionType : null,
         ], fn ($value) => $value !== null));
         $request->setUserResolver(fn () => $admin);
         app(AdminCodController::class)->update(
             $request,
             $orderId,
-            app(\App\Modules\Wallet\Services\WalletLedger::class),
+            app(WalletLedger::class),
             app(AdminAuditLogger::class),
             app(NotificationService::class),
         );
@@ -97,17 +99,54 @@ class CodSettlementTest extends TestCase
         }
 
         $this->adminAction($order->id, 'carrier_settled');
-        \Illuminate\Support\Carbon::setTestNow(now()->addHours(48));
+        Carbon::setTestNow(now()->addHours(48));
         $this->adminAction($order->id, 'seller_paid');
         $this->assertNotNull($order->fresh()->carrier_settled_at);
         $this->assertNotNull($order->fresh()->seller_paid_at);
-        $this->assertSame(40000, app(\App\Modules\Wallet\Services\WalletLedger::class)->balance((int) $seller->id)['available'], 'Only the net deposit enters the wallet; the direct COD remainder is not credited.');
+        $this->assertSame(40000, app(WalletLedger::class)->balance((int) $seller->id)['available'], 'Only the net deposit enters the wallet; the direct COD remainder is not credited.');
         try {
             $this->adminAction($order->id, 'seller_paid');
             $this->fail('Seller payout should be rejected after it has been recorded.');
         } catch (ConflictHttpException) {
         }
-        \Illuminate\Support\Carbon::setTestNow();
+        Carbon::setTestNow();
+    }
+
+    public function test_buyer_cod_receipt_does_not_claim_cod_collection_and_admin_can_record_collection_afterward(): void
+    {
+        [$order, , $seller] = $this->codOrder();
+        $buyer = User::findOrFail($order->buyer_id);
+        $confirmed = app(AdvanceOrderAction::class)->execute($order->id, $buyer->id, 'complete');
+        $this->assertSame(Order::STATUS_COMPLETED, $confirmed->status);
+        $this->assertNotNull($confirmed->buyer_confirmed_at);
+        $this->assertNull($confirmed->cod_collected_at);
+        $this->assertSame('awaiting_carrier_settlement', $confirmed->payout_status);
+        $this->assertSame(0, app(WalletLedger::class)->balance((int) $seller->id)['available']);
+
+        $this->adminAction($order->id, 'delivered', collectionType: 'direct');
+        $this->assertNotNull($order->fresh()->cod_collected_at);
+        $this->assertSame('direct', $order->fresh()->cod_remaining_collection_type);
+        $this->assertSame(40_000, app(WalletLedger::class)->balance((int) $seller->id)['pending_release']);
+    }
+
+    public function test_buyer_confirmation_does_not_make_carrier_cod_eligible_before_48_hours(): void
+    {
+        [$order, , $seller] = $this->codOrder();
+        $buyer = User::findOrFail($order->buyer_id);
+        app(AdvanceOrderAction::class)->execute($order->id, $buyer->id, 'complete');
+        $this->adminAction($order->id, 'delivered', collectionType: 'carrier');
+        $this->adminAction($order->id, 'carrier_settled');
+
+        $this->assertSame('awaiting_dispute_window', $order->fresh()->payout_status);
+        Carbon::setTestNow($order->fresh()->release_eligible_at->copy()->subSecond());
+        try {
+            $this->adminAction($order->id, 'seller_paid');
+            $this->fail('Carrier COD proceeds cannot release before the 48-hour window.');
+        } catch (ConflictHttpException) {
+            $this->assertSame(0, app(WalletLedger::class)->balance((int) $seller->id)['available']);
+        }
+
+        Carbon::setTestNow();
     }
 
     public function test_order_creation_snapshots_commission_and_shipping_for_cod(): void

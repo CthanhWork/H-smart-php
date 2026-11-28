@@ -29,12 +29,21 @@ type Order = {
 }
 type OrderPage = { content: Order[]; pageNo: number; pageSize: number; totalElements: number; totalPages: number; last: boolean }
 type OrderQuote = { product_amount: number; shipping_fee: number; total_amount: number; cod_deposit_percent: number; cod_deposit_amount: number; cod_remaining_amount: number }
-type VietQrInstruction = { provider: string; reference: string; amount: number; bank_id: string; account_number: string; account_name: string; qr_url: string; confirmation: string }
 type Props = { accessToken: string; userId: number; navigate: (path: string) => void; mode: 'list' | 'create' }
 const money = (amount: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
+const paymentStatusNames: Record<string, string> = { paid: 'Đã xác minh', pending: 'Chờ xác minh', failed: 'Chưa thành công', cancelled: 'Đã hủy', expired: 'Đã hết hạn', reconciliation_required: 'Chờ đối soát' }
 const labels: Record<string, string> = {
   pending_payment: 'Chờ thanh toán', paid: 'Đã thanh toán', processing: 'Đang chuẩn bị hàng',
   shipping: 'Đang giao', completed: 'Hoàn tất', cancelled: 'Đã hủy',
+}
+const payoutStatusNames: Record<string, string> = {
+  awaiting_dispute_window: 'Đang trong thời hạn khiếu nại',
+  awaiting_carrier_settlement: 'Chờ đối soát COD',
+  eligible: 'Chờ quản trị viên giải ngân',
+  held: 'Đang tạm giữ do khiếu nại',
+  credited_to_wallet: 'Đã giải ngân vào ví',
+  not_ready: 'Chưa đủ điều kiện giải ngân',
+  refunded: 'Đã hoàn tiền',
 }
 const statusVariant: Record<string, 'warning' | 'success' | 'default' | 'destructive' | 'outline'> = {
   pending_payment: 'warning', paid: 'success', processing: 'default', shipping: 'default', completed: 'success', cancelled: 'destructive',
@@ -65,16 +74,10 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
   const [totalPages, setTotalPages] = useState(1)
   const [totalOrders, setTotalOrders] = useState(0)
   const [disputeDrafts, setDisputeDrafts] = useState<Record<number, { reason: string; details: string; evidence: string }>>({})
-  const [vietQr, setVietQr] = useState<VietQrInstruction | null>(null)
 
   useEffect(() => {
     const paymentResult = new URLSearchParams(window.location.search).get('payment')
-    if (paymentResult === 'mock_success') setNotice('Thanh toán mô phỏng thành công. Đơn hàng đã được cập nhật; không có tiền thật được chuyển.')
-    else if (paymentResult === 'mock_failed') setError('Thanh toán mô phỏng đã thất bại hoặc bị hủy. Bạn có thể thử lại từ đơn hàng.')
-    else if (paymentResult === 'success') setNotice('Thanh toán VNPay Sandbox thành công. Đơn hàng đã được cập nhật.')
-    else if (paymentResult === 'processing') setNotice('VNPay đã trả kết quả. Đang đồng bộ trạng thái giao dịch, vui lòng tải lại đơn hàng sau ít giây nếu trạng thái chưa đổi.')
-    else if (paymentResult === 'failed') setError('Thanh toán chưa thành công. Bạn có thể thử thanh toán lại từ đơn hàng.')
-    else if (paymentResult === 'invalid') setError('Không xác minh được kết quả thanh toán. Vui lòng kiểm tra trạng thái đơn hàng hoặc liên hệ hỗ trợ.')
+    if (paymentResult) setNotice('Đang tải trạng thái thanh toán hiện tại từ H-Smart. Thông tin đơn hàng bên dưới được đọc từ máy chủ.')
   }, [])
 
   useEffect(() => {
@@ -143,13 +146,6 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
     } catch (cause) { setError((cause as Error).message); setBusy(false) }
   }
 
-  async function createVietQr(orderId: number) {
-    setBusy(true); setError(''); setNotice('')
-    try { const result = await productRequest<VietQrInstruction>(`orders/${orderId}/vietqr`, accessToken, { method: 'POST' }); setVietQr(result.data); setNotice(result.message) }
-    catch (cause) { setError((cause as Error).message) }
-    finally { setBusy(false) }
-  }
-
   async function act(orderId: number, action: 'cancel' | 'confirm' | 'ship' | 'complete', shipment?: { shipping_carrier: string; tracking_number: string }) {
     setBusy(true); setLoading(mode === 'list'); setError(''); setNotice('')
     try {
@@ -198,7 +194,7 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
   }
 
   async function consentCodDepositWalletRefund(orderId: number) {
-    if (!window.confirm('Đồng ý nhận lại tiền cọc COD vào số dư H-Smart mô phỏng nếu quản trị viên xác minh và chấp thuận?')) return
+    if (!window.confirm('Đồng ý nhận lại tiền cọc COD vào Ví của tôi nếu quản trị viên xác minh và chấp thuận?')) return
     setBusy(true); setError(''); setNotice('')
     try { const result = await productRequest<unknown>(`orders/${orderId}/cod-deposit-refund-consent`, accessToken, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accept: true }) }); setNotice(result.message); setVersion((value) => value + 1) }
     catch (cause) { setError((cause as Error).message) }
@@ -209,7 +205,6 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
     const buyer = item.buyer.id === userId
     if (item.status === 'pending_payment' && buyer) return <>
       {(item.payment?.method === 'cod' ? item.cod_deposit_amount > 0 && item.payment.status !== 'paid' : item.payment?.provider !== 'cod') && <Button disabled={busy} onClick={() => void pay(item.id)}>{item.payment?.method === 'cod' ? `Thanh toán tiền cọc ${money(item.payment.amount)}` : 'Thanh toán qua VNPay'}</Button>}
-      {item.payment?.status !== 'paid' && (item.payment?.method === 'cod' ? item.cod_deposit_amount > 0 : item.payment?.provider !== 'cod') && <Button variant="outline" disabled={busy} onClick={() => void createVietQr(item.id)}>Tạo mã VietQR</Button>}
       {!item.payment?.txn_ref && <Button variant="outline" disabled={busy} onClick={() => act(item.id, 'cancel')}>Hủy đơn</Button>}
     </>
     if (!buyer && (item.status === 'paid' || (item.status === 'pending_payment' && item.payment?.provider === 'cod' && item.cod_deposit_amount === 0))) return <Button disabled={busy} onClick={() => act(item.id, 'confirm')}>Xác nhận đơn</Button>
@@ -221,7 +216,7 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
         <Button type="submit" disabled={busy}>Xác nhận gửi hàng</Button>
       </form>
     }
-    if (item.status === 'shipping' && buyer && item.payment?.method !== 'cod' && item.payment?.provider !== 'cod') return <Button disabled={busy} onClick={() => act(item.id, 'complete')}>Đã nhận hàng</Button>
+    if (item.status === 'shipping' && buyer) return <Button disabled={busy} onClick={() => act(item.id, 'complete')}>{item.payment?.method === 'cod' || item.payment?.provider === 'cod' ? 'Đã nhận được hàng' : 'Đã nhận hàng'}</Button>
     if (item.status === 'completed' && buyer && item.payment?.method === 'cod' && item.payment.status === 'paid' && !item.buyer_confirmed_at) return <Button disabled={busy} onClick={() => act(item.id, 'complete')}>Đã nhận hàng và đúng mô tả</Button>
     if (item.status === 'shipping' && !buyer && item.delivery_status === 'returned_to_seller') return <Button disabled={busy} onClick={async () => {
       setBusy(true); setError(''); setNotice('')
@@ -239,7 +234,7 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
     if (item.status === 'pending_payment') return buyer ? 'Thanh toán trước thời hạn giữ sản phẩm để tiếp tục đơn hàng.' : 'Đang chờ người mua thanh toán.'
     if (item.status === 'paid') return buyer ? 'Đang chờ người bán xác nhận đơn.' : 'Xác nhận đơn để bắt đầu chuẩn bị hàng.'
     if (item.status === 'processing') return buyer ? 'Người bán đang chuẩn bị hàng.' : 'Nhập thông tin vận chuyển để xác nhận gửi hàng.'
-    if (item.status === 'shipping') return buyer ? (item.payment?.method === 'cod' || item.payment?.provider === 'cod' ? 'Đơn COD đang giao; phần còn lại thu khi nhận hàng. Tiền cọc được giữ riêng đến khi hết thời hạn khiếu nại.' : 'Khi hàng đã đến và đúng mô tả, hãy xác nhận để giải ngân cho người bán.') : 'Đơn hàng đang được vận chuyển.'
+    if (item.status === 'shipping') return buyer ? (item.payment?.method === 'cod' || item.payment?.provider === 'cod' ? 'Khi đã nhận hàng, bạn có thể xác nhận riêng. Thao tác này không xác nhận người bán hoặc đơn vị giao nhận đã thu đủ COD.' : 'Khi hàng đã đến và đúng mô tả, hãy xác nhận đã nhận hàng.') : 'Đơn hàng đang được vận chuyển.'
     if (item.status === 'completed') return buyer && !item.review ? 'Đơn đã hoàn tất. Bạn có thể để lại đánh giá cho sản phẩm.' : 'Giao dịch đã hoàn tất.'
     return 'Đơn hàng đã được hủy.'
   }
@@ -252,7 +247,7 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
     return <article className="rounded-[20px] border border-black/10 bg-white p-5 shadow-sm sm:p-7" key={item.id}>
       <div className="flex flex-col gap-3 border-b border-black/10 pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div><p className="text-xs font-medium uppercase tracking-[0.16em] text-black/50">Đơn hàng #{item.id}</p><h2 className="mt-2 text-xl font-bold sm:text-2xl">{item.product.title}</h2></div>
-        <Badge variant={statusVariant[item.status] ?? 'outline'}>{item.status === 'pending_payment' && item.payment?.provider === 'cod' ? (item.cod_deposit_amount > 0 ? 'Chờ đặt cọc' : 'Chờ người bán xác nhận') : labels[item.status] ?? item.status}</Badge>
+        <Badge variant={statusVariant[item.status] ?? 'outline'}>{item.status === 'pending_payment' && item.payment?.provider === 'cod' ? (item.cod_deposit_amount > 0 ? 'Chờ đặt cọc' : 'Chờ người bán xác nhận') : labels[item.status] ?? 'Đang cập nhật'}</Badge>
       </div>
       <dl className="grid gap-x-8 gap-y-4 py-5 text-sm sm:grid-cols-2">
         <div><dt className="text-black/50">Người mua</dt><dd className="mt-1 font-medium">{item.buyer.full_name || 'Thành viên'}</dd></div>
@@ -261,16 +256,17 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
         <div><dt className="text-black/50">Tổng thanh toán</dt><dd className="mt-1 font-bold">{money(item.total_amount)}</dd></div>
         {sellerView && sellerFinance && <><div><dt className="text-black/50">Hoa hồng sàn ({sellerFinance.commission_rate}%)</dt><dd className="mt-1 font-medium">{money(sellerFinance.platform_fee)}</dd></div><div><dt className="text-black/50">Tiền người bán thực nhận</dt><dd className="mt-1 font-medium">{money(sellerFinance.seller_net_amount)}</dd></div></>}
         <div className="sm:col-span-2"><dt className="text-black/50">Giao đến</dt><dd className="mt-1 font-medium">{item.shipping_address.recipient_name}, {item.shipping_address.phone}, {item.shipping_address.address}</dd></div>
-        <div><dt className="text-black/50">Thanh toán</dt><dd className="mt-1 font-medium">{item.payment ? `${item.payment.provider === 'vnpay_mock' ? 'VNPay mô phỏng' : item.payment.provider === 'vnpay' ? 'VNPay' : item.payment.provider === 'vietqr' ? 'VietQR' : 'COD'} · ${item.payment.status === 'paid' ? 'Đã xác minh' : item.payment.status === 'pending' ? 'Chờ xác minh' : item.payment.status === 'failed' ? 'Chưa thành công' : item.payment.status}` : 'Chưa có thông tin thanh toán'}</dd></div>
-        {(item.payment?.method === 'cod' || item.payment?.provider === 'cod') && <><div><dt className="text-black/50">Tiền cọc COD</dt><dd className="mt-1 font-medium">{money(item.cod_deposit_amount || item.payment.amount)}{item.cod_deposit_percent ? ` · ${item.cod_deposit_percent}%` : ''} · {item.payment.status === 'paid' ? 'Đã xác minh' : 'Chưa xác minh'}</dd></div><div><dt className="text-black/50">Còn thu khi nhận hàng</dt><dd className="mt-1 font-medium">{money(item.cod_remaining_amount)} · {item.cod_remaining_collected_at ? 'Đã thu' : 'Chưa thu'}</dd></div>{sellerView && <div><dt className="text-black/50">Đối soát COD</dt><dd className="mt-1 font-medium">{sellerFinance?.seller_paid_at ? 'Tiền cọc đã giải ngân vào số dư' : sellerFinance?.cod_remaining_collection_type === 'direct' && item.cod_remaining_collected_at ? 'Đã thu trực tiếp; khoản này không được ghi có vào ví' : sellerFinance?.carrier_settled_at ? 'Đơn vị giao nhận đã đối soát' : 'Chờ xác nhận thu và đối soát'}{item.delivery_status === 'failed' ? ` · Giao thất bại: ${item.delivery_failed_reason || 'chưa rõ lý do'}` : item.delivery_status === 'returned_to_seller' ? ' · Đã hoàn về người bán' : ''}</dd></div>}</>}
+        <div><dt className="text-black/50">Thanh toán</dt><dd className="mt-1 font-medium">{item.payment ? `${item.payment.provider === 'vnpay_mock' ? 'Thanh toán dữ liệu demo' : item.payment.provider === 'vnpay' ? 'VNPay Sandbox' : item.payment.provider === 'vietqr' ? 'VietQR (lịch sử)' : 'COD'} · ${paymentStatusNames[item.payment.status] ?? 'Đang xử lý'}` : 'Chưa có thông tin thanh toán'}</dd></div>
+        {(item.payment?.method === 'cod' || item.payment?.provider === 'cod') && <><div><dt className="text-black/50">Tiền cọc COD</dt><dd className="mt-1 font-medium">{money(item.cod_deposit_amount)}{item.cod_deposit_percent ? ` · ${item.cod_deposit_percent}%` : ''} · {item.payment.status === 'paid' && item.cod_deposit_amount > 0 ? 'Đã xác minh' : 'Không có tiền cọc'}</dd></div><div><dt className="text-black/50">Còn thu khi nhận hàng</dt><dd className="mt-1 font-medium">{money(item.cod_remaining_amount)} · {item.cod_remaining_collected_at ? 'Đã thu' : 'Chưa thu'}</dd></div>{sellerView && <div><dt className="text-black/50">Đối soát COD</dt><dd className="mt-1 font-medium">{sellerFinance?.seller_paid_at ? 'Tiền cọc đã giải ngân vào số dư' : sellerFinance?.cod_remaining_collection_type === 'direct' && item.cod_remaining_collected_at ? 'Đã thu trực tiếp; khoản này không được ghi có vào ví' : sellerFinance?.carrier_settled_at ? 'Đơn vị giao nhận đã đối soát' : 'Chờ xác nhận thu và đối soát'}{item.delivery_status === 'failed' ? ` · Giao thất bại: ${item.delivery_failed_reason || 'chưa rõ lý do'}` : item.delivery_status === 'returned_to_seller' ? ' · Đã hoàn về người bán' : ''}</dd></div>}</>}
         {item.status === 'pending_payment' && <div><dt className="text-black/50">Giữ sản phẩm đến</dt><dd className="mt-1 font-medium">{new Date(item.expires_at).toLocaleString('vi-VN')}</dd></div>}
-        {sellerView && sellerFinance?.release_eligible_at && sellerFinance.payout_status !== 'credited_to_wallet' && <div><dt className="text-black/50">Thời điểm dự kiến đủ điều kiện giải ngân</dt><dd className="mt-1 font-medium">{new Date(sellerFinance.release_eligible_at).toLocaleString('vi-VN')}</dd></div>}
+        {sellerView && sellerFinance && <div><dt className="text-black/50">Tình trạng giải ngân</dt><dd className="mt-1 font-medium">{payoutStatusNames[sellerFinance.payout_status] ?? 'Đang được kiểm tra'}{sellerFinance.wallet_credited_at ? ` lúc ${new Date(sellerFinance.wallet_credited_at).toLocaleString('vi-VN')}` : ''}</dd></div>}
+        {sellerView && sellerFinance?.release_eligible_at && sellerFinance.payout_status !== 'credited_to_wallet' && <div><dt className="text-black/50">Dự kiến đủ điều kiện từ</dt><dd className="mt-1 font-medium">{new Date(sellerFinance.release_eligible_at).toLocaleString('vi-VN')}</dd></div>}
         {item.shipping_carrier && <div><dt className="text-black/50">Đơn vị vận chuyển</dt><dd className="mt-1 font-medium">{item.shipping_carrier}</dd></div>}
         {item.tracking_number && <div><dt className="text-black/50">Mã vận đơn</dt><dd className="mt-1 font-mono font-medium">{item.tracking_number}</dd></div>}
       </dl>
-      {(item.payment?.method === 'cod' || item.payment?.provider === 'cod') && item.status === 'cancelled' && item.delivery_status === 'returned_to_seller' && item.payment.status === 'paid' && !item.cod_deposit_wallet_consent_at && item.buyer.id === userId && <Button className="mb-4" variant="outline" disabled={busy} onClick={() => void consentCodDepositWalletRefund(item.id)}>Đồng ý nhận hoàn cọc vào số dư mô phỏng</Button>}
+      {(item.payment?.method === 'cod' || item.payment?.provider === 'cod') && item.status === 'cancelled' && item.delivery_status === 'returned_to_seller' && item.payment.status === 'paid' && !item.cod_deposit_wallet_consent_at && item.buyer.id === userId && <Button className="mb-4" variant="outline" disabled={busy} onClick={() => void consentCodDepositWalletRefund(item.id)}>Đồng ý nhận hoàn cọc vào ví H-Smart</Button>}
       <section className="mb-5 rounded-2xl bg-[#f8f8f8] p-4 sm:p-5"><h3 className="text-sm font-bold">Tiến trình đơn hàng</h3>{item.status === 'cancelled' ? <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-800">Đơn hàng đã bị hủy.</p> : <ol className="mt-4 space-y-3" aria-label="Các bước của đơn hàng">{orderStages.map((status, index) => { const event = item.status_history?.find((entry) => entry.to_status === status); const done = index < currentStageIndex; const current = index === currentStageIndex; return <li key={status} aria-current={current ? 'step' : undefined} className="flex items-start gap-3 text-sm"><span className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-bold ${done ? 'bg-[#2f7049] text-white' : current ? 'bg-[#e65332] text-white' : 'border border-black/20 bg-white text-black/45'}`}>{done ? '✓' : index + 1}</span><span className="min-w-0"><strong className={done ? 'text-[#2f7049]' : current ? 'text-[#b53a20]' : 'text-black/45'}>{labels[status]}</strong>{event && <time className="mt-0.5 block text-xs text-black/50">{new Date(event.changed_at).toLocaleString('vi-VN')}</time>}</span></li> })}</ol>}
-        <details className="mt-4 border-t border-black/10 pt-3"><summary className="cursor-pointer text-xs font-semibold text-black/60">Xem lịch sử cập nhật</summary><ol className="mt-3 space-y-3">{(item.status_history ?? []).map((event, index) => <li key={`${event.to_status}-${event.changed_at}-${index}`} className="flex items-start gap-3 text-sm"><span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold ${event.to_status === 'cancelled' ? 'bg-red-600 text-white' : 'bg-[#2f7049] text-white'}`}>{event.to_status === 'cancelled' ? '!' : '✓'}</span><span><strong className={event.to_status === 'cancelled' ? 'text-red-700' : 'text-black'}>{index === 0 ? 'Đơn được tạo · ' : ''}{labels[event.to_status] ?? event.to_status}</strong><time className="mt-0.5 block text-xs text-black/50">{new Date(event.changed_at).toLocaleString('vi-VN')}</time></span></li>)}</ol></details>
+        <details className="mt-4 border-t border-black/10 pt-3"><summary className="cursor-pointer text-xs font-semibold text-black/60">Xem lịch sử cập nhật</summary><ol className="mt-3 space-y-3">{(item.status_history ?? []).map((event, index) => <li key={`${event.to_status}-${event.changed_at}-${index}`} className="flex items-start gap-3 text-sm"><span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold ${event.to_status === 'cancelled' ? 'bg-red-600 text-white' : 'bg-[#2f7049] text-white'}`}>{event.to_status === 'cancelled' ? '!' : '✓'}</span><span><strong className={event.to_status === 'cancelled' ? 'text-red-700' : 'text-black'}>{index === 0 ? 'Đơn được tạo · ' : ''}{labels[event.to_status] ?? 'Đang cập nhật'}</strong><time className="mt-0.5 block text-xs text-black/50">{new Date(event.changed_at).toLocaleString('vi-VN')}</time></span></li>)}</ol></details>
       </section>
       <div className={`mb-4 rounded-xl border px-4 py-3 ${item.status === 'cancelled' ? 'border-red-200 bg-red-50 text-red-800' : item.status === 'completed' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-[#f4c7b8] bg-[#fff7f3] text-[#85351f]'}`}><p className="text-[11px] font-bold uppercase tracking-wider opacity-70">Việc tiếp theo</p><p className="mt-1 text-sm font-medium">{nextStep(item)}</p></div>
       {item.review && <div className="rounded-2xl bg-[#F0F0F0] p-4 text-sm"><p className="font-medium">Đánh giá của bạn <span className="ml-2 text-amber-500">{'★'.repeat(item.review.rating)}{'☆'.repeat(5 - item.review.rating)}</span></p>{item.review.comment && <p className="mt-1 text-black/70">{item.review.comment}</p>}</div>}
@@ -310,7 +306,5 @@ export default function OrderPages({ accessToken, userId, navigate, mode }: Prop
     </form>}
     {mode === 'create' && order && <div className="space-y-4">{card(order)}<div className="flex flex-wrap gap-2">{actions(order)}<Button variant="outline" onClick={() => navigate('/me/orders')}>Tất cả đơn hàng</Button></div></div>}
     {mode === 'list' && !loading && <div className="space-y-4">{orders.length ? orders.map(card) : <div className="rounded-[20px] border border-dashed border-black/20 bg-white p-10 text-center"><PackageCheck className="mx-auto mb-3 text-black/45" size={28} /><h2 className="font-semibold">Chưa có đơn hàng nào</h2><p className="mt-2 text-sm text-black/55">Đơn hàng sẽ xuất hiện tại đây sau khi người bán chấp nhận đề nghị của bạn.</p><Button className="mt-5" variant="outline" onClick={() => navigate('/products')}>Khám phá sản phẩm</Button></div>}</div>}
-    {mode === 'list' && !loading && totalPages > 1 && <div className="mt-7 flex items-center justify-center gap-3"><Button variant="outline" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>Trước</Button><span className="text-sm text-black/55">Trang {page} / {totalPages} · {totalOrders} đơn hàng</span><Button variant="outline" disabled={page >= totalPages} onClick={() => setPage((current) => current + 1)}>Sau</Button></div>}
-    {vietQr && <div role="dialog" aria-modal="true" aria-label="Hướng dẫn thanh toán VietQR" className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"><section className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"><div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-bold">Thanh toán bằng VietQR</h2><p className="mt-1 text-sm text-slate-600">Quét mã và nhập đúng số tiền, nội dung chuyển khoản.</p></div><Button variant="outline" size="sm" onClick={() => setVietQr(null)}>Đóng</Button></div><img className="mx-auto mt-4 aspect-square w-64 rounded-xl border object-contain" src={vietQr.qr_url} alt="Mã VietQR thanh toán" /><dl className="mt-4 space-y-2 text-sm"><div className="flex justify-between gap-3"><dt className="text-slate-500">Ngân hàng</dt><dd className="font-medium">{vietQr.bank_id}</dd></div><div className="flex justify-between gap-3"><dt className="text-slate-500">Tài khoản</dt><dd className="font-medium">{vietQr.account_number} · {vietQr.account_name}</dd></div><div className="flex justify-between gap-3"><dt className="text-slate-500">Số tiền</dt><dd className="font-bold">{money(vietQr.amount)}</dd></div><div className="flex justify-between gap-3"><dt className="text-slate-500">Nội dung</dt><dd className="font-mono font-semibold">{vietQr.reference}</dd></div></dl><p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">Ảnh QR chỉ tạo hướng dẫn chuyển khoản. Đơn vẫn chờ xác minh nguồn tiền; không giao hàng chỉ dựa vào ảnh hoặc ảnh chụp chuyển khoản.</p></section></div>}
-  </main>
+    {mode === 'list' && !loading && totalPages > 1 && <div className="mt-7 flex items-center justify-center gap-3"><Button variant="outline" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>Trước</Button><span className="text-sm text-black/55">Trang {page} / {totalPages} · {totalOrders} đơn hàng</span><Button variant="outline" disabled={page >= totalPages} onClick={() => setPage((current) => current + 1)}>Sau</Button></div>}`r`n  </main>
 }

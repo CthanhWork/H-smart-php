@@ -24,7 +24,7 @@ class ProductPromotionController
         ]);
         $result = $service->purchase((int) $request->user()->id, $id, $data['package_type'], (int) $data['expected_fee'], $data['idempotency_key'], $ledger);
         $promotion = $result['promotion'];
-        return response()->json(['status' => 'success', 'message' => 'Đã thanh toán gói ưu tiên từ số dư mô phỏng.', 'data' => [
+        return response()->json(['status' => 'success', 'message' => 'Đã thanh toán gói ưu tiên từ ví.', 'data' => [
             'product' => new ProductResource($result['product']),
             'purchase' => ['package_type' => $promotion->package_type, 'starts_at' => $promotion->starts_at?->toIso8601String(), 'expires_at' => $promotion->expires_at?->toIso8601String()],
         ]]);

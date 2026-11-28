@@ -6,11 +6,12 @@ use App\Modules\Offer\Models\Offer;
 use App\Modules\Order\Models\Order;
 use App\Modules\Product\Models\Product;
 use App\Modules\Wallet\Services\WalletLedger;
+use DateTimeInterface;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
-use DateTimeInterface;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 
@@ -18,7 +19,16 @@ class VnPayService
 {
     public function mockEnabled(): bool
     {
-        return config('services.vnpay.mode') === 'mock' && app()->environment('local', 'testing');
+        return config('services.vnpay.mode') === 'mock' && app()->environment('testing');
+    }
+
+    public function isSandboxGateway(): bool
+    {
+        $paymentUrl = (string) config('services.vnpay.payment_url');
+
+        return config('services.vnpay.mode') === 'gateway'
+            && strtolower((string) parse_url($paymentUrl, PHP_URL_SCHEME)) === 'https'
+            && strtolower((string) parse_url($paymentUrl, PHP_URL_HOST)) === 'sandbox.vnpayment.vn';
     }
 
     public function createPaymentUrl(Order $order, Request $request): string
@@ -67,6 +77,7 @@ class VnPayService
         }
 
         $returnUrl = config('services.vnpay.return_url') ?: rtrim(config('app.url'), '/').'/api/v1/payments/vnpay/return';
+
         return $this->createGatewayUrl((int) $order->payment_amount, (string) $order->payment_txn_ref,
             'Thanh toan don hang '.$order->id, $order->expires_at, $request, $returnUrl);
     }
@@ -75,11 +86,11 @@ class VnPayService
     {
         $tmnCode = config('services.vnpay.tmn_code');
         $hashSecret = config('services.vnpay.hash_secret');
-        if (config('services.vnpay.mode') !== 'gateway' || ! $tmnCode || ! $hashSecret) {
+        if (! $this->isSandboxGateway() || ! $tmnCode || ! $hashSecret) {
             throw new ServiceUnavailableHttpException(null, 'Thanh toán VNPay Sandbox chưa được cấu hình đầy đủ.');
         }
         $createdAt = now()->timezone('Asia/Ho_Chi_Minh');
-        $expiresAt = \Illuminate\Support\Carbon::instance($expiresAt)->timezone('Asia/Ho_Chi_Minh');
+        $expiresAt = Carbon::instance($expiresAt)->timezone('Asia/Ho_Chi_Minh');
         $ipAddress = $request->ip() ?: '127.0.0.1';
         if (str_contains($ipAddress, ',')) {
             $ipAddress = trim(explode(',', $ipAddress)[0]);
@@ -101,7 +112,7 @@ class VnPayService
             'vnp_ExpireDate' => $expiresAt->format('YmdHis'),
         ];
         ksort($params);
-        $signData = http_build_query($params, '', '&', PHP_QUERY_RFC1738);
+        $signData = $this->canonicalSignData($params);
         $params['vnp_SecureHash'] = hash_hmac('sha512', $signData, $hashSecret);
 
         return rtrim(config('services.vnpay.payment_url'), '?').'?'.http_build_query($params, '', '&', PHP_QUERY_RFC1738);
@@ -117,14 +128,29 @@ class VnPayService
 
         $params = array_filter($query, fn ($key) => str_starts_with((string) $key, 'vnp_') && ! in_array($key, ['vnp_SecureHash', 'vnp_SecureHashType'], true), ARRAY_FILTER_USE_KEY);
         ksort($params);
-        $expectedHash = hash_hmac('sha512', http_build_query($params, '', '&', PHP_QUERY_RFC1738), $hashSecret);
+        $expectedHash = hash_hmac('sha512', $this->canonicalSignData($params), $hashSecret);
 
         return hash_equals($expectedHash, $secureHash);
+    }
+
+    /** VNPAY v2.1.0 signs URL-encoded keys and values, matching the gateway query string. */
+    private function canonicalSignData(array $params): string
+    {
+        ksort($params);
+
+        return collect($params)
+            ->filter(fn ($value) => is_scalar($value) && (string) $value !== '')
+            ->map(fn ($value, $key) => urlencode((string) $key).'='.urlencode((string) $value))
+            ->implode('&');
     }
 
     /** @return 'success'|'newly_paid'|'failed'|'invalid' */
     public function processIpn(array $query): string
     {
+        if (! $this->isSandboxGateway()) {
+            return 'invalid';
+        }
+
         if (str_starts_with((string) ($query['vnp_TxnRef'] ?? ''), 'HWS')) {
             return 'invalid';
         }

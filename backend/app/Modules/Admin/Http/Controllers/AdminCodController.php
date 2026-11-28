@@ -21,7 +21,7 @@ class AdminCodController extends Controller
         $data = $request->validate([
             'action' => ['required', 'in:delivered,carrier_settled,seller_paid,delivery_failed,retry_delivery,returned,refund_deposit'],
             'collection_type' => ['required_if:action,delivered', 'nullable', 'in:carrier,direct'],
-            'evidence' => ['required_if:action,delivered,carrier_settled', 'nullable', 'string', 'min:5', 'max:1000'],
+            'evidence' => ['required_if:action,delivered,carrier_settled,seller_paid', 'nullable', 'string', 'min:5', 'max:1000'],
             'reason' => ['required_if:action,delivery_failed,refund_deposit', 'nullable', 'string', 'min:3', 'max:500'],
         ]);
 
@@ -34,12 +34,17 @@ class AdminCodController extends Controller
             $now = now();
             if ($data['action'] === 'delivered') {
                 $depositVerified = (int) $order->cod_deposit_amount === 0 ? in_array($order->payment_status, ['pending', 'paid'], true) : $order->payment_status === 'paid';
-                if ($order->status !== Order::STATUS_SHIPPING || ! $depositVerified || $order->cod_collected_at) {
-                    throw new ConflictHttpException('Đơn COD cần được cọc và đang giao trước khi xác nhận giao và thu tiền.');
+                $deliveryConfirmedByBuyer = $order->status === Order::STATUS_COMPLETED && $order->buyer_confirmed_at !== null;
+                if ((! $deliveryConfirmedByBuyer && $order->status !== Order::STATUS_SHIPPING) || ! $depositVerified || $order->cod_collected_at) {
+                    throw new ConflictHttpException('Đơn COD cần được cọc, đã giao và chưa ghi nhận thu tiền.');
                 }
+                $deliveredAt = $order->delivered_at ?? $now;
+                $releaseEligibleAt = $order->release_eligible_at ?? $deliveredAt->copy()->addHours(48);
+                $hasOpenDispute = $order->disputes()->whereIn('status', ['open', 'reconciliation_pending'])->exists();
                 $order->update([
-                    'status' => Order::STATUS_COMPLETED, 'completed_at' => $now, 'delivered_at' => $now,
-                    'release_eligible_at' => $now->copy()->addHours(48), 'payout_status' => 'awaiting_carrier_settlement',
+                    'status' => Order::STATUS_COMPLETED, 'completed_at' => $order->completed_at ?? $now, 'delivered_at' => $deliveredAt,
+                    'release_eligible_at' => $releaseEligibleAt,
+                    'payout_status' => $hasOpenDispute ? 'held' : ($data['collection_type'] === 'carrier' ? 'awaiting_carrier_settlement' : ($releaseEligibleAt->lte($now) ? 'eligible' : 'awaiting_dispute_window')),
                     'cod_collected_at' => $now, 'delivery_status' => 'delivered', 'delivery_failed_reason' => null,
                     'cod_remaining_collected_at' => $now, 'cod_remaining_collection_type' => $data['collection_type'],
                     'payment_status' => 'paid', 'payment_paid_at' => $now,
@@ -54,14 +59,14 @@ class AdminCodController extends Controller
                 }
                 $order->update([
                     'carrier_settled_at' => $now,
-                    'payout_status' => $order->disputes()->where('status', 'open')->exists() ? 'held'
-                        : ($order->buyer_confirmed_at || ($order->release_eligible_at && $order->release_eligible_at->lte($now)) ? 'eligible' : 'awaiting_dispute_window'),
+                    'payout_status' => $order->disputes()->whereIn('status', ['open', 'reconciliation_pending'])->exists() ? 'held'
+                        : ($order->release_eligible_at && $order->release_eligible_at->lte($now) ? 'eligible' : 'awaiting_dispute_window'),
                 ]);
             } elseif ($data['action'] === 'seller_paid') {
                 if (! $order->cod_collected_at || ! $order->cod_remaining_collected_at
                     || ($order->cod_remaining_collection_type !== 'direct' && ! $order->carrier_settled_at) || ! in_array($order->payout_status, ['eligible', 'awaiting_dispute_window'], true)
                     || ! $order->release_eligible_at || $order->release_eligible_at->isFuture()
-                    || $order->disputes()->where('status', 'open')->exists()) {
+                    || $order->disputes()->whereIn('status', ['open', 'reconciliation_pending'])->exists() || $order->payout_status === 'held') {
                     throw new ConflictHttpException('COD chưa đối soát, chưa qua thời hạn giao hoặc đang có khiếu nại.');
                 }
                 $ledger->releaseOrderToWallet($order);
@@ -98,9 +103,9 @@ class AdminCodController extends Controller
 
         $messages = match ($data['action']) {
             'delivered' => ['Đơn COD đã giao', 'Đã xác nhận giao thành công và thu COD cho đơn #'.$order->id.'. Thời hạn khiếu nại 48 giờ bắt đầu từ đây.'],
-            'refund_deposit' => ['Đã hoàn tiền cọc COD', 'Tiền cọc của đơn #'.$order->id.' đã được hoàn vào số dư mô phỏng của người mua.'],
-            'carrier_settled' => ['Đã đối soát COD', 'Khoản COD của đơn #'.$order->id.' đã được ghi nhận về sổ nội bộ.'],
-            'seller_paid' => ['Tiền bán hàng đã vào số dư', 'Tiền thuần của đơn #'.$order->id.' đã được ghi có vào số dư H-Smart mô phỏng.'],
+            'refund_deposit' => ['Đã hoàn tiền cọc COD', 'Tiền cọc của đơn #'.$order->id.' đã được hoàn vào Ví của người mua.'],
+            'carrier_settled' => ['Đã đối soát COD', 'Khoản COD của đơn #'.$order->id.' đã được ghi nhận về sổ ví.'],
+            'seller_paid' => ['Tiền bán hàng đã vào ví', 'Tiền thuần của đơn #'.$order->id.' đã được ghi có vào Ví của người bán.'],
             'delivery_failed' => ['Giao hàng chưa thành công', 'Đơn #'.$order->id.' được ghi nhận giao thất bại: '.($data['reason'] ?? '').'.'],
             'retry_delivery' => ['Đơn hàng đang giao lại', 'Đơn #'.$order->id.' được ghi nhận đang giao lại.'],
             default => ['Đơn hàng được hoàn về', 'Đơn #'.$order->id.' được ghi nhận đã hoàn về người bán.'],

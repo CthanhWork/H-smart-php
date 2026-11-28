@@ -627,7 +627,7 @@ Nếu thay đổi cả mã nguồn hoặc dependency, build lại thay vì chỉ
 
 **Độ chính xác:** kết quả phụ thuộc chất lượng ảnh, dữ kiện người bán, tài liệu và model ngôn ngữ. YOLO có số liệu validation từ tài liệu nguồn tại mục 4.13; chưa đánh giá lại trên ảnh đồ cũ thực tế của người dùng dự án PHP. Các chỉ số YOLO không đánh giá chất lượng chatbot hoặc bản nháp Gemini.
 
-**Độ mới của kho tri thức:** tài liệu đã duyệt có thể chậm cập nhật so với tính năng. Tại thời điểm đối chiếu, mục thanh toán trong `hsmart-user-guide.md` vẫn mô tả thanh toán mô phỏng, trong khi README và backend đã có tích hợp VNPay. Cần rà soát và duyệt lại nguồn tri thức để chatbot không tiếp tục trả lời theo hướng dẫn cũ.
+**Độ mới của kho tri thức:** nguồn `docs/assistant/approved/hsmart-user-guide.md` đã được cập nhật để mô tả VNPay Sandbox, Ví của tôi, đối soát COD, mốc chờ 48 giờ và giải ngân thủ công. Báo cáo hoặc ví dụ cũ trong kho tài liệu là lịch sử tại thời điểm ghi; không dùng chúng làm hướng dẫn giao dịch hiện tại.
 
 **Phạm vi tính năng:** mã nguồn được khảo sát chưa triển khai AI định giá, AI kiểm duyệt tự động hoặc hệ gợi ý cá nhân hóa bằng model. Mục sản phẩm gợi ý trong trang chi tiết không phải bằng chứng về chức năng AI; trang hiện lấy danh sách sản phẩm và lọc bỏ sản phẩm đang xem.
 

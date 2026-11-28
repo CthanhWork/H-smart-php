@@ -2,8 +2,8 @@
 
 namespace App\Modules\Order\Http\Resources;
 
-use App\Modules\Product\Http\Resources\ProductResource;
 use App\Modules\Order\Models\Order;
+use App\Modules\Product\Http\Resources\ProductResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -15,8 +15,8 @@ class OrderResource extends JsonResource
         $canSeeSellerFinance = $user && ($user->role === 'admin' || (int) $user->id === (int) $this->seller_id);
         $isBuyer = $user && (int) $user->id === (int) $this->buyer_id;
         $hasOpenDispute = $isBuyer && ($this->resource->relationLoaded('disputes')
-            ? $this->disputes->contains(fn ($dispute) => $dispute->status === 'open')
-            : $this->disputes()->where('status', 'open')->exists());
+            ? $this->disputes->contains(fn ($dispute) => in_array($dispute->status, ['open', 'reconciliation_pending'], true))
+            : $this->disputes()->whereIn('status', ['open', 'reconciliation_pending'])->exists());
 
         return [
             'id' => $this->id,
@@ -71,6 +71,7 @@ class OrderResource extends JsonResource
             'tracking_number' => $this->tracking_number,
             'delivery_status' => $this->delivery_status,
             'completed_at' => $this->completed_at?->toIso8601String(),
+            'buyer_confirmed_at' => $this->buyer_confirmed_at?->toIso8601String(),
             'cancelled_at' => $this->cancelled_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
             'status_history' => $this->whenLoaded('statusHistory', fn () => $this->statusHistory->map(fn ($event) => [

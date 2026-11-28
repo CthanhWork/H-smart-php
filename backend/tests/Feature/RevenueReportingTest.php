@@ -73,7 +73,7 @@ class RevenueReportingTest extends TestCase
         $this->assertSame(15_000, $adminReport['metrics']['promotion_revenue']);
         $this->assertSame(-2_000, $adminReport['metrics']['revenue_reversals']);
         $this->assertSame(20_000, $adminReport['metrics']['net_platform_revenue']);
-        $this->assertStringContainsString('Sandbox/mô phỏng', $adminReport['mode']);
+        $this->assertStringContainsString('Sandbox', $adminReport['mode']);
     }
 
     public function test_custom_date_period_uses_vietnam_timezone_and_exclusive_next_day_boundary(): void

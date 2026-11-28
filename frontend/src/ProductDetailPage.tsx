@@ -177,7 +177,7 @@ export default function ProductDetailPage({ accessToken, userId, navigate, isAdm
         </div>
 
         <div className="min-w-0 py-1 sm:px-1">
-          <div className="flex flex-wrap items-center gap-2"><span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold ${isActive ? 'bg-[#fff3ed] text-[#d94322]' : 'bg-black/[0.06] text-[#555]'}`}>{isActive && <BadgeCheck size={14} />}{statusLabel[product.status] ?? product.status}</span><span className="inline-flex items-center gap-1 text-xs text-[#777]"></span></div>
+          <div className="flex flex-wrap items-center gap-2"><span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold ${isActive ? 'bg-[#fff3ed] text-[#d94322]' : 'bg-black/[0.06] text-[#555]'}`}>{isActive && <BadgeCheck size={14} />}{statusLabel[product.status] ?? 'Đang được kiểm tra'}</span><span className="inline-flex items-center gap-1 text-xs text-[#777]"></span></div>
           <h1 className="mt-3 text-xl font-semibold leading-snug text-[#222] sm:text-2xl">{product.title}</h1>
           {product.promotion && <p className={`mt-3 inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${product.promotion.package_type === 'vip' ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-900'}`}>{product.promotion.package_type === 'vip' ? 'Tin VIP · ưu tiên luân phiên trên trang chủ và danh mục' : 'Đang đẩy · ưu tiên luân phiên trong danh mục'} · đến {new Date(product.promotion.expires_at).toLocaleDateString('vi-VN')}</p>}
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#777] sm:text-sm">

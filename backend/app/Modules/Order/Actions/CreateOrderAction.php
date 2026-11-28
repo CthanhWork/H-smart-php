@@ -2,10 +2,10 @@
 
 namespace App\Modules\Order\Actions;
 
+use App\Modules\Admin\Services\MarketplaceSettings;
 use App\Modules\Offer\Models\Offer;
 use App\Modules\Order\Models\Order;
 use App\Modules\Product\Models\Product;
-use App\Modules\Admin\Services\MarketplaceSettings;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
@@ -23,6 +23,11 @@ class CreateOrderAction
                 ->lockForUpdate()
                 ->get();
             foreach ($expiredOrders as $expiredOrder) {
+                // Do not release a product tied to a legacy VietQR reference:
+                // the transfer outcome cannot be confirmed by the retired flow.
+                if ($expiredOrder->payment_provider === 'vietqr') {
+                    continue;
+                }
                 $expiredOrder->update([
                     'status' => Order::STATUS_CANCELLED,
                     'cancelled_at' => now(),
