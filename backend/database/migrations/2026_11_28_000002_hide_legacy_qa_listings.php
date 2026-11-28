@@ -7,6 +7,11 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // This migration only cleans local fixtures. Never alter production listings.
+        if (app()->environment('production')) {
+            return;
+        }
+
         DB::table('products')
             ->where('status', 'active')
             ->where(function ($query): void {

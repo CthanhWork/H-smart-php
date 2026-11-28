@@ -6,8 +6,6 @@ services:
       OPENAI_BASE_URL: ${AI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}
       OPENAI_API_KEY: ${AI_API_KEY:-}
       OPENAI_CHAT_MODEL: ${AI_CHAT_MODEL:-gemini-2.5-flash}
-    volumes:
-      - ./docs/assistant/approved:/knowledge:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)); assert d.get('status') == 'healthy' and d.get('model_loaded')"]

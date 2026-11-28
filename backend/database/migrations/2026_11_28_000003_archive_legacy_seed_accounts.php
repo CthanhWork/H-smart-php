@@ -7,6 +7,11 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // These account/category changes are local fixture cleanup, not production migration work.
+        if (app()->environment('production')) {
+            return;
+        }
+
         $legacyAccounts = DB::table('users')
             ->whereIn('email', [
                 'qa.admin.20261015@hsmart.local',

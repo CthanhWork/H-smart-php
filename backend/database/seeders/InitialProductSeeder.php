@@ -18,6 +18,11 @@ class InitialProductSeeder extends Seeder
      */
     public function run(): void
     {
+        // Sample listings are only for local development and automated tests.
+        if (app()->environment('production')) {
+            return;
+        }
+
         $seller = User::firstOrCreate(
             ['email' => 'seller@hsmart.local'],
             [
